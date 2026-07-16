@@ -1,8 +1,6 @@
 /* ════════════════════════════════════════════════
-   сховище гравців: token → {nick, rating, games, w, l, d}
-   простий JSON-файл. на Railway примонтуй volume у /app/data,
-   інакше рекорди зникнуть при редеплої (аркадний автомат
-   після вимкнення з розетки).
+   сховище гравців: token → {nick, sp, games, w, l, d, streak}
+   json-файл. на railway примонтуй volume у /app/data.
    ════════════════════════════════════════════════ */
 
 const fs = require("fs");
@@ -17,8 +15,15 @@ let saveTimer = null;
 function load() {
   try {
     if (fs.existsSync(FILE)) players = JSON.parse(fs.readFileSync(FILE, "utf8"));
+    // міграція зі старого поля rating → sp
+    for (const t of Object.keys(players)) {
+      const p = players[t];
+      if (p.sp == null && p.rating != null) p.sp = p.rating;
+      if (p.sp == null) p.sp = 1000;
+      if (p.streak == null) p.streak = 0;
+    }
   } catch (e) {
-    console.error("сховище не прочиталось, починаємо з нуля:", e.message);
+    console.error("сховище не прочиталось, з нуля:", e.message);
     players = {};
   }
 }
@@ -39,7 +44,7 @@ function save() {
 
 function getOrCreate(token, nick) {
   if (!players[token]) {
-    players[token] = { nick, rating: 1000, games: 0, w: 0, l: 0, d: 0, seen: Date.now() };
+    players[token] = { nick, sp: 1000, games: 0, w: 0, l: 0, d: 0, streak: 0, seen: Date.now() };
   } else {
     players[token].nick = nick || players[token].nick;
     players[token].seen = Date.now();
@@ -48,33 +53,31 @@ function getOrCreate(token, nick) {
   return players[token];
 }
 
-function get(token) {
-  return players[token] || null;
-}
+const get = (token) => players[token] || null;
 
-function applyResult(tokenA, tokenB, scoreA, eloDelta) {
-  const a = players[tokenA], b = players[tokenB];
-  if (!a || !b) return { dA: 0, dB: 0 };
-  const dA = eloDelta(a.rating, b.rating, scoreA);
-  const dB = eloDelta(b.rating, a.rating, 1 - scoreA);
-  a.rating += dA; b.rating += dB;
-  a.games++; b.games++;
-  if (scoreA === 1) { a.w++; b.l++; }
-  else if (scoreA === 0) { a.l++; b.w++; }
-  else { a.d++; b.d++; }
+/* застосувати результат матчу (2–5 гравців) */
+function applyMatch(results) {
+  for (const r of results) {
+    const p = players[r.token];
+    if (!p) continue;
+    p.sp = Math.max(0, Math.round(p.sp + r.delta));
+    p.games++;
+    if (r.won) { p.w++; p.streak = (p.streak || 0) + 1; }
+    else if (r.drew) { p.d++; }
+    else { p.l++; p.streak = 0; }
+  }
   save();
-  return { dA, dB };
 }
 
-/* всесвітня таблиця. аркадний стиль: нік + очки, топ-50 */
+/* всесвітня таблиця: нік + очки, топ-N */
 function top(n = 50) {
   return Object.values(players)
     .filter((p) => p.games >= 1)
-    .sort((x, y) => y.rating - x.rating)
+    .sort((x, y) => y.sp - x.sp)
     .slice(0, n)
-    .map((p) => ({ nick: p.nick, rating: p.rating, games: p.games }));
+    .map((p) => ({ nick: p.nick, sp: p.sp, games: p.games, streak: p.streak }));
 }
 
 load();
 
-module.exports = { getOrCreate, get, applyResult, top };
+module.exports = { getOrCreate, get, applyMatch, top };

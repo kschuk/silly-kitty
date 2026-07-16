@@ -1,30 +1,43 @@
 /* ════════════════════════════════════════════════
-   ДУР-КИЦЬ · онлайн-сервер
-   express + socket.io. руки живуть тут, клієнт бачить лише своє.
+   ДУР-КИЦЬ · онлайн-сервер v2 · столи 2–5
    ════════════════════════════════════════════════ */
 
 const express = require("express");
 const http = require("http");
+const path = require("path");
 const { Server } = require("socket.io");
 const core = require("./core");
 const store = require("./store");
 
 const PORT = process.env.PORT || 3000;
-const RECONNECT_MS = 60_000;   // час на повернення після розриву
-const IDLE_MS = 120_000;       // бездіяльність → технічна поразка
+const RECONNECT_MS = 10 * 60_000;  // лагідний таймер повернення
+const IDLE_ATTACK_MS = 180_000;    // мовчання атакера → викидання
+const IDLE_SOFT_MS = 90_000;       // мовчання інших → лагідна автодія
+
+/* швидкісний буст: множник на ЗДОБУТІ очки за тривалістю партії */
+function speedMult(ms) {
+  const m = ms / 60000;
+  if (m < 4) return 1.5;
+  if (m < 8) return 1.2;
+  return 1.0;
+}
+const STREAK_MULT = 1.25;   // серія з 3+ перемог
+const ROOKIE_MULT = 1.5;    // перші 10 ігор
+const K_BASE = 32;
 
 const app = express();
-app.use(express.static(require("path").join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public")));
 app.get("/health", (_q, r) => r.json({ ok: true }));
-app.get("/top", (_q, r) => r.json(store.top(50)));
+app.get("/top", (_q, r) =>
+  r.json(store.top(50).map((p) => ({ ...p, rank: core.rankOf(p.sp) })))
+);
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-/* ── стан сервера ── */
-const rooms = new Map();          // code → game
-const byToken = new Map();        // token → code активної гри
-let queue = [];                   // швидка гра: [{token, socketId}]
+const rooms = new Map();
+const byToken = new Map();
+let queue = [];
 
 const CODE_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 function newCode() {
@@ -37,138 +50,202 @@ function newCode() {
 function newGame(code) {
   return {
     code,
-    seats: { A: null, B: null },  // {token, nick, socketId, connected, lastAct}
+    players: {},              // seat → {token, nick, socketId, connected, lastAct, dcTimer}
+    order: [],                // сидіння в порядку приєднання; order[0] — хост
     state: null,
-    nyavPicks: { A: null, B: null },
-    rematch: { A: false, B: false },
+    nyavPicks: {},
+    rematch: {},
+    startedAt: 0,
     finished: false,
-    ratedApplied: false,
+    settled: false,
+    deltas: null,
   };
 }
 
-function seatOf(game, token) {
-  if (game.seats.A?.token === token) return "A";
-  if (game.seats.B?.token === token) return "B";
-  return null;
+const seatOf = (g, token) =>
+  Object.keys(g.players).find((s) => g.players[s].token === token) || null;
+
+const nickOf = (g, seat) => g.players[seat]?.nick || "хтось";
+
+/* ── очки ── */
+
+function settle(game) {
+  if (game.settled || !game.state?.result) return;
+  game.settled = true;
+  game.finished = true;
+  const st = game.state;
+  const seats = st.seats;
+  const n = seats.length;
+  const dur = Date.now() - game.startedAt;
+  const sm = speedMult(dur);
+  const raw = {};
+  for (const a of seats) {
+    let d = 0;
+    const pa = store.get(game.players[a].token);
+    for (const b of seats) {
+      if (a === b) continue;
+      const pb = store.get(game.players[b].token);
+      const sc = st.places[a] < st.places[b] ? 1 : st.places[a] > st.places[b] ? 0 : 0.5;
+      d += core.eloDelta(pa.sp, pb.sp, sc, K_BASE / (n - 1));
+    }
+    raw[a] = d;
+  }
+  game.deltas = {};
+  game.boosts = {};
+  for (const seat of seats) {
+    const p = store.get(game.players[seat].token);
+    let d = raw[seat];
+    const boosts = [];
+    if (d > 0) {
+      if (sm > 1) { d *= sm; boosts.push(`швидкість ×${sm}`); }
+      if ((p.streak || 0) >= 3) { d *= STREAK_MULT; boosts.push(`серія ×${STREAK_MULT}`); }
+      if ((p.games || 0) < 10) { d *= ROOKIE_MULT; boosts.push(`новачок ×${ROOKIE_MULT}`); }
+    }
+    game.deltas[seat] = Math.round(d);
+    game.boosts[seat] = boosts;
+  }
+  const results = seats.map((seat) => ({
+    token: game.players[seat].token,
+    delta: game.deltas[seat],
+    won: st.places[seat] === 1 && !seats.some((x) => x !== seat && st.places[x] === 1),
+    drew: seats.some((x) => x !== seat && st.places[x] === st.places[seat] && st.places[seat] === 1),
+  }));
+  store.applyMatch(results);
 }
 
-/* ── тексти. складаються тут, персонально для кожного сидіння ── */
+/* ── тексти ── */
 
 const nyavUa = { lapka: "лапка", kihot: "кіготь", khvist: "хвіст" };
 const nyavVerb = { lapka: "притискає", kihot: "чіпляє", khvist: "вислизає з-під" };
 const nyavGen = { lapka: "лапки", kihot: "кігтя", khvist: "хвоста" };
+const placeWord = (p) => `${p}-е місце`;
 
-function boutMsg(ev, youWereAttacker, oppNick) {
-  if (ev.defended) {
-    const base =
-      ev.reason === "nip" ? "після ніпа не підкидають. бито." :
-      ev.reason === "limit" ? "ліміт. бито." : "бито.";
-    return base;
-  }
-  const what = ev.nipOnly ? "ніпа" : `${ev.count}`;
-  return ev.taker === "you"
-    ? (ev.nipOnly ? "ти забираєш ніпа. тепер він твій." : `ти забираєш ${what}.`)
-    : (ev.nipOnly ? `${oppNick} забирає ніпа.` : `${oppNick} забирає ${what}.`);
+function exitText(kind, mine, nick) {
+  if (kind === "shed") return mine ? "ти скинув усі карти. вийшов!" : `${nick} скинув усі карти.`;
+  if (kind === "nip") return mine ? "останній ніп у руці! ніп-вихід." : `${nick}: останній ніп. ніп-вихід.`;
+  if (kind === "durkyts") return mine ? "ти — дур-киць. буває." : `${nick} — дур-киць.`;
+  return mine ? "тебе викинуло з гри." : `${nick} покинув гру.`;
 }
 
 function resultView(game, seat) {
-  const r = game.state.result;
-  const opp = game.seats[core.other(seat)]?.nick || "суперник";
-  const mine = r.winner === seat, draw = r.winner === "draw";
-  let big, text;
-  if (r.kind === "forfeit") {
-    big = mine ? "ТЕХНІЧНА ПЕРЕМОГА" : "ТЕХНІЧНА ПОРАЗКА";
-    text = mine ? `${opp} зник. няв.` : "тебе не дочекались.";
-  } else if (r.kind === "bothEmpty") { big = "НІЧИЯ"; text = "обидві руки порожні. підозріло."; }
-  else if (r.kind === "bothNip") { big = "НІЧИЯ"; text = "в обох по останньому ніпу. няв."; }
-  else if (r.kind === "nip") {
-    big = mine ? "НІП-ПЕРЕМОГА" : `НІП-ПЕРЕМОГА: ${opp.toUpperCase()}`;
-    text = mine ? "останній ніп у руці, добір пустий. автоматична перемога!" : `у ${opp} лишився останній ніп. так буває.`;
-  } else {
-    big = mine ? `${opp.toUpperCase()} — ДУР-КИЦЬ` : "ТИ — ДУР-КИЦЬ";
-    text = mine ? "ти вийшов з гри першим. вітаю." : `${opp} вийшов першим. буває.`;
-  }
-  const me = store.get(game.seats[seat].token);
+  const st = game.state;
+  const myPlace = st.places[seat];
+  const shared = st.seats.filter((x) => st.places[x] === myPlace).length > 1;
+  const kind = st.exitKind[seat];
+  let big;
+  if (kind === "drop" || kind === "dc" || kind === "idle") big = "ТЕХНІЧНИЙ ВИХІД";
+  else if (myPlace === 1 && shared) big = "НІЧИЯ НАГОРІ";
+  else if (myPlace === 1) big = kind === "nip" ? "НІП-ПЕРЕМОГА" : "ПЕРЕМОГА";
+  else if (kind === "durkyts") big = "ТИ — ДУР-КИЦЬ";
+  else big = placeWord(myPlace).toUpperCase();
+  const p = store.get(game.players[seat].token);
   return {
-    big, text, draw, win: mine,
-    ratingDelta: game.deltas ? game.deltas[seat] : 0,
-    rating: me?.rating ?? 1000,
-    rank: core.rankOf(me?.rating ?? 1000),
+    big,
+    text: exitText(kind, true, ""),
+    standings: st.result.standings.map((x) => ({
+      nick: nickOf(game, x),
+      place: st.places[x],
+      delta: game.deltas ? game.deltas[x] : 0,
+      kind: st.exitKind[x],
+      you: x === seat,
+    })),
+    spDelta: game.deltas ? game.deltas[seat] : 0,
+    boosts: game.boosts ? game.boosts[seat] : [],
+    sp: p?.sp ?? 1000,
+    rank: core.rankOf(p?.sp ?? 1000),
   };
 }
 
-/* персональний вид стану для сидіння */
 function viewFor(game, seat, msg = "") {
   const st = game.state;
-  const opp = core.other(seat);
-  const oppSeat = game.seats[opp];
-  const me = store.get(game.seats[seat].token);
+  const p = store.get(game.players[seat].token);
+  const others = (st ? st.seats : game.order).filter((x) => x !== seat).map((x) => {
+    const pl = game.players[x];
+    const psp = store.get(pl.token)?.sp ?? 1000;
+    return {
+      seat: x,
+      nick: pl.nick,
+      sp: psp,
+      rank: core.rankOf(psp),
+      handCount: st ? st.hands[x].length : 0,
+      connected: pl.connected,
+      active: st ? st.active.includes(x) : true,
+      role: st ? (st.attacker === x ? "attack" : st.defender === x ? "defend" : null) : null,
+      passed: st ? st.passes.includes(x) : false,
+      place: st ? st.places[x] ?? null : null,
+      inNyav: st?.nyavSet ? st.nyavSet.includes(x) : false,
+      picked: st?.nyavSet ? !!game.nyavPicks[x] : false,
+    };
+  });
+  const yourRole = st ? (st.attacker === seat ? "attack" : st.defender === seat ? "defend" : "thrower") : null;
   return {
     code: game.code,
     seat,
+    host: game.order[0] === seat,
+    started: !!st,
+    players: game.order.map((x) => ({ nick: nickOf(game, x), you: x === seat, host: x === game.order[0] })),
     you: {
-      nick: game.seats[seat].nick,
-      rating: me?.rating ?? 1000,
-      rank: core.rankOf(me?.rating ?? 1000),
+      nick: game.players[seat].nick,
+      sp: p?.sp ?? 1000,
+      rank: core.rankOf(p?.sp ?? 1000),
       hand: st ? st.hands[seat] : [],
+      active: st ? st.active.includes(seat) : true,
+      role: yourRole,
+      passed: st ? st.passes.includes(seat) : false,
+      place: st ? st.places[seat] ?? null : null,
     },
-    opp: {
-      nick: oppSeat?.nick || null,
-      rating: oppSeat ? (store.get(oppSeat.token)?.rating ?? 1000) : null,
-      handCount: st ? st.hands[opp].length : 0,
-      connected: oppSeat?.connected ?? false,
-    },
+    others,
     deckCount: st ? st.deck.length : 0,
     discard: st ? st.discard : 0,
     table: st ? st.table : [],
-    phase: st ? st.phase : "wait",
-    yourTurn: st
-      ? (st.phase === "attack" || st.phase === "throw" || st.phase === "pileOn")
-        ? st.attacker === seat
-        : st.phase === "defend"
-        ? st.attacker !== seat
-        : st.phase === "nyav"
-        ? !game.nyavPicks[seat]
-        : false
-      : false,
-    youAttack: st ? st.attacker === seat : false,
+    phase: st ? st.phase : "lobby",
     limit: st ? st.limit : 6,
     nipUsed: st ? st.nipUsed : false,
-    nyav: st && st.phase === "nyav"
-      ? { youPicked: !!game.nyavPicks[seat], oppPicked: !!game.nyavPicks[opp] }
+    canThrow: st ? core.canSeatThrow(st, seat) : false,
+    nyav: st?.phase === "nyav"
+      ? { inSet: st.nyavSet.includes(seat), youPicked: !!game.nyavPicks[seat], set: st.nyavSet.map((x) => nickOf(game, x)) }
       : null,
     msg,
-    result: st && st.result ? resultView(game, seat) : null,
+    result: st?.result ? resultView(game, seat) : null,
   };
 }
 
-function pushState(game, msgs = { A: "", B: "" }) {
-  for (const seat of ["A", "B"]) {
-    const p = game.seats[seat];
-    if (p?.socketId) io.to(p.socketId).emit("state", viewFor(game, seat, msgs[seat]));
+function pushState(game, msgFn) {
+  for (const seat of Object.keys(game.players)) {
+    const p = game.players[seat];
+    if (p?.socketId)
+      io.to(p.socketId).emit("state", viewFor(game, seat, msgFn ? msgFn(seat) : ""));
   }
 }
 
-function bothMsgs(a, b) { return { A: a, B: b }; }
+/* ── життєвий цикл кімнати ── */
 
-/* ── завершення з рейтингом ── */
-
-function settle(game) {
-  if (game.ratedApplied || !game.state?.result) return;
-  game.ratedApplied = true;
-  game.finished = true;
-  const r = game.state.result;
-  const scoreA = r.winner === "A" ? 1 : r.winner === "draw" ? 0.5 : 0;
-  const { dA, dB } = store.applyResult(
-    game.seats.A.token, game.seats.B.token, scoreA, core.eloDelta
-  );
-  game.deltas = { A: dA, B: dB };
+function startDeal(game) {
+  game.state = core.deal(game.order);
+  game.nyavPicks = {};
+  game.rematch = {};
+  game.finished = false;
+  game.settled = false;
+  game.deltas = null;
+  game.boosts = null;
+  game.startedAt = Date.now();
+  for (const s of Object.keys(game.players)) game.players[s].lastAct = Date.now();
+  const f = game.state.first;
+  if (f.type === "low")
+    pushState(game, (seat) =>
+      seat === f.seat
+        ? `найменша карта (${f.val}) у тебе. атакуй.`
+        : `найменша карта (${f.val}) у ${nickOf(game, f.seat)}.`
+    );
+  else
+    pushState(game, (seat) =>
+      f.seats.includes(seat)
+        ? "найменші карти рівні. няв-няв-няв: обери знак."
+        : `няв-няв-няв між: ${f.seats.map((x) => nickOf(game, x)).join(", ")}. спостерігай.`
+    );
 }
 
-function forfeit(game, loserSeat) {
-  if (game.finished || !game.state) return;
-  game.state.result = { winner: core.other(loserSeat), kind: "forfeit" };
-  game.state.phase = "over";
+function endAndSettle(game) {
   settle(game);
   pushState(game);
   scheduleCleanup(game);
@@ -176,38 +253,28 @@ function forfeit(game, loserSeat) {
 
 function scheduleCleanup(game) {
   setTimeout(() => {
-    // кімната живе ще 10 хв після фіналу — на реванш
-    if (rooms.get(game.code) === game && game.finished && !game.state?.rematched) {
-      for (const s of ["A", "B"]) {
-        const t = game.seats[s]?.token;
-        if (t && byToken.get(t) === game.code) byToken.delete(t);
+    if (rooms.get(game.code) === game && game.finished && !game.rematched) {
+      for (const s of Object.keys(game.players)) {
+        const t = game.players[s].token;
+        if (byToken.get(t) === game.code) byToken.delete(t);
       }
       rooms.delete(game.code);
     }
   }, 10 * 60_000);
 }
 
-/* ── старт партії в кімнаті ── */
-
-function startDeal(game) {
-  game.state = core.deal();
-  game.nyavPicks = { A: null, B: null };
-  game.rematch = { A: false, B: false };
-  game.finished = false;
-  game.ratedApplied = false;
-  game.deltas = null;
-  const f = game.state.first;
-  if (f.type === "low") {
-    const att = f.seat;
-    pushState(game, bothMsgs(
-      att === "A" ? `найменша карта (${f.val}) у тебе. атакуй.` : `найменша карта (${f.val}) у суперника.`,
-      att === "B" ? `найменша карта (${f.val}) у тебе. атакуй.` : `найменша карта (${f.val}) у суперника.`
-    ));
+/* викидання гравця з активної гри */
+function dropFromGame(game, seat, reason) {
+  if (!game.state || game.finished) return;
+  const nick = nickOf(game, seat);
+  const r = core.dropPlayer(game.state, seat, reason);
+  if (!r.gone) return;
+  const t = game.players[seat].token;
+  if (byToken.get(t) === game.code && reason !== "dc") byToken.delete(t);
+  if (game.state.result) {
+    endAndSettle(game);
   } else {
-    pushState(game, bothMsgs(
-      "найменші карти рівні. няв-няв-няв: обери знак.",
-      "найменші карти рівні. няв-няв-няв: обери знак."
-    ));
+    pushState(game, (s) => (s === seat ? "ти поза грою." : `${nick} вибуває. граємо далі.`));
   }
 }
 
@@ -223,28 +290,24 @@ io.on("connection", (socket) => {
     token = t;
     const p = store.getOrCreate(token, nick);
     socket.data.token = token;
-
-    // повернення в активну гру, якщо була
     const code = byToken.get(token);
     const game = code ? rooms.get(code) : null;
     if (game && !game.finished) {
       const seat = seatOf(game, token);
       if (seat) {
-        game.seats[seat].socketId = socket.id;
-        game.seats[seat].connected = true;
-        clearTimeout(game.seats[seat].dcTimer);
-        cb?.({ profile: { nick: p.nick, rating: p.rating, rank: core.rankOf(p.rating) }, resumed: true });
-        pushState(game, bothMsgs(
-          seat === "A" ? "з поверненням." : "суперник повернувся.",
-          seat === "B" ? "з поверненням." : "суперник повернувся."
-        ));
+        game.players[seat].socketId = socket.id;
+        game.players[seat].connected = true;
+        game.players[seat].lastAct = Date.now();
+        clearTimeout(game.players[seat].dcTimer);
+        cb?.({ profile: { nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp) }, resumed: true });
+        pushState(game, (s) => (s === seat ? "з поверненням." : `${nickOf(game, seat)} повернувся.`));
         return;
       }
     }
-    cb?.({ profile: { nick: p.nick, rating: p.rating, rank: core.rankOf(p.rating) } });
+    cb?.({ profile: { nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp) } });
   });
 
-  const requireGame = () => {
+  const ctx = () => {
     const code = token && byToken.get(token);
     const game = code && rooms.get(code);
     if (!game) return null;
@@ -257,10 +320,12 @@ io.on("connection", (socket) => {
     if (byToken.has(token)) return cb?.({ error: "ти вже в кімнаті." });
     const code = newCode();
     const game = newGame(code);
-    game.seats.A = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
+    game.players.A = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
+    game.order = ["A"];
     rooms.set(code, game);
     byToken.set(token, code);
     cb?.({ code });
+    pushState(game);
   });
 
   socket.on("joinRoom", ({ code }, cb) => {
@@ -269,11 +334,22 @@ io.on("connection", (socket) => {
     code = String(code || "").toUpperCase().trim();
     const game = rooms.get(code);
     if (!game) return cb?.({ error: "кімнати нема. код точний?" });
-    if (game.seats.B) return cb?.({ error: "кімната повна." });
-    if (game.seats.A.token === token) return cb?.({ error: "сам із собою? няв." });
-    game.seats.B = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
+    if (game.state) return cb?.({ error: "гра вже йде." });
+    if (game.order.length >= core.MAX_SEATS) return cb?.({ error: "стіл повний (5)." });
+    if (Object.values(game.players).some((p) => p.token === token)) return cb?.({ error: "сам із собою? няв." });
+    const seat = core.SEATS_ALL.find((s) => !game.players[s]);
+    game.players[seat] = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
+    game.order.push(seat);
     byToken.set(token, code);
     cb?.({ code });
+    pushState(game, (s) => (s === seat ? "ти за столом. чекаємо старту." : `${nickOf(game, seat)} за столом.`));
+  });
+
+  socket.on("startGame", () => {
+    const c = ctx();
+    if (!c) return;
+    const { game, seat } = c;
+    if (game.state || game.order[0] !== seat || game.order.length < 2) return;
     startDeal(game);
   });
 
@@ -282,15 +358,13 @@ io.on("connection", (socket) => {
     if (byToken.has(token)) return cb?.({ error: "ти вже в кімнаті." });
     queue = queue.filter((q) => q.token !== token && io.sockets.sockets.has(q.socketId));
     const oppo = queue.find((q) => q.token !== token);
-    if (!oppo) {
-      queue.push({ token, socketId: socket.id });
-      return cb?.({ queued: true });
-    }
+    if (!oppo) { queue.push({ token, socketId: socket.id }); return cb?.({ queued: true }); }
     queue = queue.filter((q) => q !== oppo);
     const code = newCode();
     const game = newGame(code);
-    game.seats.A = { token: oppo.token, nick: store.get(oppo.token).nick, socketId: oppo.socketId, connected: true, lastAct: Date.now() };
-    game.seats.B = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
+    game.players.A = { token: oppo.token, nick: store.get(oppo.token).nick, socketId: oppo.socketId, connected: true, lastAct: Date.now() };
+    game.players.B = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
+    game.order = ["A", "B"];
     rooms.set(code, game);
     byToken.set(oppo.token, code);
     byToken.set(token, code);
@@ -298,129 +372,134 @@ io.on("connection", (socket) => {
     startDeal(game);
   });
 
-  socket.on("leaveQueue", () => {
-    queue = queue.filter((q) => q.token !== token);
-  });
+  socket.on("leaveQueue", () => { queue = queue.filter((q) => q.token !== token); });
 
   socket.on("nyav", ({ sign }) => {
-    const ctx = requireGame();
-    if (!ctx || ctx.game.state?.phase !== "nyav") return;
-    if (!core.NYAV.includes(sign)) return;
-    const { game, seat } = ctx;
-    if (game.nyavPicks[seat]) return;
+    const c = ctx();
+    if (!c || c.game.state?.phase !== "nyav") return;
+    const { game, seat } = c;
+    if (!core.NYAV.includes(sign) || !game.state.nyavSet.includes(seat) || game.nyavPicks[seat]) return;
     game.nyavPicks[seat] = sign;
-    game.seats[seat].lastAct = Date.now();
-    const opp = core.other(seat);
-    if (!game.nyavPicks[opp]) {
-      pushState(game, bothMsgs(
-        seat === "A" ? "знак прийнято. чекаємо суперника." : "суперник обрав знак.",
-        seat === "B" ? "знак прийнято. чекаємо суперника." : "суперник обрав знак."
-      ));
+    game.players[seat].lastAct = Date.now();
+    const setNow = game.state.nyavSet;
+    if (!setNow.every((x) => game.nyavPicks[x])) {
+      pushState(game, (s) => (s === seat ? "знак прийнято. чекаємо решту." : `${nickOf(game, seat)} обрав знак.`));
       return;
     }
-    const a = game.nyavPicks.A, b = game.nyavPicks.B;
-    const w = core.resolveNyav(a, b);
-    if (w === "tie") {
-      game.nyavPicks = { A: null, B: null };
-      pushState(game, bothMsgs(
-        `обоє: ${nyavUa[a]}. ще раз.`,
-        `обоє: ${nyavUa[b]}. ще раз.`
-      ));
-      return;
+    const picks = {};
+    for (const x of setNow) picks[x] = game.nyavPicks[x];
+    const revealTxt = setNow.map((x) => `${nickOf(game, x)}: ${nyavUa[picks[x]]}`).join(" · ");
+    const r = core.applyNyav(game.state, picks);
+    game.nyavPicks = {};
+    if (r.done) {
+      const w = r.winner, ws = picks[w];
+      const losers = setNow.filter((x) => x !== w);
+      const ls = picks[losers[0]];
+      const verdict = `${nyavUa[ws]} ${nyavVerb[ws]} ${nyavGen[ls]}.`;
+      pushState(game, (s) => `${revealTxt}. ${verdict} ${s === w ? "атакуєш ти." : `атакує ${nickOf(game, w)}.`}`);
+    } else {
+      pushState(game, (s) =>
+        `${revealTxt}. ще раз${game.state.nyavSet.includes(s) ? ": обери знак." : ` між: ${game.state.nyavSet.map((x) => nickOf(game, x)).join(", ")}.`}`
+      );
     }
-    game.state.attacker = w;
-    core.setupBout(game.state);
-    const ws = w === "A" ? a : b, ls = w === "A" ? b : a;
-    const verdict = `${nyavUa[ws]} ${nyavVerb[ws]} ${nyavGen[ls]}.`;
-    pushState(game, bothMsgs(
-      `${verdict} ${w === "A" ? "атакуєш ти." : "атакує суперник."}`,
-      `${verdict} ${w === "B" ? "атакуєш ти." : "атакує суперник."}`
-    ));
   });
 
   socket.on("move", ({ type, uid }) => {
-    const ctx = requireGame();
-    if (!ctx || !ctx.game.state || ctx.game.finished) return;
-    const { game, seat } = ctx;
+    const c = ctx();
+    if (!c || !c.game.state || c.game.finished) return;
+    const { game, seat } = c;
     const s = game.state;
     let r = { ok: false };
     if (type === "attack") r = core.moveAttack(s, seat, uid);
     else if (type === "defend") r = core.moveDefend(s, seat, uid);
     else if (type === "take") r = core.moveTake(s, seat);
     else if (type === "throw") r = core.moveThrow(s, seat, uid);
-    else if (type === "bito") r = core.moveBito(s, seat);
-    else if (type === "done") r = core.moveDone(s, seat);
+    else if (type === "pass") r = core.movePass(s, seat);
     if (!r.ok) return;
-    game.seats[seat].lastAct = Date.now();
-
-    const opp = core.other(seat);
-    const oppNick = game.seats[opp]?.nick || "суперник";
-    const meNick = game.seats[seat]?.nick || "суперник";
-    let msgs;
+    game.players[seat].lastAct = Date.now();
+    const me = nickOf(game, seat);
     const ev = r.ev;
+    let msgFn;
     if (ev.type === "attack")
-      msgs = bothMsgs(
-        seat === "A" ? (ev.nip ? "ніп на столі." : "атака пішла.") : (ev.nip ? `${oppNick} атакує ніпом. бий ніпом або бери.` : "бий або бери."),
-        seat === "B" ? (ev.nip ? "ніп на столі." : "атака пішла.") : (ev.nip ? `${meNick} атакує ніпом. бий ніпом або бери.` : "бий або бери.")
-      );
+      msgFn = (x) => x === seat
+        ? (ev.nip ? "ніп на столі." : "атака пішла.")
+        : (x === s.defender ? (ev.nip ? `${me} атакує ніпом. бий ніпом або бери.` : `${me} атакує. бий або бери.`) : `${me} атакує.`);
     else if (ev.type === "throw")
-      msgs = bothMsgs(
-        seat === "A" ? "підкинуто." : `${meNick} підкидає. бий або бери.`,
-        seat === "B" ? "підкинуто." : `${meNick} підкидає. бий або бери.`
-      );
-    else if (ev.type === "defend" && ev.allBeaten)
-      msgs = bothMsgs(
-        seat === "A" ? "відбито. хай вирішує." : "усе відбито. підкинеш чи бито?",
-        seat === "B" ? "відбито. хай вирішує." : "усе відбито. підкинеш чи бито?"
-      );
-    else if (ev.type === "defend")
-      msgs = bothMsgs("побито. є ще.", "побито. є ще.");
-    else if (ev.type === "taking")
-      msgs = bothMsgs(
-        seat === "A" ? "береш. чекай докиду." : `${meNick} бере. докинеш?`,
-        seat === "B" ? "береш. чекай докиду." : `${meNick} бере. докинеш?`
-      );
+      msgFn = (x) => x === seat ? "підкинуто." : (x === s.defender ? `${me} підкидає. бий або бери.` : `${me} підкидає.`);
     else if (ev.type === "pileThrow")
-      msgs = bothMsgs("докинуто.", "докинуто.");
+      msgFn = () => `${me} докидає.`;
+    else if (ev.type === "pass")
+      msgFn = (x) => x === seat ? "пас прийнято." : `${me}: пас.`;
+    else if (ev.type === "taking")
+      msgFn = (x) => x === seat ? "береш. чекай докиду." : `${nickOf(game, s.defender)} бере. докинеш?`;
+    else if (ev.type === "defend" && ev.allBeaten)
+      msgFn = (x) => x === s.defender ? "відбито. хай вирішують." : "усе відбито. підкинеш чи пас?";
+    else if (ev.type === "defend")
+      msgFn = () => "побито. є ще.";
     else if (ev.type === "bout") {
-      const forA = boutMsg({ ...ev, taker: ev.taker === "A" ? "you" : "opp" }, s.attacker === "A", game.seats.B?.nick || "суперник");
-      const forB = boutMsg({ ...ev, taker: ev.taker === "B" ? "you" : "opp" }, s.attacker === "B", game.seats.A?.nick || "суперник");
-      const tail = (mySeat) =>
-        s.result ? "" : s.attacker === mySeat ? " твоя атака." : " атакує суперник.";
-      msgs = bothMsgs(forA + tail("A"), forB + tail("B"));
-      if (s.result) settle(game), scheduleCleanup(game);
+      const base = ev.defended
+        ? (ev.reason === "nip" ? "після ніпа не підкидають. бито."
+          : ev.reason === "limit" ? "ліміт. бито."
+          : ev.reason === "dry" ? "підкинути нічого. бито." : "бито.")
+        : null;
+      const exits = ev.exited?.length
+        ? " " + ev.exited.map((x) => exitText(s.exitKind[x], false, nickOf(game, x))).join(" ")
+        : "";
+      msgFn = (x) => {
+        let m = base ?? (ev.taker === x
+          ? (ev.nipOnly ? "ти забираєш ніпа. тепер він твій." : `ти забираєш ${ev.count}.`)
+          : (ev.nipOnly ? `${nickOf(game, ev.taker)} забирає ніпа.` : `${nickOf(game, ev.taker)} забирає ${ev.count}.`));
+        m += exits;
+        if (!s.result)
+          m += s.attacker === x ? " твоя атака." : ` атакує ${nickOf(game, s.attacker)}.`;
+        return m;
+      };
+      if (s.result) { settle(game); pushState(game, msgFn); scheduleCleanup(game); return; }
     }
-    pushState(game, msgs);
+    pushState(game, msgFn);
   });
 
   socket.on("rematch", () => {
-    const ctx = requireGame();
-    if (!ctx || !ctx.game.finished) return;
-    const { game, seat } = ctx;
+    const c = ctx();
+    if (!c || !c.game.finished) return;
+    const { game, seat } = c;
     game.rematch[seat] = true;
-    const opp = core.other(seat);
-    if (game.rematch[opp]) {
-      game.state.rematched = true;
+    const everyone = game.order.filter((x) => game.players[x]?.connected);
+    if (everyone.length >= 2 && everyone.every((x) => game.rematch[x])) {
+      game.order = everyone;
+      game.rematched = true;
       startDeal(game);
+      game.rematched = false;
     } else {
-      const p = game.seats[opp];
-      if (p?.socketId) io.to(p.socketId).emit("state", viewFor(game, opp, "суперник хоче реванш."));
+      pushState(game, (x) => (x === seat ? "чекаємо згоди решти." : `${nickOf(game, seat)} хоче реванш.`));
     }
   });
 
   socket.on("leaveRoom", () => {
-    const ctx = requireGame();
-    if (!ctx) return;
-    const { game, seat } = ctx;
-    if (!game.finished && game.seats.A && game.seats.B) forfeit(game, seat);
+    const c = ctx();
+    if (!c) return;
+    const { game, seat } = c;
+    if (game.state && !game.finished) {
+      /* чесний вихід: спершу викидаємо тих, хто давно зник —
+         щоб той, хто чекав, не платив за чужу втечу */
+      const goneFirst = game.state.active.filter(
+        (x) => x !== seat && !game.players[x].connected
+      );
+      for (const g of goneFirst) dropFromGame(game, g, "dc");
+      if (game.state && !game.finished && game.state.active.includes(seat))
+        dropFromGame(game, seat, "drop");
+    }
     byToken.delete(token);
-    if (game.finished || !game.seats.B) {
-      const opp = core.other(seat);
-      if (!game.seats.B || !game.seats[opp]) rooms.delete(game.code);
+    if (!game.state) {
+      // лобі: звільняємо стілець
+      delete game.players[seat];
+      game.order = game.order.filter((x) => x !== seat);
+      if (!game.order.length) rooms.delete(game.code);
+      else pushState(game, () => "хтось передумав. чекаємо далі.");
     }
   });
 
-  socket.on("top", (cb) => cb?.(store.top(50)));
+  socket.on("top", (cb) => cb?.(store.top(50).map((p) => ({ ...p, rank: core.rankOf(p.sp) }))));
 
   socket.on("disconnect", () => {
     queue = queue.filter((q) => q.socketId !== socket.id);
@@ -429,36 +508,66 @@ io.on("connection", (socket) => {
     const game = code && rooms.get(code);
     if (!game) return;
     const seat = seatOf(game, token);
-    if (!seat || game.seats[seat].socketId !== socket.id) return;
-    game.seats[seat].connected = false;
-    const opp = core.other(seat);
-    if (game.seats[opp]?.socketId)
-      io.to(game.seats[opp].socketId).emit("state", viewFor(game, opp, "суперник зник. чекаємо хвилину."));
-    if (!game.finished && game.seats.A && game.seats.B) {
-      game.seats[seat].dcTimer = setTimeout(() => {
-        if (!game.seats[seat].connected) forfeit(game, seat);
+    if (!seat || game.players[seat].socketId !== socket.id) return;
+    game.players[seat].connected = false;
+    if (game.state && !game.finished && game.state.active.includes(seat)) {
+      pushState(game, (x) => (x === seat ? "" : `${nickOf(game, seat)} зник. чекаємо до 10 хв.`));
+      game.players[seat].dcTimer = setTimeout(() => {
+        if (!game.players[seat]?.connected) dropFromGame(game, seat, "dc");
       }, RECONNECT_MS);
-    } else if (!game.seats.B) {
+    } else if (!game.state) {
+      delete game.players[seat];
+      game.order = game.order.filter((x) => x !== seat);
       byToken.delete(token);
-      rooms.delete(game.code);
+      if (!game.order.length) rooms.delete(game.code);
+      else pushState(game);
     }
   });
 });
 
-/* бездіяльність: хто мовчить понад IDLE_MS у свій хід — технічна поразка */
+/* лагідні автодії при мовчанні */
 setInterval(() => {
   const now = Date.now();
   for (const game of rooms.values()) {
-    if (game.finished || !game.state || !game.seats.A || !game.seats.B) continue;
+    if (game.finished || !game.state) continue;
     const st = game.state;
-    let waitingOn = null;
     if (st.phase === "nyav") {
-      if (!game.nyavPicks.A) waitingOn = "A";
-      else if (!game.nyavPicks.B) waitingOn = "B";
-    } else if (st.phase === "attack" || st.phase === "throw" || st.phase === "pileOn") waitingOn = st.attacker;
-    else if (st.phase === "defend") waitingOn = core.other(st.attacker);
-    if (waitingOn && now - game.seats[waitingOn].lastAct > IDLE_MS) forfeit(game, waitingOn);
+      for (const seat of st.nyavSet || []) {
+        if (!game.nyavPicks[seat] && now - game.players[seat].lastAct > IDLE_SOFT_MS) {
+          game.nyavPicks[seat] = core.NYAV[(Math.random() * 3) | 0];
+          game.players[seat].lastAct = now;
+          if (st.nyavSet.every((x) => game.nyavPicks[x])) {
+            const picks = {};
+            for (const x of st.nyavSet) picks[x] = game.nyavPicks[x];
+            core.applyNyav(st, picks);
+            game.nyavPicks = {};
+            pushState(game, () => "тиша — няв вирішив сам.");
+          }
+        }
+      }
+    } else if (st.phase === "attack") {
+      if (now - game.players[st.attacker].lastAct > IDLE_ATTACK_MS)
+        dropFromGame(game, st.attacker, "idle");
+    } else if (st.phase === "defend") {
+      if (now - game.players[st.defender].lastAct > IDLE_SOFT_MS * 2) {
+        const r = core.moveTake(st, st.defender);
+        game.players[st.defender].lastAct = now;
+        if (r.ok) {
+          if (st.result) { settle(game); pushState(game); scheduleCleanup(game); }
+          else pushState(game, () => `${nickOf(game, st.defender)} мовчить — бере.`);
+        }
+      }
+    } else if (st.phase === "throw" || st.phase === "pileOn") {
+      for (const seat of core.throwers(st)) {
+        if (!st.passes.includes(seat) && now - game.players[seat].lastAct > IDLE_SOFT_MS) {
+          const r = core.movePass(st, seat);
+          game.players[seat].lastAct = now;
+          if (r.ok && st.result) { settle(game); pushState(game); scheduleCleanup(game); break; }
+          if (r.ok) pushState(game, () => `${nickOf(game, seat)} мовчить — пас.`);
+        }
+      }
+    }
   }
 }, 15_000);
 
-server.listen(PORT, () => console.log(`дур-киць сервер на :${PORT}. няв.`));
+server.listen(PORT, () => console.log(`дур-киць сервер v2 на :${PORT}. столи 2–5. няв.`));
