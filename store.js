@@ -19,8 +19,10 @@ function load() {
     for (const t of Object.keys(players)) {
       const p = players[t];
       if (p.sp == null && p.rating != null) p.sp = p.rating;
-      if (p.sp == null) p.sp = 1000;
+      if (p.sp == null) p.sp = 0;
+      if (!p.migr2) { p.sp = Math.max(0, (p.sp | 0) - 1000); p.migr2 = true; }
       if (p.streak == null) p.streak = 0;
+      if (!Array.isArray(p.ach)) p.ach = [];
     }
   } catch (e) {
     console.error("сховище не прочиталось, з нуля:", e.message);
@@ -44,7 +46,7 @@ function save() {
 
 function getOrCreate(token, nick) {
   if (!players[token]) {
-    players[token] = { nick, sp: 1000, games: 0, w: 0, l: 0, d: 0, streak: 0, seen: Date.now() };
+    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], migr2: true, seen: Date.now() };
   } else {
     players[token].nick = nick || players[token].nick;
     players[token].seen = Date.now();
@@ -70,6 +72,16 @@ function applyMatch(results) {
 }
 
 /* всесвітня таблиця: нік + очки, топ-N */
+function award(token, achId) {
+  const p = players[token];
+  if (!p) return false;
+  if (!Array.isArray(p.ach)) p.ach = [];
+  if (p.ach.includes(achId)) return false;
+  p.ach.push(achId);
+  save();
+  return true;
+}
+
 function top(n = 50) {
   return Object.values(players)
     .filter((p) => p.games >= 1)
@@ -80,4 +92,4 @@ function top(n = 50) {
 
 load();
 
-module.exports = { getOrCreate, get, applyMatch, top };
+module.exports = { getOrCreate, get, applyMatch, award, top };

@@ -38,24 +38,18 @@ function resolveNyavGroup(picks) {
   return { winners: seats.filter((s) => picks[s] === winSign) };
 }
 
-/* ── тіри й дивізії (овервоч-стиль) ✎ назви-заглушки ── */
-const TIERS = ["кошеня", "кицька", "киця", "котяра", "вусач", "дур-маф", "маф-легенда"];
-const TIER_SP = 500;   // ширина тіру
-const DIV_SP = 100;    // ширина дивізії, V→I
-const ROMAN = ["I", "II", "III", "IV", "V"];
-
+/* ── ранги: проста унісекс-драбина (для киць і жаб) ✎ ── */
+const RANKS = [
+  [0,   "новачок"],
+  [75,  "спритник"],
+  [175, "хитрюга"],
+  [300, "майстер"],
+  [450, "дур-маф"],
+  [650, "маф-легенда"],
+];
 function rankOf(sp) {
   sp = Math.max(0, sp | 0);
-  const t = Math.min(TIERS.length - 1, Math.floor(sp / TIER_SP));
-  if (t >= TIERS.length - 1) return TIERS[TIERS.length - 1]; // легенда без дивізій
-  const div = 5 - Math.floor((sp - t * TIER_SP) / DIV_SP);   // 5..1
-  return `${TIERS[t]} ${ROMAN[div - 1]}`;
-}
-
-/* класичне ело для пар; у мультиплеєрі кличеться попарно зі зменшеним K */
-function eloDelta(ra, rb, scoreA, K = 32) {
-  const ea = 1 / (1 + Math.pow(10, (rb - ra) / 400));
-  return K * (scoreA - ea);
+  return [...RANKS].reverse().find(([min]) => sp >= min)[1];
 }
 
 /* ── базові помічники ── */
@@ -385,9 +379,9 @@ function maybeEndAfterDrop(s) {
 }
 
 module.exports = {
-  SUITS, NIPS, NYAV, NYAV_BEATS, TIERS, MAX_SEATS, SEATS_ALL,
+  SUITS, NIPS, NYAV, NYAV_BEATS, RANKS, MAX_SEATS, SEATS_ALL,
   NIP_VS_NIP,
-  resolveNyavGroup, applyNyav, eloDelta, rankOf,
+  resolveNyavGroup, applyNyav, rankOf,
   isNip, canBeat, tableVals, undefIdx, minSuitVal, nextActive,
   buildDeck, deal, setupBout, finishBout, processExits,
   canAnyoneThrow, canSeatThrow, throwers,

@@ -78,8 +78,7 @@ async function testTrio() {
     const me = winner.lastResult;
     console.log(`переможець ${winner.name}: +${me.spDelta}, бусти: [${me.boosts.join(", ")}], звання «${me.rank}»`);
     if (me.spDelta <= 0) throw new Error("переможець без очок!");
-    if (!me.boosts.some((b) => b.includes("швидкість"))) throw new Error("швидкісний буст не спрацював на швидкій партії!");
-    if (!me.boosts.some((b) => b.includes("новачок"))) throw new Error("новачковий буст не спрацював!");
+    if (!me.boosts.some((b) => b.includes("швидка"))) throw new Error("швидкісний бонус не спрацював!");
   }
   cs.forEach((c) => c.s.close());
   console.log("тест A OK\n");

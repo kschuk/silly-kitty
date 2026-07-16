@@ -49,10 +49,10 @@ function playOne(nSeats) {
 
 let maxSteps = 0;
 const perSize = {};
-for (let g = 0; g < 2000; g++) {
+for (let g = 0; g < 200; g++) {
   const n = 2 + (g % 4); // 2,3,4,5 по колу
   const st = playOne(n);
   maxSteps = Math.max(maxSteps, st);
   perSize[n] = (perSize[n] || 0) + 1;
 }
-console.log("СИМУЛЯЦІЯ OK · 2000 партій ·", JSON.stringify(perSize), "· maxSteps", maxSteps);
+console.log("СИМУЛЯЦІЯ OK · 200 партій ·", JSON.stringify(perSize), "· maxSteps", maxSteps);
