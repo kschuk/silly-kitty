@@ -1,7 +1,5 @@
 /* ════════════════════════════════════════════════
-   ДУР-КИЦЬ · онлайн-сервер v3 · столи 2–5
-   очки прості: перемога +25, середина +5, останній −15,
-   нічия нагорі +10, швидка партія (<5 хв) — бонус +10.
+   ДУР-КИЦЬ · онлайн-сервер v4 · столи 2–5
    ════════════════════════════════════════════════ */
 
 const express = require("express");
@@ -16,18 +14,33 @@ const RECONNECT_MS = 10 * 60_000;
 const IDLE_ATTACK_MS = 180_000;
 const IDLE_SOFT_MS = 90_000;
 
-const P = { WIN: 25, MID: 5, LOSS: -15, SHARED_TOP: 10, SPEED_BONUS: 10 };
+/* очки: база + веселі модифікатори (лише до плюса) */
+const P = { WIN: 25, MID: 5, LOSS: -15, SHARED_TOP: 10 };
+const BONUS = { SPEED: 10, NIP_FINAL: 5, FULL_TABLE: 5, DRY: 5, STREAK: 5 };
 const SPEED_MS = 5 * 60_000;
-const RANK_SHOW_GAMES = 10; // звання в [] біля ніка — після 10 ігор
+/* анти-накрутка */
+const OVERHEAT_STREAK = 7;      // 7+ перемог поспіль → плюс ×0.25
+const OVERHEAT_MULT = 0.25;
+const FASTWIN_MS = 60_000;      // перемога швидше хвилини
+const FASTWIN_LIMIT = 3;        // три поспіль → бан
+const BAN_MS = 4 * 60_000 + 20_000; // 4:20
+const RANK_SHOW_GAMES = 10;
 
-/* досягнення: челенж → унікальне звання ✎ (іконки додамо потім) */
+const AVATARS = ["cat_black", "cat_white", "cat_rudy", "frog_green", "frog_violet", "frog_blue"];
+
+/* досягнення: челенж → унікальне звання ✎ */
 const ACH = {
-  blyskavka: { name: "блискавка",    desc: "перемога швидше 3 хвилин" },
-  nipdyp:    { name: "ніп-дипломат", desc: "вийти з партії ніп-виходом" },
-  sukha:     { name: "суха лапка",   desc: "перемога, не взявши зі столу жодної карти" },
-  pyatykut:  { name: "п'ятикутник",  desc: "перемога за столом на п'ятьох" },
-  seriya:    { name: "хвиля няву",   desc: "три перемоги поспіль" },
+  blyskavka:   { name: "блискавка",     desc: "перемога швидше 3 хвилин" },
+  nipdyp:      { name: "ніп-дипломат",  desc: "вийти з партії ніп-виходом" },
+  sukha:       { name: "суха лапка",    desc: "перемога, не взявши зі столу жодного разу" },
+  pyatykut:    { name: "п'ятикутник",   desc: "перемога за столом на п'ятьох" },
+  seriya:      { name: "хвиля няву",    desc: "три перемоги поспіль" },
+  maraton:     { name: "марафонець",    desc: "дожити до кінця партії, довшої за 15 хвилин" },
+  kolektsioner:{ name: "колекціонер",   desc: "забрати 20+ карт за партію і не стати дур-кицем" },
+  nyavmaster:  { name: "нявмайстер",    desc: "виграти няв-няв-няв двічі за одну партію" },
+  feniks:      { name: "фенікс",        desc: "перемога після трьох і більше заборів" },
 };
+const TITLE_IDS = Object.keys(ACH);
 
 const app = express();
 app.use(express.static(path.join(__dirname, "public")));
@@ -55,7 +68,7 @@ function newGame(code) {
   return {
     code, players: {}, order: [],
     state: null, nyavPicks: {}, rematch: {}, chat: [],
-    takes: {}, newAch: {},
+    takes: {}, cardsTaken: {}, nyavWins: {}, newAch: {}, banNote: {},
     startedAt: 0, finished: false, settled: false, deltas: null, boosts: null,
   };
 }
@@ -63,12 +76,23 @@ function newGame(code) {
 const seatOf = (g, token) =>
   Object.keys(g.players).find((s) => g.players[s].token === token) || null;
 const nickOf = (g, seat) => g.players[seat]?.nick || "хтось";
-const tagOf = (g, seat) => {
-  const p = store.get(g.players[seat]?.token);
-  return p && p.games >= RANK_SHOW_GAMES ? ` [${core.rankOf(p.sp)}]` : "";
-};
 
-/* ── очки й досягнення ── */
+function tagOf(g, seat) {
+  const p = store.get(g.players[seat]?.token);
+  if (!p) return "";
+  if (p.title && ACH[p.title] && p.ach.includes(p.title)) return ` [${ACH[p.title].name}]`;
+  if (p.games >= RANK_SHOW_GAMES) return ` [${core.rankOf(p.sp)}]`;
+  return "";
+}
+const avatarOf = (g, seat) => store.get(g.players[seat]?.token)?.avatar || "cat_black";
+
+function banLeft(token) {
+  const p = store.get(token);
+  if (!p || !p.banUntil) return 0;
+  return Math.max(0, p.banUntil - Date.now());
+}
+
+/* ── очки, анти-накрутка, історія, досягнення ── */
 
 function settle(game) {
   if (game.settled || !game.state?.result) return;
@@ -79,13 +103,24 @@ function settle(game) {
   const dur = Date.now() - game.startedAt;
   const topShared = seats.filter((x) => st.places[x] === 1).length > 1;
   const last = Math.max(...seats.map((x) => st.places[x]));
-  game.deltas = {}; game.boosts = {}; game.newAch = {};
+  game.deltas = {}; game.boosts = {}; game.newAch = {}; game.banNote = {};
 
   for (const seat of seats) {
+    const tok = game.players[seat].token;
+    const p = store.get(tok);
     const pl = st.places[seat];
+    const won = pl === 1 && !topShared;
     let d = pl === 1 ? (topShared ? P.SHARED_TOP : P.WIN) : pl === last ? P.LOSS : P.MID;
     const boosts = [];
-    if (d > 0 && dur < SPEED_MS) { d += P.SPEED_BONUS; boosts.push(`швидка партія +${P.SPEED_BONUS}`); }
+    if (d > 0) {
+      if (dur < SPEED_MS) { d += BONUS.SPEED; boosts.push(`швидка партія +${BONUS.SPEED}`); }
+      if (won && st.exitKind[seat] === "nip") { d += BONUS.NIP_FINAL; boosts.push(`ніп-фінал +${BONUS.NIP_FINAL}`); }
+      if (won && seats.length === 5) { d += BONUS.FULL_TABLE; boosts.push(`повний стіл +${BONUS.FULL_TABLE}`); }
+      if (won && !(game.takes[seat] > 0)) { d += BONUS.DRY; boosts.push(`сухо +${BONUS.DRY}`); }
+      const prosp = won ? (p.streak || 0) + 1 : 0;
+      if (prosp >= 3 && prosp < OVERHEAT_STREAK) { d += BONUS.STREAK; boosts.push(`серія +${BONUS.STREAK}`); }
+      if (prosp >= OVERHEAT_STREAK) { d = Math.max(1, Math.round(d * OVERHEAT_MULT)); boosts.push(`перегрів серії ×${OVERHEAT_MULT}`); }
+    }
     game.deltas[seat] = d;
     game.boosts[seat] = boosts;
   }
@@ -97,11 +132,32 @@ function settle(game) {
     drew: st.places[seat] === 1 && topShared,
   })));
 
-  /* досягнення — після applyMatch, щоб серія вже оновилась */
   for (const seat of seats) {
     const tok = game.players[seat].token;
     const p = store.get(tok);
     const won = st.places[seat] === 1 && !topShared;
+
+    /* правило 4:20 — три перемоги поспіль швидше хвилини */
+    if (won && dur < FASTWIN_MS) {
+      p.fastWins = (p.fastWins || 0) + 1;
+      if (p.fastWins >= FASTWIN_LIMIT) {
+        p.banUntil = Date.now() + BAN_MS;
+        p.fastWins = 0;
+        game.banNote[seat] = "правило 4:20 — три блискавичні перемоги поспіль. охолонь 4 хв 20 с.";
+      }
+    } else if (won) p.fastWins = 0;
+    else p.fastWins = 0;
+
+    /* історія матчів */
+    store.pushHist(tok, {
+      ts: Date.now(), dur,
+      delta: game.deltas[seat],
+      place: st.places[seat], n: seats.length,
+      opps: seats.filter((x) => x !== seat).map((x) => nickOf(game, x)),
+      streak: p.streak || 0,
+    });
+
+    /* досягнення */
     const got = [];
     const tryAch = (id, cond) => { if (cond && store.award(tok, id)) got.push(ACH[id].name); };
     tryAch("blyskavka", won && dur < 180_000);
@@ -109,8 +165,13 @@ function settle(game) {
     tryAch("sukha", won && !(game.takes[seat] > 0));
     tryAch("pyatykut", won && seats.length === 5);
     tryAch("seriya", (p.streak || 0) >= 3);
+    tryAch("maraton", dur >= 15 * 60_000 && st.exitKind[seat] !== "drop" && st.exitKind[seat] !== "dc" && st.exitKind[seat] !== "idle");
+    tryAch("kolektsioner", (game.cardsTaken[seat] || 0) >= 20 && st.places[seat] < last);
+    tryAch("nyavmaster", (game.nyavWins[seat] || 0) >= 2);
+    tryAch("feniks", won && (game.takes[seat] || 0) >= 3);
     game.newAch[seat] = got;
   }
+  store.dirty();
 }
 
 /* ── тексти ── */
@@ -142,6 +203,7 @@ function resultView(game, seat) {
     big, text,
     standings: st.result.standings.map((x) => ({
       nick: nickOf(game, x) + tagOf(game, x),
+      avatar: avatarOf(game, x),
       place: st.places[x],
       delta: game.deltas ? game.deltas[x] : 0,
       you: x === seat,
@@ -149,8 +211,10 @@ function resultView(game, seat) {
     spDelta: game.deltas ? game.deltas[seat] : 0,
     boosts: game.boosts ? game.boosts[seat] : [],
     newAch: game.newAch ? game.newAch[seat] : [],
+    banNote: game.banNote ? game.banNote[seat] || "" : "",
     sp: p?.sp ?? 0,
     rank: core.rankOf(p?.sp ?? 0),
+    dur: game.startedAt ? Date.now() - game.startedAt : 0,
   };
 }
 
@@ -159,9 +223,8 @@ function viewFor(game, seat, msg = "") {
   const p = store.get(game.players[seat].token);
   const others = (st ? st.seats : game.order).filter((x) => x !== seat).map((x) => {
     const pl = game.players[x];
-    const px = store.get(pl.token);
     return {
-      seat: x, nick: pl.nick, tag: tagOf(game, x),
+      seat: x, nick: pl.nick, tag: tagOf(game, x), avatar: avatarOf(game, x),
       handCount: st ? st.hands[x].length : 0,
       connected: pl.connected,
       active: st ? st.active.includes(x) : true,
@@ -176,13 +239,14 @@ function viewFor(game, seat, msg = "") {
     started: !!st,
     startedAt: game.startedAt,
     players: game.order.map((x) => ({
-      nick: nickOf(game, x), tag: tagOf(game, x), you: x === seat, host: x === game.order[0],
+      nick: nickOf(game, x), tag: tagOf(game, x), avatar: avatarOf(game, x),
+      you: x === seat, host: x === game.order[0],
     })),
-    chat: st ? [] : game.chat,
+    chat: game.chat,
     you: {
-      nick: game.players[seat].nick, tag: tagOf(game, seat),
+      nick: game.players[seat].nick, tag: tagOf(game, seat), avatar: avatarOf(game, seat),
       sp: p?.sp ?? 0, rank: core.rankOf(p?.sp ?? 0),
-      games: p?.games ?? 0, achIds: p?.ach ?? [],
+      games: p?.games ?? 0, achIds: p?.ach ?? [], title: p?.title ?? "",
       hand: st ? st.hands[seat] : [],
       active: st ? st.active.includes(seat) : true,
       role: st ? (st.attacker === seat ? "attack" : st.defender === seat ? "defend" : "thrower") : null,
@@ -216,7 +280,8 @@ function pushState(game, msgFn) {
 
 function startDeal(game) {
   game.state = core.deal(game.order);
-  game.nyavPicks = {}; game.rematch = {}; game.takes = {}; game.newAch = {};
+  game.nyavPicks = {}; game.rematch = {};
+  game.takes = {}; game.cardsTaken = {}; game.nyavWins = {}; game.newAch = {}; game.banNote = {};
   game.finished = false; game.settled = false; game.deltas = null; game.boosts = null;
   game.startedAt = Date.now();
   for (const s of Object.keys(game.players)) game.players[s].lastAct = Date.now();
@@ -270,7 +335,10 @@ io.on("connection", (socket) => {
     socket.data.token = token;
     const code = byToken.get(token);
     const game = code ? rooms.get(code) : null;
-    const profile = { nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp), games: p.games, achIds: p.ach || [] };
+    const profile = {
+      nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp), games: p.games,
+      achIds: p.ach || [], avatar: p.avatar, title: p.title, streak: p.streak,
+    };
     if (game && !game.finished) {
       const seat = seatOf(game, token);
       if (seat) {
@@ -294,8 +362,18 @@ io.on("connection", (socket) => {
     return seat ? { game, seat } : null;
   };
 
+  const banGuard = (cb) => {
+    const left = banLeft(token);
+    if (left > 0) {
+      cb?.({ error: `правило 4:20 — охолонь ще ${Math.ceil(left / 1000)}с.` });
+      return true;
+    }
+    return false;
+  };
+
   socket.on("createRoom", (cb) => {
     if (!token) return cb?.({ error: "спершу hello." });
+    if (banGuard(cb)) return;
     if (byToken.has(token)) return cb?.({ error: "ти вже в кімнаті." });
     const code = newCode();
     const game = newGame(code);
@@ -309,6 +387,7 @@ io.on("connection", (socket) => {
 
   socket.on("joinRoom", ({ code }, cb) => {
     if (!token) return cb?.({ error: "спершу hello." });
+    if (banGuard(cb)) return;
     if (byToken.has(token)) return cb?.({ error: "ти вже в кімнаті." });
     code = String(code || "").toUpperCase().trim();
     const game = rooms.get(code);
@@ -334,9 +413,10 @@ io.on("connection", (socket) => {
 
   socket.on("quickMatch", (cb) => {
     if (!token) return cb?.({ error: "спершу hello." });
+    if (banGuard(cb)) return;
     if (byToken.has(token)) return cb?.({ error: "ти вже в кімнаті." });
     queue = queue.filter((q) => q.token !== token && io.sockets.sockets.has(q.socketId));
-    const oppo = queue.find((q) => q.token !== token);
+    const oppo = queue.find((q) => q.token !== token && banLeft(q.token) === 0);
     if (!oppo) { queue.push({ token, socketId: socket.id }); return cb?.({ queued: true }); }
     queue = queue.filter((q) => q !== oppo);
     const code = newCode();
@@ -353,10 +433,10 @@ io.on("connection", (socket) => {
 
   socket.on("leaveQueue", () => { queue = queue.filter((q) => q.token !== token); });
 
-  /* чат у лобі кімнати */
+  /* чат кімнати — і в лобі, і під час партії */
   socket.on("chat", ({ text }) => {
     const c = ctx();
-    if (!c || c.game.state) return; // лише до старту
+    if (!c) return;
     const { game, seat } = c;
     const pl = game.players[seat];
     const now = Date.now();
@@ -371,6 +451,31 @@ io.on("connection", (socket) => {
       const pp = game.players[s];
       if (pp?.socketId) io.to(pp.socketId).emit("chat", entry);
     }
+  });
+
+  /* профіль: нік, аватар, активне звання */
+  socket.on("setProfile", (data, cb) => {
+    if (!token) return cb?.({ error: "спершу hello." });
+    const p = store.setProfile(token, data || {}, AVATARS, TITLE_IDS);
+    if (!p) return cb?.({ error: "нема профілю." });
+    cb?.({ ok: true, profile: {
+      nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp), games: p.games,
+      achIds: p.ach, avatar: p.avatar, title: p.title, streak: p.streak,
+    }});
+    const c = ctx();
+    if (c) pushState(c.game);
+  });
+
+  socket.on("profileInfo", (cb) => {
+    const p = token && store.get(token);
+    if (!p) return cb?.(null);
+    cb?.({
+      nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp), games: p.games,
+      w: p.w, l: p.l, d: p.d, streak: p.streak,
+      achIds: p.ach, avatar: p.avatar, title: p.title,
+      hist: p.hist || [],
+      pos: store.position(token),
+    });
   });
 
   socket.on("nyav", ({ sign }) => {
@@ -391,6 +496,7 @@ io.on("connection", (socket) => {
     const r = core.applyNyav(game.state, picks);
     game.nyavPicks = {};
     if (r.done) {
+      game.nyavWins[r.winner] = (game.nyavWins[r.winner] || 0) + 1;
       const w = r.winner, ws = picks[w];
       const losers = setNow.filter((x) => x !== w);
       const ls = picks[losers[0]];
@@ -417,8 +523,10 @@ io.on("connection", (socket) => {
     game.players[seat].lastAct = Date.now();
     const me = nickOf(game, seat);
     const ev = r.ev;
-    if (ev.type === "bout" && !ev.defended && ev.taker)
+    if (ev.type === "bout" && !ev.defended && ev.taker) {
       game.takes[ev.taker] = (game.takes[ev.taker] || 0) + 1;
+      game.cardsTaken[ev.taker] = (game.cardsTaken[ev.taker] || 0) + ev.count;
+    }
     let msgFn;
     if (ev.type === "attack")
       msgFn = (x) => x === seat
@@ -463,6 +571,11 @@ io.on("connection", (socket) => {
     const c = ctx();
     if (!c || !c.game.finished) return;
     const { game, seat } = c;
+    if (banLeft(token) > 0) {
+      const p = game.players[seat];
+      if (p?.socketId) io.to(p.socketId).emit("state", viewFor(game, seat, `правило 4:20 — охолонь ще ${Math.ceil(banLeft(token) / 1000)}с.`));
+      return;
+    }
     game.rematch[seat] = true;
     const everyone = game.order.filter((x) => game.players[x]?.connected);
     if (everyone.length >= 2 && everyone.every((x) => game.rematch[x])) {
@@ -494,7 +607,10 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("top", (cb) => cb?.(store.top(50).map((p) => ({ ...p, rank: core.rankOf(p.sp) }))));
+  socket.on("top", (cb) => {
+    const list = store.top(100).map((p) => ({ ...p, rank: core.rankOf(p.sp) }));
+    cb?.({ list, mePos: token ? store.position(token) : null });
+  });
   socket.on("achList", (cb) => cb?.(Object.entries(ACH).map(([id, a]) => ({ id, ...a }))));
 
   socket.on("disconnect", () => {
@@ -535,7 +651,8 @@ setInterval(() => {
           if (st.nyavSet.every((x) => game.nyavPicks[x])) {
             const picks = {};
             for (const x of st.nyavSet) picks[x] = game.nyavPicks[x];
-            core.applyNyav(st, picks);
+            const r = core.applyNyav(st, picks);
+            if (r.done) game.nyavWins[r.winner] = (game.nyavWins[r.winner] || 0) + 1;
             game.nyavPicks = {};
             pushState(game, () => "тиша — няв вирішив сам.");
           }
@@ -549,8 +666,10 @@ setInterval(() => {
         const r = core.moveTake(st, st.defender);
         game.players[st.defender].lastAct = now;
         if (r.ok) {
-          if (r.ev?.type === "bout" && !r.ev.defended && r.ev.taker)
+          if (r.ev?.type === "bout" && !r.ev.defended && r.ev.taker) {
             game.takes[r.ev.taker] = (game.takes[r.ev.taker] || 0) + 1;
+            game.cardsTaken[r.ev.taker] = (game.cardsTaken[r.ev.taker] || 0) + r.ev.count;
+          }
           if (st.result) endAndSettle(game);
           else pushState(game, () => `${nickOf(game, st.defender)} мовчить — бере.`);
         }
@@ -560,8 +679,10 @@ setInterval(() => {
         if (!st.passes.includes(seat) && now - game.players[seat].lastAct > IDLE_SOFT_MS) {
           const r = core.movePass(st, seat);
           game.players[seat].lastAct = now;
-          if (r.ok && r.ev?.type === "bout" && !r.ev.defended && r.ev.taker)
+          if (r.ok && r.ev?.type === "bout" && !r.ev.defended && r.ev.taker) {
             game.takes[r.ev.taker] = (game.takes[r.ev.taker] || 0) + 1;
+            game.cardsTaken[r.ev.taker] = (game.cardsTaken[r.ev.taker] || 0) + r.ev.count;
+          }
           if (r.ok && st.result) { endAndSettle(game); break; }
           if (r.ok) pushState(game, () => `${nickOf(game, seat)} мовчить — пас.`);
         }
@@ -570,4 +691,4 @@ setInterval(() => {
   }
 }, 15_000);
 
-server.listen(PORT, () => console.log(`дур-киць сервер v3 на :${PORT}. столи 2–5. няв.`));
+server.listen(PORT, () => console.log(`дур-киць сервер v4 на :${PORT}. няв.`));

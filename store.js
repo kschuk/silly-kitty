@@ -23,6 +23,11 @@ function load() {
       if (!p.migr2) { p.sp = Math.max(0, (p.sp | 0) - 1000); p.migr2 = true; }
       if (p.streak == null) p.streak = 0;
       if (!Array.isArray(p.ach)) p.ach = [];
+      if (!Array.isArray(p.hist)) p.hist = [];
+      if (!p.avatar) p.avatar = "cat_black";
+      if (p.title == null) p.title = "";
+      if (!p.fastWins) p.fastWins = 0;
+      if (!p.banUntil) p.banUntil = 0;
     }
   } catch (e) {
     console.error("сховище не прочиталось, з нуля:", e.message);
@@ -46,7 +51,7 @@ function save() {
 
 function getOrCreate(token, nick) {
   if (!players[token]) {
-    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], migr2: true, seen: Date.now() };
+    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, migr2: true, seen: Date.now() };
   } else {
     players[token].nick = nick || players[token].nick;
     players[token].seen = Date.now();
@@ -72,6 +77,34 @@ function applyMatch(results) {
 }
 
 /* всесвітня таблиця: нік + очки, топ-N */
+function setProfile(token, { nick, avatar, title }, validAvatars, validTitles) {
+  const p = players[token];
+  if (!p) return null;
+  if (nick != null) {
+    nick = String(nick).trim().slice(0, 12);
+    if (nick.length >= 2) p.nick = nick;
+  }
+  if (avatar != null && validAvatars.includes(avatar)) p.avatar = avatar;
+  if (title != null && (title === "" || validTitles.includes(title))) p.title = title;
+  save();
+  return p;
+}
+
+function pushHist(token, entry) {
+  const p = players[token];
+  if (!p) return;
+  p.hist.unshift(entry);
+  if (p.hist.length > 20) p.hist.length = 20;
+  save();
+}
+
+function position(token) {
+  const me = players[token];
+  if (!me || !me.games) return null;
+  const all = Object.values(players).filter((p) => p.games >= 1).sort((a, b) => b.sp - a.sp);
+  return all.findIndex((p) => p === me) + 1;
+}
+
 function award(token, achId) {
   const p = players[token];
   if (!p) return false;
@@ -87,9 +120,9 @@ function top(n = 50) {
     .filter((p) => p.games >= 1)
     .sort((x, y) => y.sp - x.sp)
     .slice(0, n)
-    .map((p) => ({ nick: p.nick, sp: p.sp, games: p.games, streak: p.streak }));
+    .map((p) => ({ nick: p.nick, sp: p.sp, games: p.games, streak: p.streak, avatar: p.avatar || "cat_black" }));
 }
 
 load();
 
-module.exports = { getOrCreate, get, applyMatch, award, top };
+module.exports = { getOrCreate, get, applyMatch, award, top, setProfile, pushHist, position, dirty: save };
