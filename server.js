@@ -8,6 +8,8 @@ const path = require("path");
 const { Server } = require("socket.io");
 const core = require("./core");
 const store = require("./store");
+let GREG = [];
+try { GREG = require("./greg"); } catch (e) { GREG = ["няв? квак."]; }
 
 const PORT = process.env.PORT || 3000;
 const RECONNECT_MS = 10 * 60_000;
@@ -81,9 +83,9 @@ const nickOf = (g, seat) => g.players[seat]?.nick || "хтось";
 function tagOf(g, seat) {
   const p = store.get(g.players[seat]?.token);
   if (!p) return "";
+  if (p.title === "none") return "";
   if (p.title && ACH[p.title] && p.ach.includes(p.title)) return ` [${ACH[p.title].name}]`;
-  if (p.games >= RANK_SHOW_GAMES) return ` [${core.rankOf(p.sp)}]`;
-  return "";
+  return ` [${core.rankOf(p.sp)}]`;
 }
 const avatarOf = (g, seat) => store.get(g.players[seat]?.token)?.avatar || "cat_black";
 
@@ -175,8 +177,6 @@ function settle(game) {
     /* жетони киць / анти-киць */
     if (!p.tk) p.tk = { k: 100, a: 100 };
     const notes = [];
-    if (game.feeNote[seat]) notes.push(`−1 ж.${game.feeNote[seat] === "k" ? "к" : "а"} — вхід`);
-    else notes.push("вхід безкоштовний — купки порожні");
     const sideUa = (x) => (x === "kyts" || x === "k" ? "ж.к" : "ж.а");
     const sideKey = (x) => (x === "kyts" || x === "k" ? "k" : "a");
     if (won) {
@@ -319,16 +319,8 @@ function startDeal(game) {
   game.takes = {}; game.cardsTaken = {}; game.nyavWins = {}; game.newAch = {}; game.banNote = {};
   game.finished = false; game.settled = false; game.deltas = null; game.boosts = null;
   game.startedAt = Date.now();
-  game.lastSide = {}; game.coinNotes = {}; game.feeNote = {};
-  for (const s of Object.keys(game.players)) {
-    game.players[s].lastAct = Date.now();
-    const p = store.get(game.players[s].token);
-    if (p?.tk) {
-      const side = p.tk.k >= p.tk.a ? (p.tk.k > 0 ? "k" : p.tk.a > 0 ? "a" : null) : "a";
-      if (side && p.tk[side] > 0) { p.tk[side]--; game.feeNote[s] = side; }
-    }
-  }
-  store.dirty();
+  game.lastSide = {}; game.coinNotes = {};
+  for (const s of Object.keys(game.players)) game.players[s].lastAct = Date.now();
   const f = game.state.first;
   if (f.type === "low")
     pushState(game, (seat) => seat === f.seat
@@ -496,12 +488,24 @@ io.on("connection", (socket) => {
       const pp = game.players[s];
       if (pp?.socketId) io.to(pp.socketId).emit("chat", entry);
     }
+    const othersOnline = Object.keys(game.players)
+      .filter((x) => x !== seat && game.players[x].connected);
+    if (!othersOnline.length) {
+      setTimeout(() => {
+        if (rooms.get(game.code) !== game) return;
+        const g = { nick: "жабка ґреґ", text: GREG[(Math.random() * GREG.length) | 0], ts: Date.now() };
+        game.chat.push(g);
+        if (game.chat.length > 40) game.chat.shift();
+        const me = game.players[seat];
+        if (me?.socketId) io.to(me.socketId).emit("chat", g);
+      }, 1200);
+    }
   });
 
   /* профіль: нік, аватар, активне звання */
   socket.on("setProfile", (data, cb) => {
     if (!token) return cb?.({ error: "спершу hello." });
-    const p = store.setProfile(token, data || {}, AVATARS, TITLE_IDS);
+    const p = store.setProfile(token, data || {}, AVATARS, TITLE_IDS.concat(["none"]));
     if (!p) return cb?.({ error: "нема профілю." });
     cb?.({ ok: true, profile: {
       nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp), games: p.games,
