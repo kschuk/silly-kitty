@@ -54,6 +54,9 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .msg{min-height:16px;margin-top:8px;text-transform:lowercase;animation:msgIn .25s ease-out}
 @keyframes pulse{0%,100%{box-shadow:2px 2px 0 rgba(39,32,25,.35)}50%{box-shadow:2px 2px 0 rgba(181,90,36,.7)}}
 .chip.att,.chip.def{animation:pulse 1.8s ease-in-out infinite}
+.hand{height:96px;margin-top:10px;overflow-x:auto}
+.hand .fanIn{position:relative;height:96px}
+.hand .slot{position:absolute;top:8px}
 .bar{font-size:10px;opacity:.85;margin-top:2px;line-height:1.5}
 .opps{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .chip{border:2px solid var(--ink);border-radius:8px;background:var(--panel);padding:4px 8px;font-size:10px;line-height:1.5;min-width:92px}
@@ -150,6 +153,11 @@ a{color:var(--kyts);font-weight:600}
   <div class="screen" id="scrLobby">
     <div class="center">
       <div class="bar" id="profileLine"></div>
+      <div class="row" style="margin:2px 0 4px">
+        <button class="small" id="miniProfile" title="профіль" style="padding:3px 7px"></button>
+        <button class="small" id="miniAch" title="досягнення">✦ звання</button>
+        <button class="small" id="miniTop" title="рекорди">♛ рекорди</button>
+      </div>
       <div class="stack">
         <button class="accent" id="btnQuick">швидка гра (1 на 1)</button>
         <button id="btnCreate">створити стіл (2–5)</button>
@@ -204,7 +212,11 @@ a{color:var(--kyts);font-weight:600}
     <div class="opps" id="opps"></div>
     <div class="divider">───── стіл ─────</div>
     <div class="tableZone" id="tbl"></div>
-    <div class="msg" id="msg"></div>
+    <div style="display:flex;gap:6px;align-items:flex-start">
+      <div class="msg" id="msg" style="flex:1"></div>
+      <button class="small" id="btnLog" style="margin-top:6px;flex-shrink:0">лог ▸</button>
+    </div>
+    <div id="logPanel" style="display:none;border:2px solid var(--ink);border-radius:8px;background:rgba(246,239,220,.75);max-height:130px;overflow-y:auto;padding:6px 8px;font-size:10px;line-height:1.65;margin-top:4px"></div>
     <div class="row" style="justify-content:flex-start;min-height:44px;align-items:center">
       <button id="btnTake" style="display:none">беру</button>
       <button id="btnPass" style="display:none">бито</button>
@@ -228,11 +240,9 @@ a{color:var(--kyts);font-weight:600}
 <div class="overlay" id="ovMenu"><div class="panel">
   <div class="big">МЕНЮВ</div>
   <div class="menuList">
-    <button id="mProfile">профіль</button>
     <button id="mRules">посібник з правил</button>
-    <button id="mTop">всесвітні рекорди</button>
-    <button id="mAch">досягнення</button>
     <button id="mLore">казка</button>
+    <button id="mShop">магазин</button>
     <button id="mSettings">налаштування</button>
     <button id="mCredits">кредитси</button>
     <button id="mLeave" style="display:none">вийти з матчу</button>
@@ -305,6 +315,18 @@ a{color:var(--kyts);font-weight:600}
   <div class="row"><button class="accent" id="confYes">так</button><button id="confNo">ні</button></div>
 </div></div>
 
+<div class="overlay" id="ovShop"><div class="panel">
+  <div class="big">МАГАЗИН</div>
+  <div class="sub" id="shopWallet" style="margin-top:6px"></div>
+  <div class="achRow" style="border-left-color:var(--kyts)"><b>+0.1 до рейтингу</b> — 1 жетон. єдине, що є.<br>
+    <button class="small" id="buyK" style="margin-top:4px">за 1 ж.к</button>
+    <button class="small" id="buyA">за 1 ж.а</button>
+    <span class="err" id="shopErr" style="display:inline;margin-left:6px"></span>
+  </div>
+  <div id="shopItems"></div>
+  <div class="row"><button id="shopBack">назад</button></div>
+</div></div>
+
 <div class="overlay" id="ovCred"><div class="panel">
   <div class="big">КРЕДИТСИ</div>
   <div style="margin-top:12px;line-height:2">
@@ -327,6 +349,7 @@ a{color:var(--kyts);font-weight:600}
   <div id="resStand" style="margin-top:10px"></div>
   <div class="sub" style="margin-top:10px" id="resSp"></div>
   <div class="sub" id="resAch" style="color:var(--kyts)"></div>
+  <div class="sub" id="resCoins" style="margin-top:4px"></div>
   <div class="sub" id="resBan" style="color:#8c2f1b"></div>
   <div class="row">
     <button class="accent" id="btnRematch">реванш</button>
@@ -334,6 +357,7 @@ a{color:var(--kyts);font-weight:600}
   </div>
 </div></div>
 
+<script src="/texts.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 /* ── міні-ядро для підсвітки ── */
@@ -349,6 +373,7 @@ function tableVals(t){const s=new Set();for(const p of t){if(!isNip(p.a))s.add(p
 const undefIdx=t=>t.findIndex(p=>!p.d);
 
 /* ── відмінки слова «гра» ── */
+function fmtSp(x){return Number.isInteger(x)?String(x):(Math.round(x*10)/10).toFixed(1);}
 function ihry(n){
   n=Math.abs(n|0);const d=n%10,h=n%100;
   if(d===1&&h!==11)return "гра";
@@ -383,25 +408,36 @@ const Audio5=(()=>{
     const x=ctx.createGain();x.gain.value=v;s.connect(f);f.connect(x);x.connect(g);s.start(t);}
   const pent=[523.25,587.33,659.25,783.99,880];
   const SC={
-    /* головний екран — дух tunic: етерний пад + дзвіночки */
+    /* головний екран — дух tunic: 4 пади по колу + пентатонічні мотиви */
     menu:{bpm:56,run(t,s){
-      if(s%16===0)[220,277.18,329.63].forEach(f=>tone(f,t,4.4,"sine",mg,0.045));
-      if(s%2===0&&Math.random()<0.4)tone(pent[(Math.random()*5)|0],t,1.6,"triangle",mg,0.045);
+      const PADS=[[220,277.18,329.63],[174.61,220,261.63],[196,246.94,293.66],[164.81,207.65,246.94]];
+      if(s%16===0)PADS[(s>>4)%4].forEach(f=>tone(f,t,6.5,"sine",mg,0.042));
+      const M=[[0,2,4,2],[4,3,1,0],[2,4,3,4],[0,1,2,3],[3,4,2,0]];
+      if(s%16===2){const m=M[(Math.random()*M.length)|0];
+        m.forEach((n,i)=>{if(Math.random()<0.85)tone(pent[n],t+i*0.9,1.7,"triangle",mg,0.045);});}
+      if(s%8===7&&Math.random()<0.3)tone(pent[(Math.random()*5)|0]*2,t,2.2,"sine",mg,0.02);
     }},
-    /* партія — дух balatro: лінивий лоу-фай свінг */
+    /* партія — дух balatro: свінг-бас по прогресії, щіточки, ліниві ліки */
     battle:{bpm:92,run(t,s){
-      const bass=[110,110,146.83,98][(s>>3)%4];
-      if(s%4===0)tone(bass,t,0.42,"sine",mg,0.15);
-      if(s%8===5)tone(bass*1.5,t,0.22,"sine",mg,0.07);
-      if(s%4===2)nz(t,0.05,0.03,mg);
-      if(s%16===0)[261.63,311.13,392].forEach(f=>tone(f,t,2,"triangle",mg,0.03));
-      if(s%16===8)[233.08,293.66,349.23].forEach(f=>tone(f,t,2,"triangle",mg,0.03));
+      const ROOT=[130.81,110,116.54,123.47];
+      const CH=[[261.63,311.13,392],[220,261.63,329.63],[233.08,293.66,349.23],[246.94,293.66,369.99]];
+      const bar=(s>>4)%4, root=ROOT[bar];
+      const walk=[1,1.122,1.26,1.335];
+      if(s%4===0)tone(root*walk[(s>>2)%4],t,0.42,"sine",mg,0.15);
+      if(s%8===6)tone(root*1.5,t,0.2,"sine",mg,0.06);
+      if(s%4===2)nz(t,0.05,0.028,mg);
+      if(s%2===1&&Math.random()<0.25)nz(t,0.03,0.02,mg);
+      if(s%16===0)CH[bar].forEach(f=>tone(f,t,2.2,"triangle",mg,0.03));
+      const LICKS=[[392,440,466.16,392],[523.25,466.16,392,349.23],[311.13,349.23,392,466.16],[349.23,392,349.23,311.13]];
+      if(s%32===24&&Math.random()<0.65){const L=LICKS[(Math.random()*LICKS.length)|0];
+        L.forEach((f,i)=>tone(f,t+i*0.16,0.3,"triangle",mg,0.05));}
     }},
-    /* нагороди — дух overwatch: короткі фанфарні фрази */
+    /* нагороди — дух overwatch: дві фанфарні фрази по черзі + відлуння */
     result:{bpm:104,run(t,s){
-      if(s%16===0)[261.63,329.63,392,523.25].forEach((f,i)=>tone(f,t+i*0.09,0.8,"square",mg,0.045));
-      if(s%16===7)tone(392,t,0.4,"square",mg,0.04);
-      if(s%16===10)tone(329.63,t,0.4,"square",mg,0.04);
+      const F=[[261.63,329.63,392,523.25],[293.66,349.23,440,587.33]];
+      if(s%32===0)F[(s>>5)%2].forEach((f,i)=>tone(f,t+i*0.09,0.85,"square",mg,0.045));
+      if(s%32===8)tone(F[(s>>5)%2][3]/2,t,0.5,"square",mg,0.035);
+      if(s%32===16)F[(s>>5)%2].slice().reverse().forEach((f,i)=>tone(f,t+i*0.12,0.5,"triangle",mg,0.03));
     }},
   };
   function setScene(name){ensure();if(!ctx||scene===name)return;scene=name;clearInterval(timer);step=0;
@@ -416,143 +452,17 @@ const Audio5=(()=>{
     bito(){ensure();if(ctx)nz(ctx.currentTime,0.24,0.12,sg);},
     win(){ensure();if(ctx)[523,659,784,1046].forEach((f,i)=>tone(f,ctx.currentTime+i*0.09,0.32,"triangle",sg,0.11));},
   };
-  return {setScene,sfx,vols,ensure,setVol(k,v){vols[k]=v;localStorage.setItem(k==="music"?"dk_vm":"dk_vs",v);apply();}};
+  function unlock(){ensure();if(ctx&&ctx.state==="suspended")ctx.resume();}
+  return {setScene,sfx,vols,ensure,unlock,setVol(k,v){vols[k]=v;localStorage.setItem(k==="music"?"dk_vm":"dk_vs",v);apply();}};
 })();
-document.addEventListener("pointerdown",()=>Audio5.ensure(),{once:true});
+document.addEventListener("pointerdown",()=>Audio5.unlock());
+document.addEventListener("touchend",()=>Audio5.unlock());
 
-/* ── посібник ── */
-const RULES=[
-["1 · що це",`дурень. але з кицями.
-хто грав у дурня — вже вміє грати в дур-киць.
-хто не грав — треба дві хвилини пограти, аби зрозуміть те й те.
-
-гравців: 2–5. тривалість: 10–15 хвильок.
-доки хтось не лишиться з картами й соромом.`],
-["2 · колода",`36 карт: 6 мастей.
-
-киці (коти)
-  • авантюриці • чарівниці • ватажиці
-анти-киці (жаби)
-  • крадиці • маніпулятиці • шефиці
-
-у кожній масті карти вартості 1–5. разом 30.
-
-плюс 6 неігрових персонажів.
-ніп — це масть над мастями. ніп — джокер. але вибагливий.
-
-ніпи-жаби, що б'ють киць: • зелений • фіолетовий • синій
-ніпи-коти, що б'ють анти-киць: • чорний • білий • рудий`],
-["3 · що що б'є",`одне правило:
-
-  б'є СТАРША своєї масті
-  або РІВНА будь-якої чужої.
-
-тобто:
-  3 авантюриця б'є 3 крадицю. і 3 шефицю. і взагалі всі трійки, крім себе.
-  4 ватажиця б'є 3 ватажицю. чужу 3 вона не б'є — не рівня і не своя.
-  5 б'ється тільки п'ятіркою. ну і відповідним ніпом. живи з цим.
-
-(але!)
-ніп б'є будь-яку карту своєї здобичі — навіть іншого ніпа.
-атакувати ніпом — можна будь-коли.
-після ніпа не підкидають. навіть не питай.`],
-["4 · хід гри",`1. кожному по 6 карт.
-2. козиря не відкриваємо. козир — ніпи. всі це знають з народження.
-3. першим атакує той, у кого найменша карта. суперечку вирішує няв-няв-няв.
-4. атака: клади карту. захисник б'є або забирає.
-5. підкидати можна карти тих вартостей, що вже на столі.
-   підкидають усі, крім захисника. не більше 6 карт за атаку
-   і не більше, ніж у захисника на руці.
-6. відбився — все у відбій, і він атакує далі.
-   не відбився — все собі, атакує наступний за ним.
-7. добираємо до 6: атакер, решта за колом, захисник останнім.
-8. колода скінчилась — граємо тим, що є.
-
-скинув усі карти — молодець, вийшов.
-останній з картами — дур-киць.
-лишився лише один ніп в руці, а добір пустий? — автоматична перемога!`],
-["5 · онлайн-нюанси",`тут стіл цифровий, тож стіл не мовчить — стіл рахує:
-
-• зник зв'язок — маєш 10 хвилин повернутись.
-• хто чекає — може вийти без покарання:
-  технічний вихід дістається зниклому.
-• тиша у свій хід: няв обереться сам, захисник
-  візьме сам, підкидачі пасонуть самі.
-  мовчазного атакера за 3 хв виносить зі столу.
-• вийшов з матчу сам — останнє місце. чесно.
-• реванш стартує, коли погодяться всі за столом.`],
-["6 · швидка пам'ятка",`• старша своєї / рівна чужої
-• ніп б'є свою здобич і будь-якого іншого ніпа
-• масть ніпа не б'є ніколи
-• атакувати ніпом — можна будь-коли
-• після ніпа не підкидають
-• 6 карт на руці, добір після бою
-• один останній ніп + пустий добір = перемога
-• останній з картами — дур-киць
-
-й пам'ятай про п'ятнадцяте правило!`],
-["няв-няв-няв",`аналог чу-ва-чі в світі киць-маф.
-
-  лапка притискає кігтя
-  кіготь чіпляє хвоста
-  хвіст вислизає з-під лапки
-
-кожен знак б'є рівно один інший. однакові — ще раз.
-якщо сперечаються троє — грають усі разом,
-перемагає знак, що б'є другий наявний.`],
-["очки і дивізіони",`база проста:
-
-  перемога        +25
-  середина столу  +5
-  останній        −15
-  нічия нагорі    +10
-
-веселі модифікатори (лише до плюса):
-  швидка партія (до 5 хв)   +10
-  ніп-фінал                 +5
-  повний стіл (5 гравців)   +5
-  сухо (жодного забору)     +5
-  серія 3–6 перемог         +5
-
-захист від накрутки:
-  7+ перемог поспіль — плюс тане до чверті (перегрів).
-  три перемоги поспіль швидше хвилини — правило 4:20:
-  бан на 4 хвилини 20 секунд. охолонь.
-
-дивізіони: бронза (0–99) → срібло (100–299) → золото (300–499)
-→ платина (500–699) → діамант (700–899) → майстер (900–1099)
-→ ґранд-маф (1100+)
-
-звання в [] біля ніка — після 10 ігор або приміряне з досягнень.`],
-];
-
-/* ── казка (лор) ── */
-const LORE=`початок казки живе тут:
-казка-есей «переважно червоний» → behance.net/gregosmogony
-
-✎ [канонічний початок — вставиться словами автора]
-
-а далі сталося так.
-
-банда анти-киць — піратів на чолі із загадковою
-людиноподібною постаттю в масці жабки ґреґа —
-викрала з надр пізнання кристраж механічного годинника.
-
-з його силою постать стала хаосом. бо капітан анти-киць —
-усього лише створіння, не здатне пізнати творців,
-що творять твори та інших створінь.
-
-тому від хаосу влади володар анти-киць наказав:
-захоплювати кожен усесвіт, до котрого доберуться пірати.
-заволодіти знаннями, що зможуть перетворити
-короля-чи-королеву анти-киць на творця —
-і дадуть силу приборкати непріборкану силу
-механічного годинника.
-
-годинник, до речі, цокає над кожним столом дур-киць.
-так, отой. кристраж. не зачіпай стрілки.`;
-
-const CLOCK_WHISPERS=["кристраж цокає.","годинник пам'ятає творців.","жабка ґреґ десь поруч.","цок. цок. няв.","стрілки не чіпай. вони самі."];
+/* ── тексти гри живуть у public/texts.js — редагуй той файл ── */
+const RULES=(window.DK_TEXTS&&DK_TEXTS.RULES)||[];
+const LORE=(window.DK_TEXTS&&DK_TEXTS.LORE)||"";
+const CLOCK_WHISPERS=(window.DK_TEXTS&&DK_TEXTS.CLOCK_WHISPERS)||["цок."];
+const SHOP=(window.DK_TEXTS&&DK_TEXTS.SHOP)||[];
 let whisperIdx=0;
 
 /* ── жетон ── */
@@ -561,13 +471,14 @@ if(!token){token=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).sl
 
 const $=id=>document.getElementById(id);
 const screens=["scrNick","scrLobby","scrWait","scrGame"];
-function show(id){screens.forEach(s=>$(s).classList.toggle("on",s===id));syncScene();}
+function show(id){screens.forEach(s=>$(s).classList.toggle("on",s===id));if(id!=="scrGame"&&document.getElementById("gameChat")){$("gameChat").classList.remove("on");}syncScene();}
 function ov(id,on){$(id).classList.toggle("on",on);}
 function esc(s){return String(s??"").replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]));}
 
 const NYAV=[["lapka","лапка"],["kihot","кіготь"],["khvist","хвіст"]];
 let view=null, profile=null, inRoom=false;
 let seenTable=new Set(), seenHand=new Set(), lastStartedAt=0, pendingClear=null, lastResKey="";
+let msgLog=[], lastLogMsg="";
 
 const socket=io();
 
@@ -595,7 +506,9 @@ socket.on("connect",()=>{const n=localStorage.getItem("dk_nick");if(n)hello(n);}
 function renderProfile(){
   if(!profile)return;
   const tag=tagText(profile);
-  $("profileLine").innerHTML=`${avatarSvg(profile.avatar,20)} <b>${esc(profile.nick)}</b>${tag} · ${profile.sp} очк. · ${profile.games} ${ihry(profile.games)}`;
+  const tkp=profile.tk||{k:"?",a:"?"};
+  $("profileLine").innerHTML=`${avatarSvg(profile.avatar,20)} <b>${esc(profile.nick)}</b>${tag} · ${fmtSp(profile.sp)} очк. · ${profile.games} ${ihry(profile.games)} · ж.к ${tkp.k} · ж.а ${tkp.a}`;
+  if(document.getElementById("miniProfile"))$("miniProfile").innerHTML=avatarSvg(profile.avatar,18);
 }
 function tagText(p){
   if(p.title&&achDefs){const a=achDefs.find(x=>x.id===p.title);if(a&&p.achIds.includes(p.title))return ` [${esc(a.name)}]`;}
@@ -615,19 +528,21 @@ $("mCredits").onclick=()=>{ov("ovMenu",false);ov("ovCred",true);};
 $("credBack").onclick=()=>backTo("ovCred");
 $("mRules").onclick=()=>{ov("ovMenu",false);renderRules();ov("ovRules",true);};
 $("rulesBack").onclick=()=>backTo("ovRules");
-$("mTop").onclick=()=>{ov("ovMenu",false);openTop();};
-$("topBack").onclick=()=>backTo("ovTop");
-$("mAch").onclick=()=>{ov("ovMenu",false);openAch();};
-$("achBack").onclick=()=>backTo("ovAch");
-$("mProfile").onclick=()=>{ov("ovMenu",false);openProfile();};
-$("profBack").onclick=()=>backTo("ovProfile");
+$("topBack").onclick=()=>{Audio5.sfx.click();ov("ovTop",false);};
+$("achBack").onclick=()=>{Audio5.sfx.click();ov("ovAch",false);};
+$("profBack").onclick=()=>{Audio5.sfx.click();ov("ovProfile",false);};
+$("miniTop").onclick=()=>{Audio5.sfx.click();openTop();};
+$("miniAch").onclick=()=>{Audio5.sfx.click();openAch();};
+$("miniProfile").onclick=()=>{Audio5.sfx.click();openProfile();};
+$("mShop").onclick=()=>{ov("ovMenu",false);openShop();};
+$("shopBack").onclick=()=>backTo("ovShop");
 $("mLore").onclick=()=>{ov("ovMenu",false);$("loreText").textContent=LORE;ov("ovLore",true);};
 $("loreBack").onclick=()=>backTo("ovLore");
 $("mSettings").onclick=()=>{ov("ovMenu",false);openSettings();};
 $("setBack").onclick=()=>backTo("ovSettings");
 $("mLeave").onclick=()=>{
   if(confirm("вийти з матчу? це останнє місце.")){
-    socket.emit("leaveRoom");inRoom=false;view=null;ov("ovMenu",false);show("scrLobby");refreshProfile();
+    socket.emit("leaveRoom");inRoom=false;view=null;ov("ovMenu",false);leaveUI();show("scrLobby");refreshProfile();
   }
 };
 
@@ -658,7 +573,7 @@ function renderTop(){
     const cls=pos<=3?`top${pos}`:"";
     const me=(p.nick===myNick)?" me":"";
     const crown=pos===1?"♛ ":pos<=3?"★ ":"";
-    const val=topSort==="sp"?`${p.sp}`:topSort==="games"?`${p.games} ${ihry(p.games)}`:`серія ${p.streak}`;
+    const val=topSort==="sp"?`${fmtSp(p.sp)}`:topSort==="games"?`${p.games} ${ihry(p.games)}`:`серія ${p.streak}`;
     const tag=p.games>=10?` [${esc(p.rank)}]`:"";
     return `<div class="arcRow ${cls}${me}"><span class="pos">${String(pos).padStart(2,"0")}</span>
       <span style="width:20px">${avatarSvg(p.avatar,16)}</span>
@@ -693,7 +608,7 @@ function openProfile(){
     profile={...profile,...p};
     const tag=tagText(p);
     $("profTop").innerHTML=`${avatarSvg(p.avatar,44)}<br><b>${esc(p.nick)}</b>${tag}<br>
-      <span class="sub">${p.sp} очк. · «${esc(p.rank)}» · ${p.games} ${ihry(p.games)} · п ${p.w} / н ${p.d} / пр ${p.l}${p.streak>=2?` · серія ${p.streak}`:""}${p.pos?` · #${p.pos}`:""}</span>`;
+      <span class="sub">${fmtSp(p.sp)} очк. · ж.к ${p.tk?p.tk.k:0} · ж.а ${p.tk?p.tk.a:0} · «${esc(p.rank)}» · ${p.games} ${ihry(p.games)} · п ${p.w} / н ${p.d} / пр ${p.l}${p.streak>=2?` · серія ${p.streak}`:""}${p.pos?` · #${p.pos}`:""}</span>`;
     $("avGrid").innerHTML=Object.keys(AVATARS).map(id=>
       `<div class="avCell ${p.avatar===id?"sel":""}" data-a="${id}">${avatarSvg(id,30)}</div>`).join("");
     $("avGrid").querySelectorAll(".avCell").forEach(c=>c.onclick=()=>{
@@ -790,6 +705,29 @@ $("langBtn").onclick=()=>{
 };
 function bindConfNo(){$("confNo").onclick=()=>{Audio5.sfx.click();ov("ovConfirm",false);};}
 
+function openShop(){
+  ov("ovShop",true);
+  renderShopWallet();
+  $("shopErr").textContent="";
+  $("shopItems").innerHTML=SHOP.map(t=>`<div class="achRow locked"><b>${esc(t)}</b><br>немає в наявності</div>`).join("");
+}
+function renderShopWallet(){
+  const tk=(profile&&profile.tk)||{k:0,a:0};
+  $("shopWallet").textContent=`гаманець: ${tk.k} ж.к · ${tk.a} ж.а`;
+}
+function buy(side){
+  Audio5.sfx.click();
+  socket.emit("shopBuy",{pay:side},r=>{
+    if(r?.error){$("shopErr").textContent=r.error;return;}
+    $("shopErr").textContent="";
+    profile={...profile,sp:r.sp,rank:r.rank,tk:r.tk};
+    renderProfile();renderShopWallet();
+    Audio5.sfx.win();
+  });
+}
+$("buyK").onclick=()=>buy("k");
+$("buyA").onclick=()=>buy("a");
+
 function refreshProfile(){const n=localStorage.getItem("dk_nick");if(n)hello(n);}
 
 /* ── лобі ── */
@@ -806,13 +744,14 @@ $("btnJoin").onclick=()=>{Audio5.sfx.click();socket.emit("joinRoom",{code:$("joi
   if(r?.error){$("errLobby").textContent=r.error;return;}
   inRoom=true;chatReset();
 });};
-$("btnCancelWait").onclick=()=>{socket.emit("leaveQueue");socket.emit("leaveRoom");inRoom=false;view=null;show("scrLobby");};
+$("btnCancelWait").onclick=()=>{socket.emit("leaveQueue");socket.emit("leaveRoom");inRoom=false;view=null;leaveUI();show("scrLobby");};
 $("btnStart").onclick=()=>{Audio5.sfx.click();socket.emit("startGame");};
-$("btnToLobby").onclick=()=>{socket.emit("leaveRoom");inRoom=false;view=null;ov("ovRes",false);show("scrLobby");refreshProfile();};
+$("btnToLobby").onclick=()=>{socket.emit("leaveRoom");inRoom=false;view=null;ov("ovRes",false);leaveUI();show("scrLobby");refreshProfile();};
 $("btnRematch").onclick=()=>{socket.emit("rematch");$("btnRematch").textContent="чекаємо…";};
 
 /* ── чат (лобі + гра) ── */
 function chatReset(){$("chatLog").innerHTML="";$("chatLog2").innerHTML="";}
+function leaveUI(){chatReset();$("gameChat").classList.remove("on");$("chatDot").classList.remove("on");msgLog=[];lastLogMsg="";renderLog();}
 function chatAppend(e){
   for(const id of ["chatLog","chatLog2"]){
     const d=document.createElement("div");
@@ -839,10 +778,40 @@ $("btnGameChat").onclick=()=>{
 };
 socket.on("chat",chatAppend);
 
+/* ── лог матчу ── */
+function renderLog(){
+  const p=$("logPanel");
+  if(!p||p.style.display==="none")return;
+  p.innerHTML=msgLog.length?[...msgLog].reverse().map(e=>`<div><span style="opacity:.55">${esc(e.t)}</span> ${esc(e.x)}</div>`).join(""):"<div class='sub'>тиша. поки що.</div>";
+}
+$("btnLog").onclick=()=>{
+  Audio5.sfx.click();
+  const p=$("logPanel");
+  const open=p.style.display==="none";
+  p.style.display=open?"":"none";
+  $("btnLog").textContent=open?"лог ▾":"лог ▸";
+  renderLog();
+};
+
 /* ── ходи ── */
 $("btnTake").onclick=()=>{Audio5.sfx.take();socket.emit("move",{type:"take"});};
 $("btnPass").onclick=()=>{Audio5.sfx.bito();socket.emit("move",{type:"pass"});};
 $("btnDone").onclick=()=>{Audio5.sfx.click();socket.emit("move",{type:"pass"});};
+
+/* ── переліт карти між зонами ── */
+function flyClone(el,target){
+  if(document.body.classList.contains("no-anim")||!el||!target)return;
+  const a=el.getBoundingClientRect(),b=target.getBoundingClientRect();
+  if(!a.width||!b.width)return;
+  const c=el.cloneNode(true);
+  c.style.cssText+=`;position:fixed;left:${a.left}px;top:${a.top}px;margin:0;z-index:40;pointer-events:none;transition:transform .45s cubic-bezier(.2,.8,.3,1),opacity .45s;outline:none;animation:none`;
+  document.body.appendChild(c);
+  requestAnimationFrame(()=>{
+    c.style.transform=`translate(${b.left+b.width/2-a.left-a.width/2}px,${b.top+b.height/2-a.top-a.height/2}px) rotate(7deg) scale(.85)`;
+    c.style.opacity=".15";
+  });
+  setTimeout(()=>c.remove(),480);
+}
 
 /* ── годинник + шепіт кристража ── */
 $("clockBox").onclick=()=>{
@@ -888,7 +857,11 @@ socket.on("state",v=>{
   if(prev&&prev.started&&v.started&&prev.startedAt===v.startedAt
      &&prev.table.length>0&&v.table.length===0&&!v.result){
     const bito=v.discard>prev.discard;
-    document.querySelectorAll("#tbl .card").forEach(el=>el.classList.add(bito?"anim-out-bito":"anim-out-take"));
+    const mineTake=!bito&&v.you.hand.length>prev.you.hand.length;
+    document.querySelectorAll("#tbl .card").forEach(el=>{
+      if(mineTake)flyClone(el,$("hand"));
+      el.classList.add(bito?"anim-out-bito":"anim-out-take");
+    });
     if(bito)Audio5.sfx.bito();
     clearTimeout(pendingClear);
     view=v;
@@ -901,7 +874,7 @@ socket.on("state",v=>{
 
 function applyView(){
   const v=view;if(!v)return;
-  if(v.startedAt!==lastStartedAt){seenTable=new Set();seenHand=new Set();lastStartedAt=v.startedAt;lastResKey="";}
+  if(v.startedAt!==lastStartedAt){seenTable=new Set();seenHand=new Set();lastStartedAt=v.startedAt;lastResKey="";msgLog=[];lastLogMsg="";renderLog();}
   if(!v.started){
     $("roomCode").textContent=v.code;
     $("waitList").innerHTML=v.players.map((p,i)=>
@@ -930,7 +903,7 @@ function myPlayable(c){
 
 function renderGame(){
   const v=view;if(!v)return;
-  $("statLine").innerHTML=`стіл ${esc(v.code)} · ${avatarSvg(v.you.avatar,14)} ${esc(v.you.nick)}${esc(v.you.tag||"")} · ${v.you.sp} очк.`;
+  $("statLine").innerHTML=`стіл ${esc(v.code)} · ${avatarSvg(v.you.avatar,14)} ${esc(v.you.nick)}${esc(v.you.tag||"")} · ${fmtSp(v.you.sp)} очк.`;
   $("deckCnt").textContent=v.deckCount;
   $("deckMini").className="mini"+(v.deckCount?"":" empty");
   $("discCnt").textContent=v.discard;
@@ -968,6 +941,7 @@ function renderGame(){
   });
 
   $("msg").textContent="» "+(v.msg||"");
+  if(v.msg&&v.msg!==lastLogMsg){lastLogMsg=v.msg;msgLog.push({t:$("clockT").textContent,x:v.msg});if(msgLog.length>80)msgLog.shift();renderLog();}
   $("youLine").textContent=`───── ${esc(v.you.nick)} · ${v.you.hand.length} карт${v.you.role==="attack"?" · атакуєш":v.you.role==="defend"?" · захищаєшся":""} ─────`;
 
   $("btnTake").style.display=(v.phase==="defend"&&v.you.role==="defend"&&v.you.active)?"":"none";
@@ -985,9 +959,13 @@ function renderGame(){
   });
   const W=54,avail=hand.clientWidth||360,n=hs.length;
   const step=n>1?Math.min(W+6,Math.max(15,(avail-W)/(n-1))):0;
+  const fanW=n>0?W+(n-1)*step:0;
+  const fan=document.createElement("div");
+  fan.className="fanIn";fan.style.width=Math.max(fanW,1)+"px";
+  hand.appendChild(fan);
   const anyDecision=["attack","defend","throw","pileOn"].includes(v.phase)&&v.you.active;
   hs.forEach((c,i)=>{
-    const box=document.createElement("div");box.style.left=Math.round(i*step)+"px";box.style.zIndex=i;
+    const box=document.createElement("div");box.className="slot";box.style.left=Math.round(i*step)+"px";box.style.zIndex=i;
     const legal=myPlayable(c);
     const fresh=!seenHand.has(c.uid);seenHand.add(c.uid);
     const el=cardEl(c,(legal?"play ":(anyDecision?"dim ":""))+(fresh?"anim-draw":""));
@@ -995,9 +973,10 @@ function renderGame(){
     if(legal)el.onclick=()=>{
       const type=v.phase==="attack"?"attack":v.phase==="defend"?"defend":"throw";
       if(type==="defend")Audio5.sfx.slap();else Audio5.sfx.place();
+      flyClone(el,$("tbl"));
       socket.emit("move",{type,uid:c.uid});
     };
-    box.appendChild(el);hand.appendChild(box);
+    box.appendChild(el);fan.appendChild(box);
   });
 
   if(v.phase==="nyav"&&!v.result&&v.nyav){
@@ -1022,9 +1001,11 @@ function renderGame(){
     $("resStand").innerHTML=v.result.standings.map(s=>
       `<div class="standing"><span>${s.place}. ${avatarSvg(s.avatar,14)} ${esc(s.nick)}${s.you?" (ти)":""}</span><span>${s.delta>=0?"+":""}${s.delta}</span></div>`).join("");
     const b=v.result.boosts&&v.result.boosts.length?` · ${v.result.boosts.join(", ")}`:"";
-    $("resSp").textContent=`очки: ${v.result.sp-v.result.spDelta} → ${v.result.sp} (${v.result.spDelta>=0?"+":""}${v.result.spDelta}${b}) · «${v.result.rank}»`;
+    $("resSp").textContent=`очки: ${fmtSp(Math.round((v.result.sp-v.result.spDelta)*10)/10)} → ${fmtSp(v.result.sp)} (${v.result.spDelta>=0?"+":""}${v.result.spDelta}${b}) · «${v.result.rank}»`;
     $("resAch").textContent=v.result.newAch&&v.result.newAch.length
       ?`нове звання: ${v.result.newAch.map(a=>`«${a}»`).join(", ")}!`:"";
+    $("resCoins").innerHTML=(v.result.coinNotes||[]).map(esc).join("<br>");
+    if(v.result.tk)profile={...(profile||{}),tk:v.result.tk};
     $("resBan").textContent=v.result.banNote||"";
     profile={...(profile||{}),nick:v.you.nick,sp:v.result.sp,rank:v.result.rank,games:(v.you.games||0),achIds:v.you.achIds,avatar:v.you.avatar,title:v.you.title};
     renderProfile();

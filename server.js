@@ -69,6 +69,7 @@ function newGame(code) {
     code, players: {}, order: [],
     state: null, nyavPicks: {}, rematch: {}, chat: [],
     takes: {}, cardsTaken: {}, nyavWins: {}, newAch: {}, banNote: {},
+    lastSide: {}, coinNotes: {}, feeNote: {},
     startedAt: 0, finished: false, settled: false, deltas: null, boosts: null,
   };
 }
@@ -170,6 +171,37 @@ function settle(game) {
     tryAch("nyavmaster", (game.nyavWins[seat] || 0) >= 2);
     tryAch("feniks", won && (game.takes[seat] || 0) >= 3);
     game.newAch[seat] = got;
+
+    /* жетони киць / анти-киць */
+    if (!p.tk) p.tk = { k: 100, a: 100 };
+    const notes = [];
+    if (game.feeNote[seat]) notes.push(`−1 ж.${game.feeNote[seat] === "k" ? "к" : "а"} — вхід`);
+    else notes.push("вхід безкоштовний — купки порожні");
+    const sideUa = (x) => (x === "kyts" || x === "k" ? "ж.к" : "ж.а");
+    const sideKey = (x) => (x === "kyts" || x === "k" ? "k" : "a");
+    if (won) {
+      const side = game.lastSide[seat] || "kyts";
+      p.tk[sideKey(side)] += 3;
+      notes.push(`+3 ${sideUa(side)} — перемога ${side === "kyts" ? "кицями" : "анти-кицями"}`);
+    } else if (st.places[seat] === 1 && topShared) {
+      p.tk.k += 1; p.tk.a += 1;
+      notes.push("+1 ж.к і +1 ж.а — нічия нагорі");
+    } else if (st.places[seat] === last) {
+      const rndSide = Math.random() < 0.5 ? "k" : "a";
+      p.tk[rndSide] += 1;
+      notes.push(`+1 ${sideUa(rndSide)} — жетон співчуття`);
+    }
+    if (st.exitKind[seat] === "nip") {
+      const nip = st.hands[seat]?.[0];
+      const serve = nip && nip.prey === "kyts" ? "a" : "k";
+      p.tk[serve] += 2;
+      notes.push(`+2 ${sideUa(serve)} — ніп-вихід`);
+    }
+    if (got.length) {
+      p.tk.k += 5 * got.length; p.tk.a += 5 * got.length;
+      notes.push(`+${5 * got.length} ж.к і +${5 * got.length} ж.а — нові звання`);
+    }
+    game.coinNotes[seat] = notes;
   }
   store.dirty();
 }
@@ -211,6 +243,8 @@ function resultView(game, seat) {
     spDelta: game.deltas ? game.deltas[seat] : 0,
     boosts: game.boosts ? game.boosts[seat] : [],
     newAch: game.newAch ? game.newAch[seat] : [],
+    coinNotes: game.coinNotes ? game.coinNotes[seat] || [] : [],
+    tk: store.get(game.players[seat].token)?.tk || { k: 0, a: 0 },
     banNote: game.banNote ? game.banNote[seat] || "" : "",
     sp: p?.sp ?? 0,
     rank: core.rankOf(p?.sp ?? 0),
@@ -247,6 +281,7 @@ function viewFor(game, seat, msg = "") {
       nick: game.players[seat].nick, tag: tagOf(game, seat), avatar: avatarOf(game, seat),
       sp: p?.sp ?? 0, rank: core.rankOf(p?.sp ?? 0),
       games: p?.games ?? 0, achIds: p?.ach ?? [], title: p?.title ?? "",
+      tk: p?.tk || { k: 0, a: 0 },
       hand: st ? st.hands[seat] : [],
       active: st ? st.active.includes(seat) : true,
       role: st ? (st.attacker === seat ? "attack" : st.defender === seat ? "defend" : "thrower") : null,
@@ -284,7 +319,16 @@ function startDeal(game) {
   game.takes = {}; game.cardsTaken = {}; game.nyavWins = {}; game.newAch = {}; game.banNote = {};
   game.finished = false; game.settled = false; game.deltas = null; game.boosts = null;
   game.startedAt = Date.now();
-  for (const s of Object.keys(game.players)) game.players[s].lastAct = Date.now();
+  game.lastSide = {}; game.coinNotes = {}; game.feeNote = {};
+  for (const s of Object.keys(game.players)) {
+    game.players[s].lastAct = Date.now();
+    const p = store.get(game.players[s].token);
+    if (p?.tk) {
+      const side = p.tk.k >= p.tk.a ? (p.tk.k > 0 ? "k" : p.tk.a > 0 ? "a" : null) : "a";
+      if (side && p.tk[side] > 0) { p.tk[side]--; game.feeNote[s] = side; }
+    }
+  }
+  store.dirty();
   const f = game.state.first;
   if (f.type === "low")
     pushState(game, (seat) => seat === f.seat
@@ -338,6 +382,7 @@ io.on("connection", (socket) => {
     const profile = {
       nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp), games: p.games,
       achIds: p.ach || [], avatar: p.avatar, title: p.title, streak: p.streak,
+      tk: p.tk || { k: 100, a: 100 },
     };
     if (game && !game.finished) {
       const seat = seatOf(game, token);
@@ -461,6 +506,7 @@ io.on("connection", (socket) => {
     cb?.({ ok: true, profile: {
       nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp), games: p.games,
       achIds: p.ach, avatar: p.avatar, title: p.title, streak: p.streak,
+      tk: p.tk,
     }});
     const c = ctx();
     if (c) pushState(c.game);
@@ -473,6 +519,7 @@ io.on("connection", (socket) => {
       nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp), games: p.games,
       w: p.w, l: p.l, d: p.d, streak: p.streak,
       achIds: p.ach, avatar: p.avatar, title: p.title,
+      tk: p.tk || { k: 0, a: 0 },
       hist: p.hist || [],
       pos: store.position(token),
     });
@@ -513,6 +560,8 @@ io.on("connection", (socket) => {
     if (!c || !c.game.state || c.game.finished) return;
     const { game, seat } = c;
     const s = game.state;
+    const played = (type === "attack" || type === "defend" || type === "throw")
+      ? s.hands[seat]?.find((x) => x.uid === uid) : null;
     let r = { ok: false };
     if (type === "attack") r = core.moveAttack(s, seat, uid);
     else if (type === "defend") r = core.moveDefend(s, seat, uid);
@@ -520,6 +569,10 @@ io.on("connection", (socket) => {
     else if (type === "throw") r = core.moveThrow(s, seat, uid);
     else if (type === "pass") r = core.movePass(s, seat);
     if (!r.ok) return;
+    if (played)
+      game.lastSide[seat] = core.isNip(played)
+        ? (played.prey === "kyts" ? "anti" : "kyts")
+        : played.side;
     game.players[seat].lastAct = Date.now();
     const me = nickOf(game, seat);
     const ev = r.ev;
@@ -605,6 +658,17 @@ io.on("connection", (socket) => {
       if (!game.order.length) rooms.delete(game.code);
       else pushState(game, () => "хтось передумав. чекаємо далі.");
     }
+  });
+
+  socket.on("shopBuy", ({ pay }, cb) => {
+    const p = token && store.get(token);
+    if (!p) return cb?.({ error: "нема профілю." });
+    const side = pay === "a" ? "a" : "k";
+    if (!p.tk || p.tk[side] < 1) return cb?.({ error: "у цій купці порожньо." });
+    p.tk[side] -= 1;
+    p.sp = Math.round((p.sp + 0.1) * 10) / 10;
+    store.dirty();
+    cb?.({ ok: true, sp: p.sp, tk: p.tk, rank: core.rankOf(p.sp) });
   });
 
   socket.on("top", (cb) => {
