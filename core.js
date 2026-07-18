@@ -13,12 +13,12 @@ const SUITS = [
 ];
 
 const NIPS = [
-  { id: "green",  name: "зелений",    prey: "kyts", color: "#40763c", text: "#f6f0df" },
-  { id: "violet", name: "фіолетовий", prey: "kyts", color: "#6d4b99", text: "#f6f0df" },
-  { id: "blue",   name: "синій",      prey: "kyts", color: "#35619b", text: "#f6f0df" },
-  { id: "black",  name: "чорний",     prey: "anti", color: "#221c16", text: "#f6f0df" },
-  { id: "white",  name: "білий",      prey: "anti", color: "#f6f0df", text: "#272019" },
-  { id: "rudy",   name: "рудий",      prey: "anti", color: "#c06a2c", text: "#f6f0df" },
+  { id: "green",  name: "зеленка", prey: "kyts", color: "#40763c", text: "#f6f0df" },
+  { id: "violet", name: "філя",    prey: "kyts", color: "#6d4b99", text: "#f6f0df" },
+  { id: "blue",   name: "синька",  prey: "kyts", color: "#35619b", text: "#f6f0df" },
+  { id: "black",  name: "вуглик",  prey: "anti", color: "#221c16", text: "#f6f0df" },
+  { id: "white",  name: "біляш",   prey: "anti", color: "#f6f0df", text: "#272019" },
+  { id: "rudy",   name: "рудик",   prey: "anti", color: "#c06a2c", text: "#f6f0df" },
 ];
 
 const NIP_VS_NIP = "any";
@@ -95,17 +95,19 @@ function buildDeck(seed) {
   return shuffle(cards, rnd);
 }
 
-function canBeat(att, def, swapPrey) {
+function canBeat(att, def, swapPrey, valueFlip) {
   if (isNip(def)) {
     if (isNip(att)) return NIP_VS_NIP === "any" ? true : def.prey !== att.prey;
     return swapPrey ? def.prey !== att.side : def.prey === att.side;
   }
   if (isNip(att)) return false;
-  if (def.suit === att.suit) return def.value > att.value;
+  if (def.suit === att.suit) return valueFlip ? def.value < att.value : def.value > att.value;
   return def.value === att.value;
 }
 const glitchThrowAny = (s) => !!(s.glitch && s.glitch.active && s.glitch.kind === "throw_any");
 const glitchSwap = (s) => !!(s.glitch && s.glitch.active && s.glitch.kind === "prey_swap");
+const glitchFlip = (s) => !!(s.glitch && s.glitch.active && s.glitch.kind === "value_flip");
+const GLITCH_KINDS = ["prey_swap", "throw_any", "value_flip"];
 
 function tableVals(table) {
   const s = new Set();
@@ -248,7 +250,7 @@ function deal(seats, opts) {
     places: {}, exitKind: {}, placeNext: 1,
     phase: "attack", result: null,
     nyavSet: null,
-    glitch: opts.glitch ? { enabled: true, kind: Math.random() < 0.5 ? "prey_swap" : "throw_any", active: false } : null,
+    glitch: opts.glitch ? { enabled: true, kind: GLITCH_KINDS[(Math.random() * GLITCH_KINDS.length) | 0], active: false } : null,
   };
   const mins = seats.map((x) => [x, minSuitVal(hands[x])]);
   const best = Math.min(...mins.map(([, v]) => v));
@@ -307,7 +309,7 @@ function moveDefend(s, seat, uid) {
   const i = undefIdx(s.table);
   if (i < 0) return { ok: false };
   const card = s.hands[seat].find((c) => c.uid === uid);
-  if (!card || !canBeat(s.table[i].a, card, glitchSwap(s))) return { ok: false };
+  if (!card || !canBeat(s.table[i].a, card, glitchSwap(s), glitchFlip(s))) return { ok: false };
   s.hands[seat] = s.hands[seat].filter((c) => c.uid !== uid);
   s.table[i].d = card;
   if (isNip(card)) s.nipUsed = true;
@@ -411,5 +413,5 @@ module.exports = {
   buildDeck, deal, setupBout, finishBout, processExits,
   canAnyoneThrow, canSeatThrow, throwers,
   moveAttack, moveDefend, moveTake, moveThrow, movePass, dropPlayer,
-  seedFromString, glitchThrowAny, glitchSwap,
+  seedFromString, glitchThrowAny, glitchSwap, glitchFlip, GLITCH_KINDS,
 };

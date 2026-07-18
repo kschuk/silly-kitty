@@ -6,7 +6,15 @@
 <title>дур-киць · онлайн</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Unbounded:wght@500;800&display=swap');
-:root{--ink:#272019;--paper:#ece3cc;--panel:#f6efdc;--kyts:#b55a24;--anti:#4a5680}
+:root{--ink:#272019;--paper:#ece3cc;--panel:#f6efdc;--kyts:#b55a24;--anti:#4a5680;--cardW:64px;--cardH:75px}
+@media(min-width:700px){
+  :root{--cardW:84px;--cardH:98px}
+  body{font-size:13px}
+  .wrap{max-width:720px}
+  .tableZone{min-height:210px}
+  .mascot{width:160px !important;height:160px !important}
+  .card .v{font-size:20px}
+}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px}
 body.no-anim *{animation:none!important;transition:none!important}
@@ -25,8 +33,8 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
 .stack{display:flex;flex-direction:column;gap:10px;width:100%;max-width:280px}
 .tableZone{border:2px dashed rgba(39,32,25,.4);border-radius:10px;background:rgba(246,239,220,.5);min-height:150px;padding:10px;display:flex;flex-wrap:wrap;gap:10px;align-content:flex-start;margin-top:4px}
-.pair{position:relative;width:84px;height:96px}
-.card{position:relative;width:64px;height:75px;border:2px solid var(--ink);border-radius:6px;box-shadow:1.5px 2px 0 rgba(39,32,25,.35);flex-shrink:0;user-select:none;overflow:hidden}
+.pair{position:relative;width:calc(var(--cardW) + 20px);height:calc(var(--cardH) + 21px)}
+.card{position:relative;width:var(--cardW);height:var(--cardH);border:2px solid var(--ink);border-radius:6px;box-shadow:1.5px 2px 0 rgba(39,32,25,.35);flex-shrink:0;user-select:none;overflow:hidden}
 .card .v{position:absolute;top:0;left:5px;font-family:'Unbounded',monospace;font-weight:800;font-size:16px}
 .card .s{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px;padding-top:6px}
 .card .n{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:6px;letter-spacing:-.02em;opacity:.85;white-space:nowrap;overflow:hidden}
@@ -54,8 +62,8 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .msg{min-height:16px;margin-top:8px;text-transform:lowercase;animation:msgIn .25s ease-out}
 @keyframes pulse{0%,100%{box-shadow:2px 2px 0 rgba(39,32,25,.35)}50%{box-shadow:2px 2px 0 rgba(181,90,36,.7)}}
 .chip.att,.chip.def{animation:pulse 1.8s ease-in-out infinite}
-.hand{height:102px;margin-top:8px;padding-top:12px}
-.hand .fanIn{position:relative;height:90px}
+.hand{height:calc(var(--cardH) + 27px);margin-top:8px;padding-top:12px;overflow-x:auto;overflow-y:hidden}
+.hand .fanIn{position:relative;height:calc(var(--cardH) + 15px)}
 .hand .slot{position:absolute;top:0}
 .slot.anim-draw{animation:drawIn .45s ease-out both}
 .card img.art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:4px}
@@ -136,6 +144,15 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .popSpin{animation:popSpin .6s ease-out}
 .popFlip{animation:popFlip .55s ease-out}
 a{color:var(--kyts);font-weight:600}
+.mascot{position:relative;width:118px;height:118px;border-radius:50%;overflow:hidden;border:3px solid var(--ink);box-shadow:3px 3px 0 rgba(39,32,25,.35);cursor:pointer;animation:sway 7s ease-in-out infinite}
+.mascot img{width:100%;height:100%;object-fit:cover;display:block}
+.mh{position:absolute;left:50%;bottom:50%;transform-origin:50% 100%;background:var(--ink);border-radius:3px;box-shadow:0 0 0 1.5px rgba(236,227,204,.85)}
+.mhH{width:5px;height:24%;margin-left:-2.5px}
+.mhM{width:3.5px;height:34%;margin-left:-1.75px}
+.mhS{width:2px;height:41%;margin-left:-1px;background:var(--kyts)}
+@keyframes sway{0%,100%{transform:rotate(-2.5deg)}50%{transform:rotate(2.5deg)}}
+body.no-anim .mascot{animation:none}
+.tipLine{font-size:10px;opacity:.85;min-height:14px;cursor:pointer;max-width:320px;text-align:center}
 .avIcon{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:var(--paper);border:1.5px solid var(--ink);overflow:hidden;vertical-align:-4px;flex-shrink:0}
 .genreWidget{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 2px;font-size:11px}
 .genreWidget button{padding:3px 9px;font-size:12px;box-shadow:none}
@@ -184,6 +201,13 @@ a{color:var(--kyts);font-weight:600}
 
   <div class="screen" id="scrLobby">
     <div class="center">
+      <div class="mascot" id="mascotClock" title="кристраж">
+        <img src="/img/krystrazh.jpg" alt="кристраж">
+        <div class="mh mhH" id="mhH"></div>
+        <div class="mh mhM" id="mhM"></div>
+        <div class="mh mhS" id="mhS"></div>
+      </div>
+      <div class="tipLine" id="tipLine"></div>
       <div class="bar" id="profileLine"></div>
       <div class="row" style="margin:2px 0 4px">
         <button class="small iconBtn" id="miniProfile" title="профіль"></button>
@@ -192,11 +216,6 @@ a{color:var(--kyts);font-weight:600}
         <button class="small iconBtn" id="miniShop" title="магазин"></button>
         <button class="small iconBtn" id="miniDaily" title="стіл дня">☀ стіл дня</button>
         <button class="small iconBtn" id="miniMap" title="мапа">🗺 мапа</button>
-      </div>
-      <div class="genreWidget">
-        <button class="small" id="genrePrev">◀</button>
-        <span>🎵 <span class="genreName" id="genreName">…</span></span>
-        <button class="small" id="genreNext">▶</button>
       </div>
       <div class="pveRow">
         <span>ПвП</span>
@@ -333,6 +352,8 @@ a{color:var(--kyts);font-weight:600}
   <div id="profTop" style="margin-top:8px"></div>
   <div class="divider">───── аватарка ─────</div>
   <div class="avGrid" id="avGrid"></div>
+  <div class="divider">───── сторона мапи ─────</div>
+  <div class="row"><button class="small" id="sideK"></button><button class="small" id="sideA"></button></div>
   <div class="divider">───── ім'я ─────</div>
   <div style="display:flex;gap:6px"><input id="profNick" maxlength="12"><button class="small" id="profNickSave" style="box-shadow:2px 2px 0 rgba(39,32,25,.35)">зберегти</button></div>
   <div class="divider">───── звання (приміряй) ─────</div>
@@ -354,6 +375,12 @@ a{color:var(--kyts);font-weight:600}
   <div class="lb" style="margin-top:10px">
     музика<br><input type="range" id="volMusic" min="0" max="100">
     <br>ефекти<br><input type="range" id="volSfx" min="0" max="100">
+  </div>
+  <div class="divider">───── жанр головного екрана ─────</div>
+  <div class="genreWidget">
+    <button class="small" id="genrePrev">◀</button>
+    <span>🎵 <span class="genreName" id="genreName">…</span></span>
+    <button class="small" id="genreNext">▶</button>
   </div>
   <div class="row"><button id="animToggle"></button></div>
   <div class="row"><button class="small" id="langBtn">🌐 мова</button></div>
@@ -442,10 +469,10 @@ a{color:var(--kyts);font-weight:600}
 /* ── міні-ядро для підсвітки ── */
 const NIP_VS_NIP="any";
 const isNip=c=>c.type==="nip";
-function canBeat(a,d){
-  if(isNip(d)){ if(isNip(a)) return NIP_VS_NIP==="any"?true:d.prey!==a.prey; return d.prey===a.side; }
+function canBeat(a,d,swapPrey,valueFlip){
+  if(isNip(d)){ if(isNip(a)) return NIP_VS_NIP==="any"?true:d.prey!==a.prey; return swapPrey?d.prey!==a.side:d.prey===a.side; }
   if(isNip(a)) return false;
-  if(d.suit===a.suit) return d.value>a.value;
+  if(d.suit===a.suit) return valueFlip?d.value<a.value:d.value>a.value;
   return d.value===a.value;
 }
 function tableVals(t){const s=new Set();for(const p of t){if(!isNip(p.a))s.add(p.a.value);if(p.d&&!isNip(p.d))s.add(p.d.value);}return s;}
@@ -470,7 +497,7 @@ const AVATARS={
 function coinSvg(side,w=13,clickable=false){
   const cat=side==="k";
   const cur=clickable?' onclick="Audio5.sfx.coin()" style="cursor:pointer"':"";
-  return `<span${cur} style="display:inline-flex;align-items:center;justify-content:center;width:${w}px;height:${w}px;border-radius:50%;background:${cat?"#b55a24":"#40763c"};border:1.5px solid #272019;vertical-align:-2px;margin-right:1px">${cat?catSvg("#f3e2c4","#272019",w-5):frogSvg("#e8f0e0","#1e3320",w-5)}</span>`;
+  return `<span${cur} style="display:inline-flex;align-items:center;justify-content:center;width:${w}px;height:${w}px;border-radius:50%;background:${cat?"#b55a24":"#40763c"};border:1.5px solid #272019;box-shadow:0 0 0 1.5px rgba(236,227,204,.9);vertical-align:-2px;margin:0 2px 0 1px">${cat?catSvg("#f3e2c4","#272019",w-5):frogSvg("#e8f0e0","#1e3320",w-5)}</span>`;
 }
 function coinify(h){return String(h).split("ж.к").join(coinSvg("k",13,true)+"ж.к").split("ж.а").join(coinSvg("a",13,true)+"ж.а");}
 /* аватарки: якщо покладеш файл public/avatars/{id}.jpg (наприклад avatars/cat_black.jpg) —
@@ -614,6 +641,7 @@ const FRONTIER=(window.DK_TEXTS&&DK_TEXTS.FRONTIER)||[];
 const DAILY=(window.DK_TEXTS&&DK_TEXTS.DAILY)||{title:"СТІЛ ДНЯ",desc:"",playBtn:"грати",doneMsg:"вже зіграно.",boardTitle:"дошка"};
 const BET=(window.DK_TEXTS&&DK_TEXTS.BET)||{title:"СТАВКА НЯВУ",prompt:"",pickSign:"обери знак",pickSide:"валюта",waitingOthers:"чекаємо…",skip:"без ставки"};
 const POSTCARD_LINES=(window.DK_TEXTS&&DK_TEXTS.POSTCARD_LINES)||["няв."];
+const TIPS=(window.DK_TEXTS&&DK_TEXTS.TIPS)||["тапни — наступна порада."];
 let whisperIdx=0;
 
 /* ── жетон ── */
@@ -666,7 +694,7 @@ function renderProfile(){
   if(!profile)return;
   const tag=tagText(profile);
   const tkp=profile.tk||{k:"?",a:"?"};
-  $("profileLine").innerHTML=coinify(`${avatarSvg(profile.avatar,20)} <b>${esc(profile.nick)}</b>${tag} · ${fmtSp(profile.sp)} очк. · ${profile.games} ${ihry(profile.games)} · ж.к ${tkp.k} · ж.а ${tkp.a}`);
+  $("profileLine").innerHTML=coinify(`${avatarSvg(profile.avatar,20)} <b>${esc(profile.nick)}</b>${tag} · ж.к ${tkp.k} · ж.а ${tkp.a}`);
   if(document.getElementById("miniProfile"))$("miniProfile").innerHTML=avatarSvg(profile.avatar,18);
   if(document.getElementById("miniShop"))$("miniShop").innerHTML=coinSvg("k",14)+coinSvg("a",14)+"магазин";
 }
@@ -751,8 +779,9 @@ function renderTop(){
     const crown=pos===1?"♛ ":pos<=3?"★ ":"";
     const val=topSort==="sp"?`${fmtSp(p.sp)}`:topSort==="games"?`${p.games} ${ihry(p.games)}`:`серія ${p.streak}`;
     const tag=` [${esc(p.rank)}]`;
+    const sideGlyph=coinSvg(p.side==="anti"?"a":"k",11);
     return `<div class="arcRow ${cls}${me}"><span class="pos">${String(pos).padStart(2,"0")}</span>
-      <span style="width:20px">${avatarSvg(p.avatar,16)}</span>
+      <span style="width:20px">${avatarSvg(p.avatar,16)}</span><span style="width:15px">${sideGlyph}</span>
       <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${crown}${esc(p.nick)}${tag}</span>
       <b>${val}</b></div>`;
   }).join(""):"<div class='arcRow'>порожньо. стань першим. няв.</div>";
@@ -792,6 +821,13 @@ function openProfile(){
       Audio5.sfx.click();
       socket.emit("setProfile",{avatar:c.dataset.a},r=>{if(r?.profile){profile=r.profile;renderProfile();openProfile();}});
     });
+    const side=p.side||"kyts";
+    $("sideK").innerHTML=coinSvg("k",13)+"киці"+(side==="kyts"?" ✓":"");
+    $("sideA").innerHTML=coinSvg("a",13)+"анти-киці"+(side==="anti"?" ✓":"");
+    $("sideK").className="small"+(side==="kyts"?" accent":"");
+    $("sideA").className="small"+(side==="anti"?" accent":"");
+    $("sideK").onclick=()=>{Audio5.sfx.coin();socket.emit("setProfile",{side:"kyts"},r=>{if(r?.profile){profile=r.profile;renderProfile();openProfile();}});};
+    $("sideA").onclick=()=>{Audio5.sfx.coin();socket.emit("setProfile",{side:"anti"},r=>{if(r?.profile){profile=r.profile;renderProfile();openProfile();}});};
     $("profNick").value=p.nick;
     const chips=[`<span class="titleChip ${!p.title?"sel":""}" data-t="">авто [${esc(p.rank)}]</span>`,
       `<span class="titleChip ${p.title==="none"?"sel":""}" data-t="none">— без звання —</span>`]
@@ -949,11 +985,14 @@ function openMap(){
       return `<div class="mapStep ${here?"here":""}"><span class="sw" style="background:${bg}"></span>
         <span>${here?"▸ ":""}${esc(u.name)}${here?" (ти тут)":""}<br><span class="sub">${esc(u.flavor)}</span></span></div>`;
     }).join("");
-    const wins=fr>=0?(p.frontierWins?.kyts||0):(p.frontierWins?.anti||0);
-    const need=5; // core.js FRONTIER_N — тримай синхронно, якщо зміниш там
+    const side=p.side||"kyts";
+    const wins=p.frontierWins?.[side]||0;
+    const need=5; // store.js FRONTIER_N — тримай синхронно, якщо зміниш там
     $("mapProgBar").style.width=Math.min(100,(wins/need)*100)+"%";
-    $("mapProgText").textContent=fr>=4?"крайня точка киць. далі нікуди.":fr<=-4?"крайня точка анти-киць. далі нікуди.":
-      `до наступного кроку: ${wins}/${need} перемог ${fr>=0?"кицями":"анти-кицями"}`;
+    const edge=(side==="kyts"&&fr>=4)||(side==="anti"&&fr<=-4);
+    $("mapProgText").innerHTML=coinify(edge
+      ?`крайня точка ${side==="kyts"?"киць":"анти-киць"}. далі нікуди. (сторона змінюється в профілі)`
+      :`твоя сторона: ${side==="kyts"?"ж.к киці":"ж.а анти-киці"} · до кроку: ${wins}/${need} перемог`);
   });
 }
 $("miniDaily").onclick=()=>{Audio5.sfx.click();openDaily();};
@@ -998,6 +1037,25 @@ function shiftGenre(dir){
 $("genrePrev").onclick=()=>shiftGenre(-1);
 $("genreNext").onclick=()=>shiftGenre(1);
 renderGenre();
+
+/* поради головного екрана: тап — наступна */
+let tipIdx=(Math.random()*TIPS.length)|0;
+function renderTip(){const el=$("tipLine");if(el)el.textContent="☞ "+(TIPS[tipIdx%TIPS.length]||"");}
+if($("tipLine")){$("tipLine").onclick=()=>{Audio5.sfx.click();tipIdx++;renderTip();};renderTip();}
+
+/* маскот-кристраж: стрілки за реальним часом + шепіт по кліку */
+function mascotTick(){
+  const h=$("mhH");if(!h)return;
+  const d=new Date();
+  $("mhS").style.transform=`rotate(${d.getSeconds()*6}deg)`;
+  $("mhM").style.transform=`rotate(${d.getMinutes()*6+d.getSeconds()*0.1}deg)`;
+  h.style.transform=`rotate(${(d.getHours()%12)*30+d.getMinutes()*0.5}deg)`;
+}
+setInterval(mascotTick,1000);mascotTick();
+if($("mascotClock"))$("mascotClock").onclick=()=>{
+  Audio5.sfx.click();
+  $("tipLine").textContent="» "+CLOCK_WHISPERS[whisperIdx++%CLOCK_WHISPERS.length];
+};
 
 function refreshProfile(){const n=localStorage.getItem("dk_nick");if(n)hello(n);}
 
@@ -1251,6 +1309,14 @@ $("btnShare").onclick=()=>{
   },"image/png");
 };
 
+/* передзавантаження арту: одна ходка в кеш — нуль мигань далі */
+(function preloadCards(){
+  const names=[];
+  for(const su of ["avan","char","vata","krad","mani","shef"]) for(let vv=1;vv<=5;vv++) names.push(su+"_"+vv);
+  for(const nn of ["green","violet","blue","black","white","rudy"]) names.push("nip_"+nn);
+  names.forEach(nm=>{const im=new Image();im.src="/cards/"+nm+".jpg";});
+})();
+
 /* ── стан ── */
 socket.on("state",v=>{
   const prev=view;
@@ -1298,10 +1364,14 @@ function applyView(){
 function myPlayable(c){
   const v=view;if(!v||!v.you.active)return false;
   const t=v.table;
+  const gk=(v.glitch&&v.glitch.active)?v.glitch.kind:null;
   if(v.phase==="attack")return v.you.role==="attack";
-  if(v.phase==="defend"&&v.you.role==="defend"){const i=undefIdx(t);return i>=0&&canBeat(t[i].a,c);}
+  if(v.phase==="defend"&&v.you.role==="defend"){
+    const i=undefIdx(t);
+    return i>=0&&canBeat(t[i].a,c,gk==="prey_swap",gk==="value_flip");
+  }
   if((v.phase==="throw"||v.phase==="pileOn")&&v.you.role!=="defend")
-    return !isNip(c)&&tableVals(t).has(c.value)&&t.length<v.limit&&!v.nipUsed;
+    return !isNip(c)&&(gk==="throw_any"||tableVals(t).has(c.value))&&t.length<v.limit&&!v.nipUsed;
   return false;
 }
 
@@ -1311,7 +1381,9 @@ function renderGame(){
   const gb=$("glitchBanner");
   if(v.glitch?.active){
     gb.classList.add("on");
-    gb.textContent=v.glitch.kind==="prey_swap"?"⚡ збій кристража: ніпи плутають здобич!":"⚡ збій кристража: підкидати можна будь-що!";
+    gb.textContent=v.glitch.kind==="prey_swap"?"⚡ збій: ніпи плутають здобич!"
+      :v.glitch.kind==="value_flip"?"⚡ збій: менша б'є більшу своєї масті!"
+      :"⚡ збій: підкидати можна будь-що!";
   } else gb.classList.remove("on");
   applyTableBg(v.you.frontier||0);
   $("deckCnt").textContent=v.deckCount;
@@ -1367,8 +1439,10 @@ function renderGame(){
     if(a.suit!==b.suit)return a.suit<b.suit?-1:1;
     return a.value-b.value;
   });
-  const W=64,avail=hand.clientWidth||360,n=hs.length;
-  const step=n>1?Math.min(W+6,Math.max(10,(avail-W)/(n-1))):0;
+  const W=parseInt(getComputedStyle(document.documentElement).getPropertyValue("--cardW"))||64;
+  const minStep=Math.ceil(W*0.56); // номінал зверху по центру завжди видно
+  const avail=hand.clientWidth||360,n=hs.length;
+  const step=n>1?Math.min(W+6,Math.max(minStep,(avail-W)/(n-1))):0;
   const fanW=n>0?W+(n-1)*step:0;
   const fan=document.createElement("div");
   fan.className="fanIn";fan.style.width=Math.max(fanW,1)+"px";
@@ -1407,8 +1481,16 @@ function renderGame(){
     ov("ovRes",true);
     const key=v.startedAt+"|"+v.result.big;
     if(key!==lastResKey){lastResKey=key;if(v.result.standings.find(s=>s.you&&s.place===1))Audio5.sfx.win();}
-    $("resBig").textContent=v.result.big;
-    $("resText").textContent=v.result.text;
+    const inv=v.result.rematchWanted||[];
+    if(inv.length&&!v.result.youRematched){
+      $("resBig").textContent="РЕВАНШ?";
+      $("resText").textContent=inv.join(", ")+" кличе на реванш. приймаєш?";
+      $("btnRematch").textContent="прийняти реванш";
+    } else {
+      $("resBig").textContent=v.result.big;
+      $("resText").textContent=v.result.text;
+      $("btnRematch").textContent=v.result.youRematched?"чекаємо…":"реванш";
+    }
     $("resStand").innerHTML=v.result.standings.map(s=>
       `<div class="standing"><span>${s.place}. ${avatarSvg(s.avatar,14)} ${esc(s.nick)}${s.you?" (ти)":""}</span><span>${s.delta>=0?"+":""}${s.delta}</span></div>`).join("");
     const b=v.result.boosts&&v.result.boosts.length?` · ${v.result.boosts.join(", ")}`:"";

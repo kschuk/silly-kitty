@@ -206,7 +206,7 @@ function settle(game) {
       const side = game.lastSide[seat] || "kyts";
       p.tk[sideKey(side)] += 3;
       notes.push(`+3 ${sideUa(side)} — перемога ${side === "kyts" ? "кицями" : "анти-кицями"}`);
-      const fr = store.bumpFrontier(tok, side);
+      const fr = store.bumpFrontier(tok, p.side || side);
       if (fr && fr.conquered != null) {
         p.tk.k += 5; p.tk.a += 5;
         notes.push("завойовано новий усесвіт! +5 ж.к і +5 ж.а");
@@ -280,6 +280,8 @@ function resultView(game, seat) {
     frontier: p?.frontier ?? 0,
     newFrontier: game.newFrontier ? (game.newFrontier[seat] ?? null) : null,
     lastCard: game.lastCardPlayed || null,
+    rematchWanted: game.order.filter((x) => x !== seat && game.rematch[x] && !game.players[x]?.bot).map((x) => nickOf(game, x)),
+    youRematched: !!game.rematch[seat],
   };
 }
 
@@ -368,7 +370,6 @@ function startDeal(game, seed) {
   game.startedAt = Date.now();
   game.lastSide = {}; game.coinNotes = {}; game.lastCardPlayed = null;
   game.glitchDone = false;
-  if (game.state.glitch) game.glitchAt = game.startedAt + 20_000 + Math.random() * 160_000;
   for (const s of Object.keys(game.players)) game.players[s].lastAct = Date.now();
   const f = game.state.first;
   if (f.type === "low")
@@ -472,8 +473,21 @@ function performMove(game, seat, type, uid) {
     if (s.result) { settle(game); pushState(game, msgFn); scheduleCleanup(game); return true; }
   }
   pushState(game, msgFn);
+  maybeGlitchRoll(game);
   maybeBotMove(game);
   return true;
+}
+
+/* збій кристража: кожен успішний хід — маленький шанс зсуву стрілок */
+function maybeGlitchRoll(game) {
+  const st = game.state;
+  if (!st || !st.glitch || !st.glitch.enabled || st.glitch.active || game.glitchDone || st.result) return;
+  if (Math.random() < 0.05) {
+    st.glitch.active = true;
+    game.glitchEndAt = Date.now() + 20_000;
+    const L = { prey_swap: TXT.glitch.startPreySwap, throw_any: TXT.glitch.startThrowAny, value_flip: TXT.glitch.startValueFlip };
+    pushState(game, () => L[st.glitch.kind] || TXT.glitch.startThrowAny);
+  }
 }
 
 /* один пік у няві — людини чи бота */
@@ -555,6 +569,7 @@ io.on("connection", (socket) => {
       achIds: p.ach || [], avatar: p.avatar, title: p.title, streak: p.streak,
       tk: p.tk || { k: 100, a: 100 },
       frontier: p.frontier ?? 0, frontierWins: p.frontierWins || { kyts: 0, anti: 0 },
+      side: p.side || "kyts",
     };
     if (game && !game.finished) {
       const seat = seatOf(game, token);
@@ -782,7 +797,7 @@ io.on("connection", (socket) => {
     cb?.({ ok: true, profile: {
       nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp), games: p.games,
       achIds: p.ach, avatar: p.avatar, title: p.title, streak: p.streak,
-      tk: p.tk,
+      tk: p.tk, side: p.side,
     }});
     const c = ctx();
     if (c) pushState(c.game);
@@ -797,6 +812,7 @@ io.on("connection", (socket) => {
       achIds: p.ach, avatar: p.avatar, title: p.title,
       tk: p.tk || { k: 0, a: 0 },
       frontier: p.frontier ?? 0, frontierWins: p.frontierWins || { kyts: 0, anti: 0 },
+      side: p.side || "kyts",
       hist: p.hist || [],
       pos: store.position(token),
     });
@@ -914,18 +930,11 @@ setInterval(() => {
     if (game.finished || !game.state) continue;
     const st = game.state;
 
-    /* збій кристража: спрацьовує раз на партію на випадковій хвилині, триває 20с */
-    if (st.glitch && st.glitch.enabled && !game.glitchDone) {
-      if (!st.glitch.active && game.glitchAt && now >= game.glitchAt) {
-        st.glitch.active = true;
-        game.glitchEndAt = now + 20_000;
-        const line = st.glitch.kind === "prey_swap" ? TXT.glitch.startPreySwap : TXT.glitch.startThrowAny;
-        pushState(game, () => line);
-      } else if (st.glitch.active && now >= game.glitchEndAt) {
-        st.glitch.active = false;
-        game.glitchDone = true;
-        pushState(game, () => TXT.glitch.end);
-      }
+    /* збій кристража: вимикається за 20с після активації (активація — кожен хід) */
+    if (st.glitch && st.glitch.active && now >= game.glitchEndAt) {
+      st.glitch.active = false;
+      game.glitchDone = true;
+      pushState(game, () => TXT.glitch.end);
     }
 
     if (st.phase === "nyav") {

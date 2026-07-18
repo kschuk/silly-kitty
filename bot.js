@@ -7,8 +7,8 @@
    ════════════════════════════════════════════════ */
 const core = require("./core");
 
-function cheapestBeat(card, hand, swapPrey) {
-  const opts = hand.filter((c) => core.canBeat(card, c, swapPrey));
+function cheapestBeat(card, hand, swapPrey, valueFlip) {
+  const opts = hand.filter((c) => core.canBeat(card, c, swapPrey, valueFlip));
   if (!opts.length) return null;
   opts.sort((a, b) => {
     if (core.isNip(a) !== core.isNip(b)) return core.isNip(a) ? 1 : -1; // евристика 1
@@ -37,7 +37,7 @@ function botDecide(state, seat) {
   if (state.phase === "defend" && state.defender === seat) {
     const i = core.undefIdx(state.table);
     if (i < 0) return null;
-    const c = cheapestBeat(state.table[i].a, hand, core.glitchSwap(state));
+    const c = cheapestBeat(state.table[i].a, hand, core.glitchSwap(state), core.glitchFlip(state));
     return c ? { type: "defend", uid: c.uid } : { type: "take" };
   }
   if ((state.phase === "throw" || state.phase === "pileOn") && seat !== state.defender) {

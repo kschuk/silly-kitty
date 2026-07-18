@@ -35,7 +35,8 @@ function load() {
       if (p.seenTitry == null) p.seenTitry = false;
       if (p.frontier == null) p.frontier = 0;                 // мапа завойовувань: -4..4
       if (!p.frontierWins) p.frontierWins = { kyts: 0, anti: 0 };
-      if (p.dailyDate == null) p.dailyDate = null;             // «стіл дня»: дата останньої спроби
+      if (p.dailyDate == null) p.dailyDate = null;
+      if (p.side !== "kyts" && p.side !== "anti") p.side = "kyts";  // сторона мапи             // «стіл дня»: дата останньої спроби
     }
   } catch (e) {
     console.error("сховище не прочиталось, з нуля:", e.message);
@@ -102,7 +103,7 @@ function dailyBoard() {
 
 function getOrCreate(token, nick) {
   if (!players[token]) {
-    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, seenTitry: false, frontier: 0, frontierWins: { kyts: 0, anti: 0 }, dailyDate: null, migr2: true, seen: Date.now() };
+    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, seenTitry: false, frontier: 0, frontierWins: { kyts: 0, anti: 0 }, dailyDate: null, side: "kyts", migr2: true, seen: Date.now() };
   } else {
     players[token].nick = nick || players[token].nick;
     players[token].seen = Date.now();
@@ -136,6 +137,7 @@ function setProfile(token, { nick, avatar, title }, validAvatars, validTitles) {
     if (nick.length >= 2) p.nick = nick;
   }
   if (avatar != null && validAvatars.includes(avatar)) p.avatar = avatar;
+  if (arguments[1] && (arguments[1].side === "kyts" || arguments[1].side === "anti")) p.side = arguments[1].side;
   if (title != null && (title === "" || validTitles.includes(title))) p.title = title;
   save();
   return p;
@@ -191,7 +193,7 @@ function top(n = 50) {
     .filter((p) => p.games >= 1)
     .sort((x, y) => y.sp - x.sp)
     .slice(0, n)
-    .map((p) => ({ nick: p.nick, sp: p.sp, games: p.games, streak: p.streak, avatar: p.avatar || "cat_black" }));
+    .map((p) => ({ nick: p.nick, sp: p.sp, games: p.games, streak: p.streak, avatar: p.avatar || "cat_black", side: p.side || "kyts" }));
 }
 
 load();
