@@ -29,6 +29,7 @@ function load() {
       if (!p.fastWins) p.fastWins = 0;
       if (!p.banUntil) p.banUntil = 0;
       if (!p.tk) p.tk = { k: 100, a: 100 };
+      if (p.seenTitry == null) p.seenTitry = false;
     }
   } catch (e) {
     console.error("сховище не прочиталось, з нуля:", e.message);
@@ -52,7 +53,7 @@ function save() {
 
 function getOrCreate(token, nick) {
   if (!players[token]) {
-    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, migr2: true, seen: Date.now() };
+    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, seenTitry: false, migr2: true, seen: Date.now() };
   } else {
     players[token].nick = nick || players[token].nick;
     players[token].seen = Date.now();

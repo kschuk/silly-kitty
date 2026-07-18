@@ -26,7 +26,7 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .stack{display:flex;flex-direction:column;gap:10px;width:100%;max-width:280px}
 .tableZone{border:2px dashed rgba(39,32,25,.4);border-radius:10px;background:rgba(246,239,220,.5);min-height:150px;padding:10px;display:flex;flex-wrap:wrap;gap:10px;align-content:flex-start;margin-top:4px}
 .pair{position:relative;width:84px;height:96px}
-.card{position:relative;width:64px;height:75px;border:2px solid var(--ink);border-radius:6px;box-shadow:1.5px 2px 0 rgba(39,32,25,.35);flex-shrink:0;user-select:none}
+.card{position:relative;width:64px;height:75px;border:2px solid var(--ink);border-radius:6px;box-shadow:1.5px 2px 0 rgba(39,32,25,.35);flex-shrink:0;user-select:none;overflow:hidden}
 .card .v{position:absolute;top:0;left:5px;font-family:'Unbounded',monospace;font-weight:800;font-size:16px}
 .card .s{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px;padding-top:6px}
 .card .n{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:6px;letter-spacing:-.02em;opacity:.85;white-space:nowrap;overflow:hidden}
@@ -136,13 +136,18 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .popSpin{animation:popSpin .6s ease-out}
 .popFlip{animation:popFlip .55s ease-out}
 a{color:var(--kyts);font-weight:600}
+.avIcon{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:var(--paper);border:1.5px solid var(--ink);overflow:hidden;vertical-align:-4px;flex-shrink:0}
+.genreWidget{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 2px;font-size:11px}
+.genreWidget button{padding:3px 9px;font-size:12px;box-shadow:none}
+.genreName{min-width:64px;text-align:center;font-weight:600}
+.titryBonus{margin-top:8px;font-size:10px;color:var(--kyts);min-height:12px}
 .loreP{white-space:pre-wrap;font-size:11px;line-height:1.75;text-align:left;text-transform:lowercase}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:flex-end">
-    <div><h1>ДУР-КИЦЬ</h1><div class="sub"> · змагальницька карткова не настільна гра · </div></div>
+    <div><h1>ДУР-КИЦЬ</h1><div class="sub">змагальницька карткова не настільна гра · онлайн</div></div>
     <button class="small" id="btnMenu">менюв</button>
   </div>
 
@@ -166,6 +171,11 @@ a{color:var(--kyts);font-weight:600}
         <button class="small iconBtn" id="miniAch" title="досягнення">✦ досягнення</button>
         <button class="small iconBtn" id="miniTop" title="рекорди">♛ рекорди</button>
         <button class="small iconBtn" id="miniShop" title="магазин"></button>
+      </div>
+      <div class="genreWidget">
+        <button class="small" id="genrePrev">◀</button>
+        <span>🎵 <span class="genreName" id="genreName">…</span></span>
+        <button class="small" id="genreNext">▶</button>
       </div>
       <div class="stack">
         <button class="accent" id="btnQuick">швидка гра (1 на 1)</button>
@@ -339,11 +349,9 @@ a{color:var(--kyts);font-weight:600}
 
 <div class="overlay" id="ovCred"><div class="panel">
   <div class="big">ТІТРИ</div>
-  <div style="margin-top:12px;line-height:2">
-    autor — <b>amadeus_koma</b> &amp; <b>gregosmogony</b><br>
-    <a href="https://donatello.to/GREGOSMOGONY" target="_blank" rel="noopener">☕ підтримати на донателло</a>
-  </div>
-  <div class="sub" style="margin-top:10px">няв.</div>
+  <div style="margin-top:12px;line-height:2" id="titryAuthors"></div>
+  <div class="sub" style="margin-top:10px" id="titryFooter"></div>
+  <div class="titryBonus" id="titryBonusMsg"></div>
   <div class="row"><button id="credBack">назад</button></div>
 </div></div>
 
@@ -398,12 +406,31 @@ const AVATARS={
   cat_black:["#221c16","#f6f0df","cat"],cat_white:["#f6f0df","#272019","cat"],cat_rudy:["#c06a2c","#f6f0df","cat"],
   frog_green:["#40763c","#f6f0df","frog"],frog_violet:["#6d4b99","#f6f0df","frog"],frog_blue:["#35619b","#f6f0df","frog"],
 };
-function coinSvg(side,w=13){
+function coinSvg(side,w=13,clickable=false){
   const cat=side==="k";
-  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${w}px;height:${w}px;border-radius:50%;background:${cat?"#b55a24":"#40763c"};border:1.5px solid #272019;vertical-align:-2px;margin-right:1px">${cat?catSvg("#f3e2c4","#272019",w-5):frogSvg("#e8f0e0","#1e3320",w-5)}</span>`;
+  const cur=clickable?' onclick="Audio5.sfx.coin()" style="cursor:pointer"':"";
+  return `<span${cur} style="display:inline-flex;align-items:center;justify-content:center;width:${w}px;height:${w}px;border-radius:50%;background:${cat?"#b55a24":"#40763c"};border:1.5px solid #272019;vertical-align:-2px;margin-right:1px">${cat?catSvg("#f3e2c4","#272019",w-5):frogSvg("#e8f0e0","#1e3320",w-5)}</span>`;
 }
-function coinify(h){return String(h).split("ж.к").join(coinSvg("k")+"ж.к").split("ж.а").join(coinSvg("a")+"ж.а");}
-function avatarSvg(id,w){const a=AVATARS[id]||AVATARS.cat_black;return (a[2]==="frog"?frogSvg:catSvg)(a[0],a[1],w);}
+function coinify(h){return String(h).split("ж.к").join(coinSvg("k",13,true)+"ж.к").split("ж.а").join(coinSvg("a",13,true)+"ж.а");}
+/* аватарки: якщо покладеш файл public/avatars/{id}.jpg (наприклад avatars/cat_black.jpg) —
+   гра підхопить його сама на наступному перемальовуванні. нема файлу — малює SVG. */
+const avatarImgOK={};
+function testAvatarImg(id){
+  if(avatarImgOK[id]!==undefined)return;
+  avatarImgOK[id]=null;
+  const im=new Image();
+  im.onload=()=>{avatarImgOK[id]=true;};
+  im.onerror=()=>{avatarImgOK[id]=false;};
+  im.src=`/avatars/${id}.jpg`;
+}
+function avatarSvg(id,w){
+  testAvatarImg(id);
+  const a=AVATARS[id]||AVATARS.cat_black;
+  const inner=avatarImgOK[id]===true
+    ?`<img src="/avatars/${id}.jpg" style="width:100%;height:100%;object-fit:cover">`
+    :(a[2]==="frog"?frogSvg:catSvg)(a[0],a[1],Math.round(w*0.62));
+  return `<span class="avIcon" style="width:${w}px;height:${w}px">${inner}</span>`;
+}
 document.getElementById("nickCat").innerHTML=catSvg("#272019","#ece3cc",64);
 
 /* ── музика і звук (процедурні заглушки в дусі референсів) ── */
@@ -425,13 +452,6 @@ const Audio5=(()=>{
     const x=ctx.createGain();x.gain.value=v;sN.connect(f);f.connect(x);x.connect(g);sN.start(t);}
   const pent=[523.25,587.33,659.25,783.99,880];
   const SC={
-    menu:{bpm:56,run(t,s){
-      const PADS=[[220,277.18,329.63],[174.61,220,261.63],[196,246.94,293.66],[164.81,207.65,246.94]];
-      if(s%16===0)PADS[(s>>4)%4].forEach(f=>tone(f,t,6.5,"sine",mg,0.038));
-      const M=[[0,2,4,2],[4,3,1,0],[2,4,3,4],[0,1,2,3],[3,4,2,0]];
-      if(s%16===2){const m=M[(Math.random()*M.length)|0];
-        m.forEach((n,i)=>{if(Math.random()<0.8)tone(pent[n],t+i*0.9,1.7,"triangle",mg,0.04);});}
-    }},
     battle:{bpm:92,run(t,s){
       const ROOT=[130.81,110,116.54,123.47];
       const CH=[[261.63,311.13,392],[220,261.63,329.63],[233.08,293.66,349.23],[246.94,293.66,369.99]];
@@ -453,19 +473,61 @@ const Audio5=(()=>{
       if(s%32===16)F[(s>>5)%2].slice().reverse().forEach((f,i)=>tone(f,t+i*0.12,0.5,"triangle",mg,0.03));
     }},
   };
-  /* ено-шар: незалежні довгі ноти з випадковими періодами (поверх меню) */
+  /* ── п.7: жанрові варіанти для головного екрана. цикл — віджет у лобі ── */
+  const MENU_GENRES={
+    tunic:{bpm:56,run(t,s){
+      const PADS=[[220,277.18,329.63],[174.61,220,261.63],[196,246.94,293.66],[164.81,207.65,246.94]];
+      if(s%16===0)PADS[(s>>4)%4].forEach(f=>tone(f,t,6.5,"sine",mg,0.038));
+      const M=[[0,2,4,2],[4,3,1,0],[2,4,3,4],[0,1,2,3],[3,4,2,0]];
+      if(s%16===2){const m=M[(Math.random()*M.length)|0];
+        m.forEach((n,i)=>{if(Math.random()<0.8)tone(pent[n],t+i*0.9,1.7,"triangle",mg,0.04);});}
+    }},
+    eno:{bpm:40,run(){/* тіло — довгі незалежні ноти з enoStart() нижче */}},
+    lofi:{bpm:78,run(t,s){
+      const CH=[[220,261.63,329.63],[196,233.08,293.66],[174.61,220,261.63],[164.81,207.65,246.94]];
+      const bar=(s>>4)%4;
+      if(s%8===0)tone(CH[bar][0]/2,t,0.55,"sine",mg,0.1);
+      if(s%16===6)tone(CH[bar][0]/2*1.5,t,0.3,"sine",mg,0.04);
+      if(s%16===0)CH[bar].forEach(f=>tone(f,t,3.4,"triangle",mg,0.028));
+      if(s%2===0&&Math.random()<0.5)nz(t,0.02,0.012,mg);
+      if(s%32===20&&Math.random()<0.5)tone(CH[bar][2]*2,t,0.5,"sine",mg,0.02,-30);
+    }},
+    chiptune:{bpm:126,run(t,s){
+      const ARP=[[523.25,659.25,783.99,1046.5],[493.88,587.33,739.99,987.77],[440,554.37,659.25,880],[523.25,659.25,783.99,987.77]];
+      const bar=(s>>3)%4,a=ARP[bar];
+      tone(a[s%4],t,0.11,"square",mg,0.05);
+      if(s%16===0)tone(a[0]/2,t,0.3,"square",mg,0.06);
+      if(s%8===4)nz(t,0.015,0.02,mg);
+    }},
+    waltz:{bpm:132,run(t,s){
+      const M=[523.25,587.33,659.25,698.46,783.99];
+      const bar=(s>>4)%3;
+      const BASS=[130.81,146.83,164.81];
+      if(s%6===0)tone(BASS[bar],t,0.5,"sine",mg,0.09);
+      if(s%6===2||s%6===4)tone(BASS[bar]*1.5,t,0.24,"triangle",mg,0.05);
+      if(s%3===0&&Math.random()<0.75)tone(M[(Math.random()*M.length)|0],t,1.1,"triangle",mg,0.045);
+    }},
+  };
+  let curGenre=localStorage.getItem("dk_genre")||"tunic";
+  if(!MENU_GENRES[curGenre])curGenre="tunic";
+  /* ено-шар: незалежні довгі ноти з випадковими періодами — власний повноцінний жанр */
   const ENO=[261.63,311.13,349.23,392,466.16];
   function enoStart(){enoStop();ENO.forEach((f,i)=>{
-    const loop=()=>{if(scene!=="menu"||!ctx)return;
-      tone(f,ctx.currentTime+0.05,7+Math.random()*3,"sine",mg,0.026);
-      enoT[i]=setTimeout(loop,7000+Math.random()*12000);};
-    enoT[i]=setTimeout(loop,1200+i*2400+Math.random()*4000);});}
+    const loop=()=>{if(scene!=="menu"||curGenre!=="eno"||!ctx)return;
+      tone(f,ctx.currentTime+0.05,7+Math.random()*3,"sine",mg,0.05);
+      enoT[i]=setTimeout(loop,4000+Math.random()*7000);};
+    enoT[i]=setTimeout(loop,300+i*900+Math.random()*1400);});}
   function enoStop(){enoT.forEach(clearTimeout);enoT=[];}
   function start(name){scene=name;clearInterval(timer);enoStop();step=0;if(!name||!ctx)return;
-    const sc=SC[name];const sd=60/sc.bpm/2;next=ctx.currentTime+0.06;
+    const sc=name==="menu"?MENU_GENRES[curGenre]:SC[name];const sd=60/sc.bpm/2;next=ctx.currentTime+0.06;
     timer=setInterval(()=>{if(!ctx)return;while(next<ctx.currentTime+0.35){sc.run(next,step++);next+=sd;}},110);
-    if(name==="menu")enoStart();}
+    if(name==="menu"&&curGenre==="eno")enoStart();}
   function setScene(name){want=name;if(ctx&&scene!==name)start(name);}
+  function setMenuGenre(key){
+    if(!MENU_GENRES[key])return;
+    curGenre=key;localStorage.setItem("dk_genre",key);
+    if(ctx&&scene==="menu")start("menu");
+  }
   const sfx={
     click(){ensure();if(ctx)tone(880,ctx.currentTime,0.05,"square",sg,0.06);},
     place(){ensure();if(ctx)tone(660,ctx.currentTime,0.09,"square",sg,0.11);},
@@ -473,8 +535,9 @@ const Audio5=(()=>{
     take(){ensure();if(ctx)tone(340,ctx.currentTime,0.4,"sawtooth",sg,0.08,-200);},
     bito(){ensure();if(ctx)nz(ctx.currentTime,0.24,0.12,sg);},
     win(){ensure();if(ctx)[523,659,784,1046].forEach((f,i)=>tone(f,ctx.currentTime+i*0.09,0.32,"triangle",sg,0.11));},
+    coin(){ensure();if(!ctx)return;tone(988,ctx.currentTime,0.06,"square",sg,0.09);tone(1568,ctx.currentTime+0.055,0.16,"square",sg,0.08);},
   };
-  return {setScene,sfx,vols,ensure,unlock,setVol(k,v){vols[k]=v;localStorage.setItem(k==="music"?"dk_vm":"dk_vs",v);apply();}};
+  return {setScene,sfx,vols,ensure,unlock,setMenuGenre,genreKeys:Object.keys(MENU_GENRES),getGenre:()=>curGenre,setVol(k,v){vols[k]=v;localStorage.setItem(k==="music"?"dk_vm":"dk_vs",v);apply();}};
 })();
 document.addEventListener("pointerdown",()=>Audio5.unlock());
 document.addEventListener("touchend",()=>Audio5.unlock());
@@ -484,6 +547,8 @@ const RULES=(window.DK_TEXTS&&DK_TEXTS.RULES)||[];
 const LORE=(window.DK_TEXTS&&DK_TEXTS.LORE)||"";
 const CLOCK_WHISPERS=(window.DK_TEXTS&&DK_TEXTS.CLOCK_WHISPERS)||["цок."];
 const SHOP=(window.DK_TEXTS&&DK_TEXTS.SHOP)||[];
+const TITRY=(window.DK_TEXTS&&DK_TEXTS.TITRY)||{authors:"",donateLine:"",footer:"",bonusHint:""};
+const GENRE_NAMES=(window.DK_TEXTS&&DK_TEXTS.GENRE_NAMES)||{};
 let whisperIdx=0;
 
 /* ── жетон ── */
@@ -495,6 +560,13 @@ const screens=["scrNick","scrLobby","scrWait","scrGame"];
 function show(id){screens.forEach(s=>$(s).classList.toggle("on",s===id));if(id!=="scrGame"&&document.getElementById("gameChat")){$("gameChat").classList.remove("on");}syncScene();}
 function ov(id,on){$(id).classList.toggle("on",on);}
 function esc(s){return String(s??"").replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]));}
+function linkify(raw){
+  return String(raw??"").split(/(\[\[LINK:[^|]+\|[^\]]+\]\])/g).map(part=>{
+    const m=part.match(/^\[\[LINK:([^|]+)\|([^\]]+)\]\]$/);
+    if(m)return `<a href="${esc(m[1])}" target="_blank" rel="noopener">${esc(m[2])}</a>`;
+    return esc(part);
+  }).join("");
+}
 
 const NYAV=[["lapka","лапка"],["kihot","кіготь"],["khvist","хвіст"]];
 let view=null, profile=null, inRoom=false;
@@ -546,7 +618,23 @@ $("btnMenu").onclick=()=>{
 };
 $("mClose").onclick=()=>ov("ovMenu",false);
 const backTo=(from)=>{Audio5.sfx.click();ov(from,false);ov("ovMenu",true);};
-$("mCredits").onclick=()=>{ov("ovMenu",false);ov("ovCred",true);};
+$("mCredits").onclick=()=>{
+  Audio5.sfx.click();
+  ov("ovMenu",false);
+  $("titryAuthors").innerHTML=linkify(TITRY.authors)+"<br>"+linkify(TITRY.donateLine);
+  $("titryFooter").textContent=TITRY.footer;
+  $("titryBonusMsg").textContent="";
+  ov("ovCred",true);
+  socket.emit("titryBonus",r=>{
+    if(r?.ok){
+      profile={...profile,tk:r.tk};renderProfile();
+      Audio5.sfx.coin();
+      $("titryBonusMsg").textContent=`+2 ж.к і +2 ж.а — дякуємо, що зазирнув!`;
+    } else {
+      $("titryBonusMsg").textContent=TITRY.bonusHint||"";
+    }
+  });
+};
 $("credBack").onclick=()=>backTo("ovCred");
 $("mRules").onclick=()=>{ov("ovMenu",false);renderRules();ov("ovRules",true);};
 $("rulesBack").onclick=()=>backTo("ovRules");
@@ -558,7 +646,7 @@ $("miniAch").onclick=()=>{Audio5.sfx.click();openAch();};
 $("miniProfile").onclick=()=>{Audio5.sfx.click();openProfile();};
 $("miniShop").onclick=()=>{Audio5.sfx.click();openShop();};
 $("shopBack").onclick=()=>{Audio5.sfx.click();ov("ovShop",false);};
-$("mLore").onclick=()=>{ov("ovMenu",false);$("loreText").textContent=LORE;ov("ovLore",true);};
+$("mLore").onclick=()=>{ov("ovMenu",false);$("loreText").innerHTML=linkify(LORE);ov("ovLore",true);};
 $("loreBack").onclick=()=>backTo("ovLore");
 $("mSettings").onclick=()=>{ov("ovMenu",false);openSettings();};
 $("setBack").onclick=()=>backTo("ovSettings");
@@ -746,13 +834,26 @@ function buy(side){
     $("shopErr").textContent="";
     profile={...profile,sp:r.sp,rank:r.rank,tk:r.tk};
     renderProfile();renderShopWallet();
-    Audio5.sfx.win();
+    Audio5.sfx.coin();
   });
 }
 $("buyK").innerHTML="купити за 1 "+coinSvg("k")+"ж.к";
 $("buyA").innerHTML="купити за 1 "+coinSvg("a")+"ж.а";
 $("buyK").onclick=()=>buy("k");
 $("buyA").onclick=()=>buy("a");
+
+function genreLabel(key){return (GENRE_NAMES&&GENRE_NAMES[key])||key;}
+function renderGenre(){$("genreName").textContent=genreLabel(Audio5.getGenre());}
+function shiftGenre(dir){
+  const ks=Audio5.genreKeys;let i=ks.indexOf(Audio5.getGenre());
+  i=(i+dir+ks.length)%ks.length;
+  Audio5.setMenuGenre(ks[i]);
+  Audio5.sfx.click();
+  renderGenre();
+}
+$("genrePrev").onclick=()=>shiftGenre(-1);
+$("genreNext").onclick=()=>shiftGenre(1);
+renderGenre();
 
 function refreshProfile(){const n=localStorage.getItem("dk_nick");if(n)hello(n);}
 

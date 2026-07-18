@@ -8,6 +8,7 @@ const path = require("path");
 const { Server } = require("socket.io");
 const core = require("./core");
 const store = require("./store");
+const TXT = require("./texts_ua");
 let GREG = [];
 try { GREG = require("./greg"); } catch (e) { GREG = ["няв? квак."]; }
 
@@ -208,15 +209,13 @@ function settle(game) {
 
 /* ── тексти ── */
 
-const nyavUa = { lapka: "лапка", kihot: "кіготь", khvist: "хвіст" };
-const nyavVerb = { lapka: "притискає", kihot: "чіпляє", khvist: "вислизає з-під" };
-const nyavGen = { lapka: "лапки", kihot: "кігтя", khvist: "хвоста" };
+const nyavUa = TXT.nyavUa, nyavVerb = TXT.nyavVerb, nyavGen = TXT.nyavGen;
 
 function exitText(kind, mine, nick) {
-  if (kind === "shed") return mine ? "ти скинув усі карти. вийшов!" : `${nick} скинув усі карти.`;
-  if (kind === "nip") return mine ? "останній ніп у руці! ніп-вихід." : `${nick}: останній ніп. ніп-вихід.`;
-  if (kind === "durkyts") return mine ? "ти — дур-киць. буває." : `${nick} — дур-киць.`;
-  return mine ? "тебе викинуло з гри." : `${nick} покинув гру.`;
+  if (kind === "shed") return mine ? TXT.exit.shedMine : TXT.exit.shedOther(nick);
+  if (kind === "nip") return mine ? TXT.exit.nipMine : TXT.exit.nipOther(nick);
+  if (kind === "durkyts") return mine ? TXT.exit.durkytsMine : TXT.exit.durkytsOther(nick);
+  return mine ? TXT.exit.dropMine : TXT.exit.dropOther(nick);
 }
 
 function resultView(game, seat) {
@@ -603,9 +602,9 @@ io.on("connection", (socket) => {
       msgFn = () => "побито. є ще.";
     else if (ev.type === "bout") {
       const base = ev.defended
-        ? (ev.reason === "nip" ? "після ніпа не підкидають. бито."
-          : ev.reason === "limit" ? "ліміт. бито."
-          : ev.reason === "dry" ? "підкинути нічого. бито." : "бито.")
+        ? (ev.reason === "nip" ? TXT.bout.nip
+          : ev.reason === "limit" ? TXT.bout.limit
+          : ev.reason === "dry" ? TXT.bout.dry : TXT.bout.plain)
         : null;
       const exits = ev.exited?.length
         ? " " + ev.exited.map((x) => exitText(s.exitKind[x], false, nickOf(game, x))).join(" ")
@@ -662,6 +661,17 @@ io.on("connection", (socket) => {
       if (!game.order.length) rooms.delete(game.code);
       else pushState(game, () => "хтось передумав. чекаємо далі.");
     }
+  });
+
+  socket.on("titryBonus", (cb) => {
+    const p = token && store.get(token);
+    if (!p) return cb?.({ error: "нема профілю." });
+    if (p.seenTitry) return cb?.({ already: true, tk: p.tk });
+    p.seenTitry = true;
+    if (!p.tk) p.tk = { k: 0, a: 0 };
+    p.tk.k += 2; p.tk.a += 2;
+    store.dirty();
+    cb?.({ ok: true, tk: p.tk });
   });
 
   socket.on("shopBuy", ({ pay }, cb) => {
