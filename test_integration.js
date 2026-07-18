@@ -4,7 +4,7 @@
 const { io } = require("socket.io-client");
 const core = require("./core");
 
-const URL = "http://localhost:3111";
+const URL = "http://localhost:" + (process.env.PORT || 3111);
 const rnd = (a) => a[(Math.random() * a.length) | 0];
 
 function mkClient(name, tok) {

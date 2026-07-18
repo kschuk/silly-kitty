@@ -57,16 +57,33 @@ function rankOf(sp) {
 
 const isNip = (c) => c.type === "nip";
 
-function shuffle(arr) {
+function shuffle(arr, rnd) {
+  const rand = rnd || Math.random;
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rand() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 }
 
-function buildDeck() {
+/* детермінований генератор для «столу дня»: однакова роздача всім за той самий сід */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function seedFromString(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+function buildDeck(seed) {
   const cards = [];
   let uid = 0;
   for (const s of SUITS)
@@ -74,18 +91,21 @@ function buildDeck() {
       cards.push({ uid: uid++, type: "suit", suit: s.id, side: s.side, value: v, sym: s.sym, name: s.name });
   for (const n of NIPS)
     cards.push({ uid: uid++, type: "nip", nip: n.id, name: n.name, prey: n.prey, color: n.color, text: n.text });
-  return shuffle(cards);
+  const rnd = seed != null ? mulberry32(typeof seed === "string" ? seedFromString(seed) : seed) : null;
+  return shuffle(cards, rnd);
 }
 
-function canBeat(att, def) {
+function canBeat(att, def, swapPrey) {
   if (isNip(def)) {
     if (isNip(att)) return NIP_VS_NIP === "any" ? true : def.prey !== att.prey;
-    return def.prey === att.side;
+    return swapPrey ? def.prey !== att.side : def.prey === att.side;
   }
   if (isNip(att)) return false;
   if (def.suit === att.suit) return def.value > att.value;
   return def.value === att.value;
 }
+const glitchThrowAny = (s) => !!(s.glitch && s.glitch.active && s.glitch.kind === "throw_any");
+const glitchSwap = (s) => !!(s.glitch && s.glitch.active && s.glitch.kind === "prey_swap");
 
 function tableVals(table) {
   const s = new Set();
@@ -128,6 +148,7 @@ const throwers = (s) => s.active.filter((x) => x !== s.defender);
 
 function canAnyoneThrow(s) {
   if (s.nipUsed || s.table.length >= s.limit) return false;
+  if (glitchThrowAny(s)) return throwers(s).some((seat) => s.hands[seat].some((c) => !isNip(c)));
   const vals = tableVals(s.table);
   return throwers(s).some((seat) =>
     s.hands[seat].some((c) => !isNip(c) && vals.has(c.value))
@@ -137,6 +158,7 @@ function canAnyoneThrow(s) {
 function canSeatThrow(s, seat) {
   if (seat === s.defender || !s.active.includes(seat)) return false;
   if (s.nipUsed || s.table.length >= s.limit) return false;
+  if (glitchThrowAny(s)) return s.hands[seat].some((c) => !isNip(c));
   const vals = tableVals(s.table);
   return s.hands[seat].some((c) => !isNip(c) && vals.has(c.value));
 }
@@ -212,9 +234,10 @@ function finishBout(s, defended) {
 }
 
 /* нова роздача на seats (2–5) */
-function deal(seats) {
+function deal(seats, opts) {
+  opts = opts || {};
   if (seats.length < 2 || seats.length > MAX_SEATS) throw new Error("2–5 гравців");
-  const deck = buildDeck();
+  const deck = buildDeck(opts.seed);
   const hands = {};
   for (const seat of seats) hands[seat] = deck.splice(0, 6);
   const s = {
@@ -225,6 +248,7 @@ function deal(seats) {
     places: {}, exitKind: {}, placeNext: 1,
     phase: "attack", result: null,
     nyavSet: null,
+    glitch: opts.glitch ? { enabled: true, kind: Math.random() < 0.5 ? "prey_swap" : "throw_any", active: false } : null,
   };
   const mins = seats.map((x) => [x, minSuitVal(hands[x])]);
   const best = Math.min(...mins.map(([, v]) => v));
@@ -283,7 +307,7 @@ function moveDefend(s, seat, uid) {
   const i = undefIdx(s.table);
   if (i < 0) return { ok: false };
   const card = s.hands[seat].find((c) => c.uid === uid);
-  if (!card || !canBeat(s.table[i].a, card)) return { ok: false };
+  if (!card || !canBeat(s.table[i].a, card, glitchSwap(s))) return { ok: false };
   s.hands[seat] = s.hands[seat].filter((c) => c.uid !== uid);
   s.table[i].d = card;
   if (isNip(card)) s.nipUsed = true;
@@ -305,7 +329,7 @@ function moveThrow(s, seat, uid) {
   if ((!inThrow && !inPile) || seat === s.defender || !s.active.includes(seat)) return { ok: false };
   const card = s.hands[seat].find((c) => c.uid === uid);
   if (!card || isNip(card)) return { ok: false };
-  if (!tableVals(s.table).has(card.value) || s.table.length >= s.limit || s.nipUsed)
+  if ((!glitchThrowAny(s) && !tableVals(s.table).has(card.value)) || s.table.length >= s.limit || s.nipUsed)
     return { ok: false };
   s.hands[seat] = s.hands[seat].filter((c) => c.uid !== uid);
   s.table.push({ a: card, d: null });
@@ -387,4 +411,5 @@ module.exports = {
   buildDeck, deal, setupBout, finishBout, processExits,
   canAnyoneThrow, canSeatThrow, throwers,
   moveAttack, moveDefend, moveTake, moveThrow, movePass, dropPlayer,
+  seedFromString, glitchThrowAny, glitchSwap,
 };
