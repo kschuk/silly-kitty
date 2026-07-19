@@ -37,7 +37,10 @@ function load() {
       if (!p.frontierWins) p.frontierWins = { kyts: 0, anti: 0 };
       if (p.dailyDate == null) p.dailyDate = null;
       if (p.side !== "kyts" && p.side !== "anti") p.side = "kyts";
-      if (!p.dailyStreak) p.dailyStreak = 0;  // сторона мапи             // «стіл дня»: дата останньої спроби
+      if (!p.dailyStreak) p.dailyStreak = 0;
+      if (!p.pveWins) p.pveWins = 0;
+      if (p.beatGreg == null) p.beatGreg = false;
+      if (p.beatZhreg == null) p.beatZhreg = false;  // сторона мапи             // «стіл дня»: дата останньої спроби
     }
   } catch (e) {
     console.error("сховище не прочиталось, з нуля:", e.message);
@@ -112,7 +115,7 @@ function dailyBoard() {
 
 function getOrCreate(token, nick) {
   if (!players[token]) {
-    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, seenTitry: false, frontier: 0, frontierWins: { kyts: 0, anti: 0 }, dailyDate: null, dailyStreak: 0, side: "kyts", migr2: true, seen: Date.now() };
+    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, seenTitry: false, frontier: 0, frontierWins: { kyts: 0, anti: 0 }, dailyDate: null, dailyStreak: 0, pveWins: 0, beatGreg: false, beatZhreg: false, side: "kyts", migr2: true, seen: Date.now() };
   } else {
     players[token].nick = nick || players[token].nick;
     players[token].seen = Date.now();

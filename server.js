@@ -10,8 +10,14 @@ const core = require("./core");
 const store = require("./store");
 const TXT = require("./texts_ua");
 const bot = require("./bot");
-let GREG = [];
-try { GREG = require("./greg"); } catch (e) { GREG = ["няв? квак."]; }
+let AMB = {};
+try { AMB = require("./ambassadors"); } catch (e) { AMB = {}; }
+const AMB_DEF = { greg: { name: "жабка ґреґ", idle: ["няв? квак."] }, zhreg: { name: "ґабка жреґ", idle: ["квак."] } };
+for (const k of ["greg", "zhreg"]) AMB[k] = Object.assign({}, AMB_DEF[k], AMB[k] || {});
+const ambLine = (who, key) => {
+  const arr = (AMB[who] && AMB[who][key]) || [];
+  return arr.length ? arr[(Math.random() * arr.length) | 0] : null;
+};
 
 const PORT = process.env.PORT || 3000;
 const RECONNECT_MS = 10 * 60_000;
@@ -50,6 +56,14 @@ const ACH = {
   glitchsurf:  { name: "глітч-серфер",  desc: "перемога в партії, де ти ходив під збоєм артефакта" },
   zhetonoyid:  { name: "жетоноїд",      desc: "назбирати 150+ жетонів однієї валюти" },
   tyzhnevyk:   { name: "тижневик",      desc: "грати стіл дня сім днів поспіль" },
+  /* ── ПвЕ-набір: здобувається лише проти амбасадорів ── */
+  pve_znaiomstvo:{ name: "знайомство",   desc: "ПвЕ: зіграти партію проти амбасадора", pve: true },
+  pve_greg:    { name: "друг ґрега",     desc: "ПвЕ: перемогти жабку ґрега", pve: true },
+  pve_zhreg:   { name: "гроза жрега",    desc: "ПвЕ: перемогти ґабку жрега", pve: true },
+  pve_obydva:  { name: "дипломат",       desc: "ПвЕ: перемогти обох амбасадорів", pve: true },
+  pve_sukho:   { name: "суха дипломатія",desc: "ПвЕ: перемога над амбасадором без жодного забору", pve: true },
+  pve_shvydko: { name: "бліц-візит",     desc: "ПвЕ: перемога над амбасадором швидше 2 хвилин", pve: true },
+  pve_desyat:  { name: "постійний гість",desc: "ПвЕ: десять перемог над амбасадорами", pve: true },
 };
 const TITLE_IDS = Object.keys(ACH);
 
@@ -82,7 +96,7 @@ function newGame(code) {
     takes: {}, cardsTaken: {}, nyavWins: {}, newAch: {}, banNote: {}, newFrontier: {},
     throwsBy: {}, nipsPlayed: {}, fivesPlayed: {}, glitchMoved: {}, glitchPending: null,
     lastSide: {}, coinNotes: {}, feeNote: {}, lastCardPlayed: null,
-    isPve: false, isDaily: false, glitchWanted: false,
+    isPve: false, isDaily: false, glitchWanted: false, amb: null, ambSaid: {},
     glitchAt: 0, glitchEndAt: 0, glitchDone: false,
     bet: null,
     startedAt: 0, finished: false, settled: false, deltas: null, boosts: null,
@@ -127,6 +141,46 @@ function settle(game) {
     for (const seat of seats) {
       game.deltas[seat] = 0; game.boosts[seat] = []; game.newAch[seat] = [];
       game.coinNotes[seat] = []; game.banNote[seat] = "";
+    }
+    /* ПвЕ-набір досягнень + амбасадорська мапа (рейтинг і далі не чіпаємо) */
+    const hSeat = seats.find((x) => !game.players[x].bot);
+    const hTok = hSeat && game.players[hSeat].token;
+    if (hTok && !game.isDaily) {
+      const p = store.get(hTok);
+      const won = st.places[hSeat] === 1;
+      const got = [], notes = [];
+      const tryA = (id, cond) => { if (cond && store.award(hTok, id)) got.push(ACH[id].name); };
+      tryA("pve_znaiomstvo", true);
+      if (won) {
+        p.pveWins = (p.pveWins || 0) + 1;
+        if (game.amb === "greg") p.beatGreg = true;
+        if (game.amb === "zhreg") p.beatZhreg = true;
+        tryA("pve_greg", game.amb === "greg");
+        tryA("pve_zhreg", game.amb === "zhreg");
+        tryA("pve_obydva", p.beatGreg && p.beatZhreg);
+        tryA("pve_sukho", !(game.takes[hSeat] > 0));
+        tryA("pve_shvydko", dur < 120_000);
+        tryA("pve_desyat", p.pveWins >= 10);
+        /* амбасадорство: перемога над ПРОТИЛЕЖНИМ амбасадором рухає мапу */
+        const ambSide = game.amb === "zhreg" ? "anti" : "kyts";
+        const mySide = p.side || "kyts";
+        if (ambSide !== mySide) {
+          const fr = store.bumpFrontier(hTok, mySide);
+          notes.push(`перемога над амбасадором ${ambSide === "anti" ? "анти-киць" : "киць"} — крок мапи`);
+          if (fr && fr.conquered != null) {
+            if (p.tk) { p.tk.k += 5; p.tk.a += 5; }
+            notes.push("завойовано новий усесвіт! +5 ж.к і +5 ж.а");
+            game.newFrontier[hSeat] = fr.conquered;
+          }
+        } else {
+          notes.push("свій амбасадор — мапа не зрушилась. шукай протилежного.");
+        }
+      }
+      if (got.length && p.tk) { p.tk.k += 3 * got.length; p.tk.a += 3 * got.length; notes.push(`+${3 * got.length} ж.к і +${3 * got.length} ж.а — ПвЕ-звання`); }
+      game.newAch[hSeat] = got;
+      game.coinNotes[hSeat] = notes;
+      store.dirty();
+      ambSay(game, won ? "playerWon" : "botWon", true);
     }
     if (game.isDaily) {
       const humanSeat = seats.find((x) => !game.players[x].bot);
@@ -349,7 +403,7 @@ function viewFor(game, seat, msg = "") {
     phase: st ? st.phase : "lobby",
     limit: st ? st.limit : 6,
     nipUsed: st ? st.nipUsed : false,
-    isPve: !!game.isPve, isDaily: !!game.isDaily,
+    isPve: !!game.isPve, isDaily: !!game.isDaily, amb: game.amb || null,
     glitch: st?.glitch ? { enabled: true, active: st.glitch.active, kind: st.glitch.active ? st.glitch.kind : null } : null,
     bet: game.bet ? betView(game, seat) : null,
     nyav: st?.phase === "nyav"
@@ -454,6 +508,11 @@ function performMove(game, seat, type, uid) {
   }
   if (s.glitch?.active) game.glitchMoved[seat] = true;
   consumeGlitch(game, seat);
+  if (game.isPve && !game.players[seat].bot) {
+    if (played && core.isNip(played)) ambSay(game, "nip");
+    else if (type === "take") ambSay(game, "takes");
+    else if (type === "defend" && r.ev?.type === "defend" && r.ev.allBeaten) ambSay(game, "beats");
+  }
   game.players[seat].lastAct = Date.now();
   const me = nickOf(game, seat);
   const ev = r.ev;
@@ -514,6 +573,7 @@ function maybeGlitchRoll(game) {
     game.glitchPending = new Set(st.active);
     const L = { prey_swap: TXT.glitch.startPreySwap, throw_any: TXT.glitch.startThrowAny, value_flip: TXT.glitch.startValueFlip };
     pushState(game, () => L[st.glitch.kind] || TXT.glitch.startThrowAny);
+    ambSay(game, "glitch", true);
   }
 }
 
@@ -559,6 +619,25 @@ function applyNyavPick(game, seat, sign) {
       `${revealTxt}. ще раз${s.nyavSet.includes(x) ? ": обери знак." : ` між: ${s.nyavSet.map((y) => nickOf(game, y)).join(", ")}.`}`);
   }
   maybeBotMove(game);
+}
+
+/* амбасадор кидає репліку в чат ПвЕ-матчу (не частіше, ніж раз на 6с) */
+function ambSay(game, key, force) {
+  if (!game.isPve || !game.amb || game.finished) return;
+  const now = Date.now();
+  if (!force && game.ambLast && now - game.ambLast < 6000) return;
+  if (key !== "takes" && key !== "beats" && game.ambSaid[key] && !force) return;
+  const text = ambLine(game.amb, key);
+  if (!text) return;
+  game.ambLast = now;
+  game.ambSaid[key] = true;
+  const entry = { nick: AMB[game.amb].name, text, ts: now };
+  game.chat.push(entry);
+  if (game.chat.length > 40) game.chat.shift();
+  for (const s2 of Object.keys(game.players)) {
+    const pp = game.players[s2];
+    if (pp?.socketId) io.to(pp.socketId).emit("chat", entry);
+  }
 }
 
 /* чи хтось із ботів має ходити — і якщо так, з невеликою людською затримкою */
@@ -731,16 +810,24 @@ io.on("connection", (socket) => {
     setTimeout(() => { game.bet = null; startDeal(game); }, 1800);
   });
 
-  socket.on("quickMatch", (cb) => {
+  socket.on("quickMatch", ({ glitch } = {}, cb) => {
+    if (typeof glitch === "function") { cb = glitch; glitch = false; }
     if (!token) return cb?.({ error: "спершу hello." });
     if (banGuard(cb)) return;
     if (byToken.has(token)) return cb?.({ error: "ти вже в кімнаті." });
+    const want = !!glitch;
     queue = queue.filter((q) => q.token !== token && io.sockets.sockets.has(q.socketId));
-    const oppo = queue.find((q) => q.token !== token && banLeft(q.token) === 0);
-    if (!oppo) { queue.push({ token, socketId: socket.id }); return cb?.({ queued: true }); }
+    const oppo = queue.find((q) => q.token !== token && banLeft(q.token) === 0 && !!q.glitch === want);
+    if (!oppo) {
+      queue.push({ token, socketId: socket.id, glitch: want, since: Date.now() });
+      /* є хтось з іншим налаштуванням — за 5с запропонуємо перемкнутись */
+      const other = queue.some((q) => q.token !== token && !!q.glitch !== want);
+      return cb?.({ queued: true, otherModeWaiting: other });
+    }
     queue = queue.filter((q) => q !== oppo);
     const code = newCode();
     const game = newGame(code);
+    game.glitchWanted = want;
     game.players.A = { token: oppo.token, nick: store.get(oppo.token).nick, socketId: oppo.socketId, connected: true, lastAct: Date.now() };
     game.players.B = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
     game.order = ["A", "B"];
@@ -753,6 +840,17 @@ io.on("connection", (socket) => {
 
   socket.on("leaveQueue", () => { queue = queue.filter((q) => q.token !== token); });
 
+  socket.on("queueInfo", (cb) => {
+    const me = queue.find((q) => q.token === token);
+    if (!me) return cb?.({ inQueue: false });
+    cb?.({
+      inQueue: true,
+      waitedMs: Date.now() - (me.since || Date.now()),
+      otherModeWaiting: queue.some((q) => q.token !== token && !!q.glitch !== !!me.glitch),
+      sameModeWaiting: queue.filter((q) => q.token !== token && !!q.glitch === !!me.glitch).length,
+    });
+  });
+
   /* ── ПвЕ: жабка ґреґ сідає за стіл, коли людей бракує ── */
   socket.on("playGreg", ({ glitch } = {}, cb) => {
     if (!token) return cb?.({ error: "спершу hello." });
@@ -762,13 +860,15 @@ io.on("connection", (socket) => {
     const game = newGame(code);
     game.isPve = true;
     game.glitchWanted = !!glitch;
+    game.amb = Math.random() < 0.5 ? "zhreg" : "greg";
     game.players.A = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
-    game.players.B = { bot: true, nick: "жабка ґреґ", connected: true, lastAct: Date.now() };
+    game.players.B = { bot: true, nick: AMB[game.amb].name, connected: true, lastAct: Date.now() };
     game.order = ["A", "B"];
     rooms.set(code, game);
     byToken.set(token, code);
-    cb?.({ code });
+    cb?.({ code, amb: game.amb });
     startDeal(game);
+    setTimeout(() => ambSay(game, "greeting", true), 900);
   });
 
   /* ── стіл дня: та сама роздача всім, одна спроба на добу ── */
@@ -781,8 +881,9 @@ io.on("connection", (socket) => {
     const game = newGame(code);
     game.isPve = true; game.isDaily = true;
     game.glitchWanted = !!glitch;
+    game.amb = "greg";
     game.players.A = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
-    game.players.B = { bot: true, nick: "жабка ґреґ", connected: true, lastAct: Date.now() };
+    game.players.B = { bot: true, nick: AMB.greg.name, connected: true, lastAct: Date.now() };
     game.order = ["A", "B"];
     rooms.set(code, game);
     byToken.set(token, code);
@@ -820,7 +921,8 @@ io.on("connection", (socket) => {
     if (!othersOnline.length) {
       setTimeout(() => {
         if (rooms.get(game.code) !== game) return;
-        const g = { nick: "жабка ґреґ", text: GREG[(Math.random() * GREG.length) | 0], ts: Date.now() };
+        const who = game.amb || "greg";
+        const g = { nick: AMB[who].name, text: ambLine(who, "idle") || "квак.", ts: Date.now() };
         game.chat.push(g);
         if (game.chat.length > 40) game.chat.shift();
         const me = game.players[seat];
@@ -880,7 +982,12 @@ io.on("connection", (socket) => {
       return;
     }
     game.rematch[seat] = true;
-    for (const x of game.order) if (game.players[x]?.bot) game.rematch[x] = true; // ґреґ завжди готовий
+    for (const x of game.order) if (game.players[x]?.bot) game.rematch[x] = true; // амбасадор завжди готовий
+    if (game.isPve && !game.isDaily) {
+      game.amb = Math.random() < 0.5 ? "zhreg" : "greg";
+      game.ambSaid = {};
+      for (const x of game.order) if (game.players[x]?.bot) game.players[x].nick = AMB[game.amb].name;
+    }
     const everyone = game.order.filter((x) => game.players[x]?.connected);
     if (everyone.length >= 2 && everyone.every((x) => game.rematch[x])) {
       game.order = everyone;
@@ -937,7 +1044,7 @@ io.on("connection", (socket) => {
     const list = store.top(100).map((p) => ({ ...p, rank: core.rankOf(p.sp) }));
     cb?.({ list, mePos: token ? store.position(token) : null });
   });
-  socket.on("achList", (cb) => cb?.(Object.entries(ACH).map(([id, a]) => ({ id, ...a }))));
+  socket.on("achList", (cb) => cb?.(Object.entries(ACH).map(([id, a]) => ({ id, name: a.name, desc: a.desc, pve: !!a.pve }))));
 
   socket.on("disconnect", () => {
     queue = queue.filter((q) => q.socketId !== socket.id);

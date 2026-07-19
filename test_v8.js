@@ -110,10 +110,60 @@ async function testBet() {
   a.s.close(); b.s.close();
 }
 
+async function testAmb() {
+  console.log("── тест F: амбасадори в ПвЕ ──");
+  const seen = new Set();
+  let sawChat = false, sawAch = false;
+  for (let i = 0; i < 8 && (seen.size < 2 || !sawChat); i++) {
+    const a = mkClient("amb-token-" + i + "-eeee", true);
+    await wait(150);
+    await new Promise((r) => a.s.emit("hello", { token: a.tok, nick: "амб" + i }, r));
+    a.s.on("chat", (e) => { if (e.nick.includes("ґреґ") || e.nick.includes("жреґ")) sawChat = true; });
+    const res = await new Promise((r) => a.s.emit("playGreg", {}, r));
+    if (res?.amb) seen.add(res.amb);
+    await until(() => a.view?.started, 3000, "старт ПвЕ");
+    await until(() => a.view?.result, 30_000, "фінал ПвЕ");
+    if (a.view.result.newAch?.length) sawAch = true;
+    if (a.view.result.spDelta !== 0) throw new Error("ПвЕ вплинуло на рейтинг!");
+    a.s.emit("leaveRoom");
+    a.s.close();
+    await wait(120);
+  }
+  if (seen.size < 2) throw new Error("за 8 партій не випали обидва амбасадори: " + [...seen]);
+  if (!sawChat) throw new Error("амбасадор жодного разу не написав у чат");
+  if (!sawAch) throw new Error("ПвЕ-досягнення жодного разу не видались");
+  console.log("обидва амбасадори (" + [...seen].join(", ") + "), чат і ПвЕ-ачівки працюють · тест F OK\n");
+}
+
+async function testGlitchQueue() {
+  console.log("── тест G: матчмейкінг за режимом збою ──");
+  const a = mkClient("gq-token-aaaa", false);
+  const b = mkClient("gq-token-bbbb", false);
+  await wait(200);
+  await new Promise((r) => a.s.emit("hello", { token: a.tok, nick: "збійний" }, r));
+  await new Promise((r) => b.s.emit("hello", { token: b.tok, nick: "звичайний" }, r));
+  const ra = await new Promise((r) => a.s.emit("quickMatch", { glitch: true }, r));
+  if (!ra?.queued) throw new Error("гравець зі збоєм мав стати в чергу");
+  const rb = await new Promise((r) => b.s.emit("quickMatch", { glitch: false }, r));
+  if (!rb?.queued) throw new Error("режими різні — з'єднувати не можна було!");
+  const info = await new Promise((r) => a.s.emit("queueInfo", r));
+  if (!info.otherModeWaiting) throw new Error("сервер не бачить гравця з іншим режимом");
+  const c = mkClient("gq-token-cccc", false);
+  await wait(150);
+  await new Promise((r) => c.s.emit("hello", { token: c.tok, nick: "збійний2" }, r));
+  const rc = await new Promise((r) => c.s.emit("quickMatch", { glitch: true }, r));
+  if (!rc?.code) throw new Error("двоє зі збоєм мали зматчитись, а не стати в чергу");
+  console.log("різні режими не змішуються, однакові — матчаться · тест G OK\n");
+  a.s.emit("leaveRoom"); c.s.emit("leaveRoom");
+  a.s.close(); b.s.close(); c.s.close();
+}
+
 (async () => {
   await testPve();
   await testDaily();
   await testBet();
-  console.log("УСІ ТЕСТИ v8 OK. няв.");
+  await testAmb();
+  await testGlitchQueue();
+  console.log("УСІ ТЕСТИ v8+v11 OK. няв.");
   process.exit(0);
 })().catch((e) => { console.error("ТЕСТ ВПАВ:", e.message); process.exit(1); });

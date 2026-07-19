@@ -68,10 +68,12 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 @keyframes bob{0%,100%{transform:translateY(-6px)}50%{transform:translateY(-10px)}}
 @keyframes cardIn{from{transform:translateY(22px) scale(.5) rotate(-9deg);opacity:0}}
 .anim-in{animation:cardIn .4s cubic-bezier(.2,.9,.3,1.2)}
-@keyframes outBito{60%{opacity:.9}to{transform:translate(110px,-46px) rotate(18deg) scale(.5);opacity:0}}
-.anim-out-bito{animation:outBito .55s ease-in forwards}
-@keyframes outTake{to{transform:translateY(90px) rotate(-8deg) scale(.6);opacity:0}}
-.anim-out-take{animation:outTake .55s ease-in forwards}
+@keyframes outBito{0%,42%{opacity:1;transform:none}62%{opacity:.95;transform:translateY(-5px) rotate(3deg)}to{transform:translate(110px,-46px) rotate(18deg) scale(.5);opacity:0}}
+.anim-out-bito{animation:outBito 1.15s cubic-bezier(.4,0,.5,1) forwards}
+@keyframes lastGlow{0%,42%{box-shadow:0 0 0 3px var(--kyts),1.5px 2px 0 rgba(39,32,25,.35)}to{box-shadow:1.5px 2px 0 rgba(39,32,25,.35)}}
+.anim-last{animation:lastGlow 1.15s ease-out forwards}
+@keyframes outTake{0%,38%{opacity:1;transform:none}to{transform:translateY(90px) rotate(-8deg) scale(.6);opacity:0}}
+.anim-out-take{animation:outTake 1.1s cubic-bezier(.4,0,.5,1) forwards}
 @keyframes drawIn{from{transform:translateX(60px) rotate(10deg);opacity:0}}
 .anim-draw{animation:drawIn .45s ease-out}
 @keyframes slap{from{transform:rotate(34deg) scale(1.35);opacity:.3}}
@@ -96,6 +98,9 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .achCard .ai{font-size:16px;line-height:1}
 .achCard.got{background:#f3e2c4;border-color:var(--kyts);border-width:2.5px}
 .achCard.locked{opacity:.5;border-style:dashed}
+.titleBanner{display:flex;justify-content:space-between;align-items:center;gap:8px;border:2px solid var(--ink);border-radius:8px;background:#f3e2c4;padding:7px 10px;cursor:pointer;font-size:11px}
+.titleBanner:active{transform:translateY(1px)}
+.achSect{font-size:9px;letter-spacing:.16em;opacity:.65;margin:12px 0 2px;text-align:left}
 .achStamp{position:absolute;right:5px;top:5px;transform:rotate(9deg);border:2px solid var(--kyts);color:var(--kyts);font-size:7px;padding:1px 4px;border-radius:4px;letter-spacing:.06em}
 .bar{font-size:10px;opacity:.85;margin-top:2px;line-height:1.5}
 .opps{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
@@ -266,6 +271,7 @@ body.no-anim .mascot{animation:none}
       <div class="code" id="roomCode"></div>
       <div class="lb" id="waitList"></div>
       <div class="sub" id="waitText"></div>
+      <div class="sub" id="queueHint" style="display:none;color:var(--kyts);margin-top:6px"></div>
       <div class="optRow" id="hostOpts" style="display:none">
         <input type="checkbox" id="roomGlitch"><label for="roomGlitch">⚙ збій</label>
         <span style="width:8px"></span>
@@ -452,7 +458,7 @@ body.no-anim .mascot{animation:none}
 
 <div class="overlay" id="ovMap"><div class="panel">
   <div class="big">МАПА ЗАВОЙОВУВАНЬ</div>
-  <div class="sub">кожні кілька перемог однією стороною — новий усесвіт.</div>
+  <div class="sub">амбасадорство: перемагай ПРОТИЛЕЖНОГО амбасадора в ПвЕ — і мапа рухається в бік твоєї сторони.</div>
   <div class="mapTrack" id="mapTrack"></div>
   <div class="mapProg"><div id="mapProgBar" style="width:0%"></div></div>
   <div class="sub" id="mapProgText" style="margin-top:4px"></div>
@@ -691,6 +697,7 @@ let view=null, profile=null, inRoom=false;
 let seenTable=new Set(), seenHand=new Set(), lastStartedAt=0, pendingClear=null, lastResKey="";
 let msgLog=[], lastLogMsg="";
 let lastResKey0="";
+let lastCardEl=null;
 
 const socket=io();
 
@@ -826,11 +833,20 @@ let achDefs=null;
 function openAch(){
   ov("ovAch",true);
   const mine=(view?.you?.achIds)||(profile?.achIds)||[];
-  const ICONS={blyskavka:"⚡",nipdyp:"🐾",sukha:"🌵",pyatykut:"⬠",seriya:"🌊",maraton:"🕰",kolektsioner:"🃏",nyavmaster:"😼",feniks:"🔥",nyavkosmos:"🚀",movchvoda:"💧",zhabhor:"🐸",pyatipyat:"✋",glitchsurf:"🌀",zhetonoyid:"🪙",tyzhnevyk:"📅"};
-  const render=()=>{ $("achList").innerHTML=`<div class="achGrid">`+achDefs.map(a=>{
+  const ICONS={pve_znaiomstvo:"🤝",pve_greg:"🐸",pve_zhreg:"👺",pve_obydva:"🕊",pve_sukho:"🏜",pve_shvydko:"💨",pve_desyat:"🎖",blyskavka:"⚡",nipdyp:"🐾",sukha:"🌵",pyatykut:"⬠",seriya:"🌊",maraton:"🕰",kolektsioner:"🃏",nyavmaster:"😼",feniks:"🔥",nyavkosmos:"🚀",movchvoda:"💧",zhabhor:"🐸",pyatipyat:"✋",glitchsurf:"🌀",zhetonoyid:"🪙",tyzhnevyk:"📅"};
+  const card=a=>{
     const got=mine.includes(a.id);
     return `<div class="achCard ${got?"got":"locked"}">${got?'<span class="achStamp">здобуто</span>':""}<span class="ai">${ICONS[a.id]||"✦"}</span> <b>«${esc(a.name)}»</b><br>${esc(a.desc)}</div>`;
-  }).join("")+`</div>`; };
+  };
+  const render=()=>{
+    const pvp=achDefs.filter(a=>!a.pve), pve=achDefs.filter(a=>a.pve);
+    const cnt=list=>list.filter(a=>mine.includes(a.id)).length;
+    $("achList").innerHTML=
+      `<div class="achSect">───── рейтингові · ${cnt(pvp)}/${pvp.length} ─────</div>`+
+      `<div class="achGrid">${pvp.map(card).join("")}</div>`+
+      `<div class="achSect">───── ПвЕ · проти амбасадорів · ${cnt(pve)}/${pve.length} ─────</div>`+
+      `<div class="achGrid">${pve.map(card).join("")}</div>`;
+  };
   if(achDefs)render();
   else socket.emit("achList",list=>{achDefs=list;render();});
 }
@@ -860,18 +876,28 @@ function openProfile(){
     $("sideK").onclick=()=>{Audio5.sfx.coin();socket.emit("setProfile",{side:"kyts"},r=>{if(r?.profile){profile=r.profile;renderProfile();openProfile();}});};
     $("sideA").onclick=()=>{Audio5.sfx.coin();socket.emit("setProfile",{side:"anti"},r=>{if(r?.profile){profile=r.profile;renderProfile();openProfile();}});};
     $("profNick").value=p.nick;
-    const chips=[`<span class="titleChip ${!p.title?"sel":""}" data-t="">авто [${esc(p.rank)}]</span>`,
-      `<span class="titleChip ${p.title==="none"?"sel":""}" data-t="none">— без звання —</span>`]
-      .concat((achDefs||[]).map(a=>{
-        const owned=p.achIds.includes(a.id);
-        return `<span class="titleChip ${p.title===a.id?"sel":""} ${owned?"":"locked"}" data-t="${a.id}" data-l="${owned?0:1}">«${esc(a.name)}»</span>`;
-      }));
-    $("titleChips").innerHTML=chips.join("");
-    $("titleChips").querySelectorAll(".titleChip").forEach(c=>c.onclick=()=>{
-      if(c.dataset.l==="1")return;
-      Audio5.sfx.click();
-      socket.emit("setProfile",{title:c.dataset.t},r=>{if(r?.profile){profile=r.profile;renderProfile();openProfile();}});
-    });
+    const ownedAch=(achDefs||[]).filter(a=>p.achIds.includes(a.id));
+    const curLabel=p.title==="none"?"— без звання —"
+      :(p.title&&(achDefs||[]).find(a=>a.id===p.title)?`«${esc((achDefs.find(a=>a.id===p.title)||{}).name)}»`
+      :`авто [${esc(p.rank)}]`);
+    const renderTitles=(open)=>{
+      const chips=[`<span class="titleChip ${!p.title?"sel":""}" data-t="">авто [${esc(p.rank)}]</span>`,
+        `<span class="titleChip ${p.title==="none"?"sel":""}" data-t="none">— без звання —</span>`]
+        .concat(ownedAch.map(a=>`<span class="titleChip ${p.title===a.id?"sel":""}" data-t="${a.id}">«${esc(a.name)}»</span>`));
+      $("titleChips").innerHTML=`
+        <div class="titleBanner" id="titleBanner">
+          <span>звання: <b>${curLabel}</b></span>
+          <span class="sub">${open?"згорнути ▴":`змінити (${ownedAch.length+2}) ▾`}</span>
+        </div>
+        ${open?`<div style="margin-top:6px">${chips.join("")}</div>
+          ${ownedAch.length?"":'<div class="sub" style="margin-top:4px">здобувай досягнення — вони стануть званнями.</div>'}`:""}`;
+      $("titleBanner").onclick=()=>{Audio5.sfx.click();renderTitles(!open);};
+      $("titleChips").querySelectorAll(".titleChip").forEach(c=>c.onclick=()=>{
+        Audio5.sfx.click();
+        socket.emit("setProfile",{title:c.dataset.t},r=>{if(r?.profile){profile=r.profile;renderProfile();openProfile();}});
+      });
+    };
+    renderTitles(false);
     const histRow=h=>{
       const d=new Date(h.ts);
       const dd=`${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
@@ -1153,12 +1179,47 @@ $("btnQuick").onclick=()=>{
     });
     return;
   }
-  socket.emit("quickMatch",r=>{
+  socket.emit("quickMatch",{glitch},r=>{
     if(r?.error){$("errLobby").textContent=r.error;return;}
     inRoom=true;
-    if(r?.queued){$("roomCode").textContent="· · · ·";$("waitList").textContent="";$("waitText").textContent="шукаємо суперника…";$("btnStart").style.display="none";chatReset();show("scrWait");}
+    if(r?.queued){
+      $("roomCode").textContent="· · · ·";$("waitList").textContent="";
+      $("waitText").textContent=glitch?"шукаємо суперника зі збоєм артефакта…":"шукаємо суперника…";
+      $("btnStart").style.display="none";$("queueHint").style.display="none";chatReset();show("scrWait");
+      startQueueWatch(glitch);
+    }
   });
 };
+
+/* якщо 5с шукаємо зі збоєм, а поруч чекає хтось без нього — пропонуємо перемкнутись */
+let queueWatch=null;
+function stopQueueWatch(){clearInterval(queueWatch);queueWatch=null;$("queueHint").style.display="none";}
+function startQueueWatch(glitch){
+  stopQueueWatch();
+  if(!glitch)return;
+  const t0=Date.now();
+  queueWatch=setInterval(()=>{
+    if(!inRoom||view?.started){stopQueueWatch();return;}
+    socket.emit("queueInfo",info=>{
+      if(!info?.inQueue){stopQueueWatch();return;}
+      if(Date.now()-t0>5000&&info.otherModeWaiting){
+        $("queueHint").style.display="";
+        $("queueHint").innerHTML=`поруч чекає гравець без збою артефакта.<br>
+          <button class="small" id="dropGlitch" style="margin-top:5px">шукати без збою</button>`;
+        const b=document.getElementById("dropGlitch");
+        if(b)b.onclick=()=>{
+          Audio5.sfx.click();
+          stopQueueWatch();
+          socket.emit("leaveQueue");
+          $("pveGlitch").checked=false;localStorage.setItem("dk_glitch","0");
+          socket.emit("quickMatch",{glitch:false},r2=>{
+            if(r2?.queued)$("waitText").textContent="шукаємо суперника…";
+          });
+        };
+      }
+    });
+  },1500);
+}
 $("btnCreate").onclick=()=>{Audio5.sfx.click();socket.emit("createRoom",r=>{
   if(r?.error){$("errLobby").textContent=r.error;return;}
   inRoom=true;chatReset();
@@ -1167,7 +1228,7 @@ $("btnJoin").onclick=()=>{Audio5.sfx.click();socket.emit("joinRoom",{code:$("joi
   if(r?.error){$("errLobby").textContent=r.error;return;}
   inRoom=true;chatReset();
 });};
-$("btnCancelWait").onclick=()=>{socket.emit("leaveQueue");socket.emit("leaveRoom");inRoom=false;view=null;leaveUI();show("scrLobby");};
+$("btnCancelWait").onclick=()=>{stopQueueWatch();socket.emit("leaveQueue");socket.emit("leaveRoom");inRoom=false;view=null;leaveUI();show("scrLobby");};
 $("btnStart").onclick=()=>{
   Audio5.sfx.click();
   socket.emit("startGame",{glitch:$("roomGlitch").checked,bet:$("roomBet").checked});
@@ -1369,11 +1430,12 @@ socket.on("state",v=>{
     document.querySelectorAll("#tbl .card").forEach(el=>{
       if(mineTake)flyClone(el,$("hand"));
       el.classList.add(bito?"anim-out-bito":"anim-out-take");
+      if(el===lastCardEl)el.classList.add("anim-last");
     });
     if(bito)Audio5.sfx.bito();
     clearTimeout(pendingClear);
     view=v;
-    pendingClear=setTimeout(applyView,620);
+    pendingClear=setTimeout(applyView,1180);
     return;
   }
   view=v;
@@ -1434,6 +1496,7 @@ function renderGame(){
   $("discMini").className="mini"+(v.discard?" stack":" empty");
 
   $("opps").innerHTML=v.others.map(o=>{
+    if(v.isPve&&v.amb)o={...o,avatar:v.amb==="zhreg"?"frog_violet":"frog_green"};
     const roleCls=o.role==="attack"?"att":o.role==="defend"?"def":"";
     const roleTxt=o.role==="attack"?"атакує":o.role==="defend"?"захищається":(o.passed?"пас":"");
     const state=!o.active?(o.place?`${o.place}-е місце`:"поза грою"):(!o.connected?"зник·чекаємо":"");
@@ -1459,6 +1522,7 @@ function renderGame(){
       const dNew=!seenTable.has(p.d.uid);seenTable.add(p.d.uid);
       if(dNew)Audio5.sfx.slap();
       const d=cardEl(p.d,dNew?"anim-slap":"");
+      if(dNew)lastCardEl=d;
       d.style.position="absolute";d.style.left="15px";d.style.top="15px";d.style.transform="rotate(7deg)";pr.appendChild(d);
     }
     tbl.appendChild(pr);
