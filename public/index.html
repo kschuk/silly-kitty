@@ -14,6 +14,24 @@
   .tableZone{min-height:210px}
   .mascot{width:160px !important;height:160px !important}
   .card .v{font-size:20px}
+  .opps{gap:8px}
+  .chip{min-width:120px;font-size:11px}
+}
+@media(min-width:1000px){
+  :root{--cardW:96px;--cardH:112px}
+  .wrap{max-width:900px;padding:18px 18px 30px}
+  body{font-size:14px}
+  h1{font-size:24px}
+  .tableZone{min-height:280px}
+  .mascot{width:190px !important;height:190px !important}
+  .panel{max-width:520px}
+  .achGrid,.shopGrid{grid-template-columns:1fr 1fr 1fr}
+  .gameChat{width:340px}
+}
+@media(hover:hover){
+  button:hover{filter:brightness(1.06)}
+  .card.play:hover{transform:translateY(-12px)}
+  .iconBtn:hover{background:var(--kyts);border-color:var(--kyts)}
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px}
@@ -62,8 +80,8 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .msg{min-height:16px;margin-top:8px;text-transform:lowercase;animation:msgIn .25s ease-out}
 @keyframes pulse{0%,100%{box-shadow:2px 2px 0 rgba(39,32,25,.35)}50%{box-shadow:2px 2px 0 rgba(181,90,36,.7)}}
 .chip.att,.chip.def{animation:pulse 1.8s ease-in-out infinite}
-.hand{height:calc(var(--cardH) + 27px);margin-top:8px;padding-top:12px;overflow-x:auto;overflow-y:hidden}
-.hand .fanIn{position:relative;height:calc(var(--cardH) + 15px)}
+.hand{margin-top:8px;padding-top:12px}
+.hand .fanIn{position:relative;margin:0 auto}
 .hand .slot{position:absolute;top:0}
 .slot.anim-draw{animation:drawIn .45s ease-out both}
 .card img.art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:4px}
@@ -73,6 +91,12 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .shopItem{border:2px solid var(--ink);border-radius:8px;padding:8px;position:relative;background:var(--paper);font-size:10px;line-height:1.4;text-align:left}
 .sold{position:absolute;right:5px;top:5px;transform:rotate(10deg);border:2px solid #8c2f1b;color:#8c2f1b;font-size:7px;padding:1px 4px;border-radius:4px;letter-spacing:.06em}
 .featured{border:3px solid var(--kyts);border-radius:10px;background:#f3e2c4;padding:10px;margin-top:8px}
+.achGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.achCard{border:2px solid var(--ink);border-radius:10px;padding:9px 8px 8px;background:var(--paper);text-align:left;font-size:10px;line-height:1.45;position:relative;min-height:70px}
+.achCard .ai{font-size:16px;line-height:1}
+.achCard.got{background:#f3e2c4;border-color:var(--kyts);border-width:2.5px}
+.achCard.locked{opacity:.5;border-style:dashed}
+.achStamp{position:absolute;right:5px;top:5px;transform:rotate(9deg);border:2px solid var(--kyts);color:var(--kyts);font-size:7px;padding:1px 4px;border-radius:4px;letter-spacing:.06em}
 .bar{font-size:10px;opacity:.85;margin-top:2px;line-height:1.5}
 .opps{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .chip{border:2px solid var(--ink);border-radius:8px;background:var(--panel);padding:4px 8px;font-size:10px;line-height:1.5;min-width:92px}
@@ -201,14 +225,15 @@ body.no-anim .mascot{animation:none}
 
   <div class="screen" id="scrLobby">
     <div class="center">
-      <div class="mascot" id="mascotClock" title="кристраж">
-        <img src="/img/krystrazh.jpg" alt="кристраж">
+      <div class="mascot" id="mascotClock" title="артефакт">
+        <img src="/img/krystrazh.jpg" alt="артефакт">
         <div class="mh mhH" id="mhH"></div>
         <div class="mh mhM" id="mhM"></div>
         <div class="mh mhS" id="mhS"></div>
       </div>
       <div class="tipLine" id="tipLine"></div>
       <div class="bar" id="profileLine"></div>
+      <div class="row" id="walletRow" style="margin:2px 0;gap:10px"></div>
       <div class="row" style="margin:2px 0 4px">
         <button class="small iconBtn" id="miniProfile" title="профіль"></button>
         <button class="small iconBtn" id="miniAch" title="досягнення">✦ досягнення</button>
@@ -222,7 +247,7 @@ body.no-anim .mascot{animation:none}
         <label class="swt"><input type="checkbox" id="pveSwitch"><span class="trk"></span></label>
         <span>ПвЕ (жабка ґреґ)</span>
       </div>
-      <div class="optRow"><input type="checkbox" id="pveGlitch"><label for="pveGlitch">⚙ збій кристража</label></div>
+      <div class="optRow"><input type="checkbox" id="pveGlitch"><label for="pveGlitch">⚙ збій артефакта</label></div>
       <div class="stack">
         <button class="accent" id="btnQuick">швидка гра (1 на 1)</button>
         <button id="btnCreate">створити стіл (2–5)</button>
@@ -266,7 +291,7 @@ body.no-anim .mascot{animation:none}
     <div class="glitchBanner" id="glitchBanner"></div>
     <div class="piles">
       <div class="pile"><div id="deckMini" class="mini"></div><div><div class="lbl">добір</div><div class="cnt" id="deckCnt">0</div></div></div>
-      <div class="clock" id="clockBox" title="кристраж">
+      <div class="clock" id="clockBox" title="артефакт">
         <svg width="42" height="42" viewBox="0 0 42 42">
           <circle cx="21" cy="21" r="19" fill="var(--panel)" stroke="var(--ink)" stroke-width="2.5"/>
           <circle cx="21" cy="4.5" r="1.2" fill="var(--ink)"/><circle cx="21" cy="37.5" r="1.2" fill="var(--ink)"/>
@@ -694,7 +719,10 @@ function renderProfile(){
   if(!profile)return;
   const tag=tagText(profile);
   const tkp=profile.tk||{k:"?",a:"?"};
-  $("profileLine").innerHTML=coinify(`${avatarSvg(profile.avatar,20)} <b>${esc(profile.nick)}</b>${tag} · ж.к ${tkp.k} · ж.а ${tkp.a}`);
+  $("profileLine").innerHTML=`${avatarSvg(profile.avatar,20)} <b>${esc(profile.nick)}</b>${tag}`;
+  if(document.getElementById("walletRow"))
+    $("walletRow").innerHTML=`<span class="iconBtn" style="cursor:pointer" onclick="Audio5.sfx.coin()">${coinSvg("k",16)} ${tkp.k}</span>
+      <span class="iconBtn" style="cursor:pointer" onclick="Audio5.sfx.coin()">${coinSvg("a",16)} ${tkp.a}</span>`;
   if(document.getElementById("miniProfile"))$("miniProfile").innerHTML=avatarSvg(profile.avatar,18);
   if(document.getElementById("miniShop"))$("miniShop").innerHTML=coinSvg("k",14)+coinSvg("a",14)+"магазин";
 }
@@ -798,8 +826,11 @@ let achDefs=null;
 function openAch(){
   ov("ovAch",true);
   const mine=(view?.you?.achIds)||(profile?.achIds)||[];
-  const render=()=>{ $("achList").innerHTML=achDefs.map(a=>
-    `<div class="achRow ${mine.includes(a.id)?"":"locked"}"><b>«${esc(a.name)}»</b>${mine.includes(a.id)?" ✓":""}<br>${esc(a.desc)}</div>`).join(""); };
+  const ICONS={blyskavka:"⚡",nipdyp:"🐾",sukha:"🌵",pyatykut:"⬠",seriya:"🌊",maraton:"🕰",kolektsioner:"🃏",nyavmaster:"😼",feniks:"🔥",nyavkosmos:"🚀",movchvoda:"💧",zhabhor:"🐸",pyatipyat:"✋",glitchsurf:"🌀",zhetonoyid:"🪙",tyzhnevyk:"📅"};
+  const render=()=>{ $("achList").innerHTML=`<div class="achGrid">`+achDefs.map(a=>{
+    const got=mine.includes(a.id);
+    return `<div class="achCard ${got?"got":"locked"}">${got?'<span class="achStamp">здобуто</span>':""}<span class="ai">${ICONS[a.id]||"✦"}</span> <b>«${esc(a.name)}»</b><br>${esc(a.desc)}</div>`;
+  }).join("")+`</div>`; };
   if(achDefs)render();
   else socket.emit("achList",list=>{achDefs=list;render();});
 }
@@ -841,12 +872,22 @@ function openProfile(){
       Audio5.sfx.click();
       socket.emit("setProfile",{title:c.dataset.t},r=>{if(r?.profile){profile=r.profile;renderProfile();openProfile();}});
     });
-    $("histList").innerHTML=(p.hist&&p.hist.length)?p.hist.map(h=>{
+    const histRow=h=>{
       const d=new Date(h.ts);
       const dd=`${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
       const mm=Math.floor(h.dur/60000),ss=String(Math.floor(h.dur/1000)%60).padStart(2,"0");
       return `<div class="histRow"><b>${h.delta>=0?"+":""}${h.delta}</b> · місце ${h.place}/${h.n} · ${mm}:${ss} · ${dd}${h.streak>=2?` · серія ${h.streak}`:""}<br><span class="sub">проти: ${h.opps.map(esc).join(", ")}</span></div>`;
-    }).join(""):"<div class='sub'>ще жодної партії. няв?</div>";
+    };
+    const hist=p.hist||[];
+    const renderHist=(all)=>{
+      $("histList").innerHTML=hist.length
+        ?hist.slice(0,all?hist.length:3).map(histRow).join("")
+          +(hist.length>3?`<div class="row" style="margin-top:6px"><button class="small" id="histToggle">${all?"згорнути ▴":`показати всі (${hist.length}) ▾`}</button></div>`:"")
+        :"<div class='sub'>ще жодної партії. няв?</div>";
+      const tg=document.getElementById("histToggle");
+      if(tg)tg.onclick=()=>{Audio5.sfx.click();renderHist(!all);};
+    };
+    renderHist(false);
   });
 }
 $("profNickSave").onclick=()=>{
@@ -1043,7 +1084,7 @@ let tipIdx=(Math.random()*TIPS.length)|0;
 function renderTip(){const el=$("tipLine");if(el)el.textContent="☞ "+(TIPS[tipIdx%TIPS.length]||"");}
 if($("tipLine")){$("tipLine").onclick=()=>{Audio5.sfx.click();tipIdx++;renderTip();};renderTip();}
 
-/* маскот-кристраж: стрілки за реальним часом + шепіт по кліку */
+/* маскот-артефакт: стрілки за реальним часом + шепіт по кліку */
 function mascotTick(){
   const h=$("mhH");if(!h)return;
   const d=new Date();
@@ -1095,7 +1136,7 @@ function renderBet(v){
   });
 }
 
-/* ── ПвЕ-перемикач і збій кристража: пам'ятаємо на пристрої ── */
+/* ── ПвЕ-перемикач і збій артефакта: пам'ятаємо на пристрої ── */
 $("pveSwitch").checked = localStorage.getItem("dk_pve")==="1";
 $("pveGlitch").checked = localStorage.getItem("dk_glitch")==="1";
 $("pveSwitch").onchange=()=>{localStorage.setItem("dk_pve",$("pveSwitch").checked?"1":"0");Audio5.sfx.click();};
@@ -1198,7 +1239,7 @@ function flyClone(el,target){
   setTimeout(()=>c.remove(),480);
 }
 
-/* ── годинник + шепіт кристража ── */
+/* ── годинник + шепіт артефакта ── */
 $("clockBox").onclick=()=>{
   if(!view||!view.started)return;
   $("msg").textContent="» "+CLOCK_WHISPERS[whisperIdx++%CLOCK_WHISPERS.length];
@@ -1288,7 +1329,7 @@ async function generatePostcard(){
   const mm=Math.floor((r.dur||0)/60000),ss=String(Math.floor((r.dur||0)/1000)%60).padStart(2,"0");
   const myPlace=(r.standings.find(s=>s.you)||{}).place;
   ctx.fillStyle="#272019";ctx.font="600 16px Georgia";
-  ctx.fillText(`час на кристражі: ${mm}:${ss}${myPlace?" · місце "+myPlace:""}`,W/2,cy+cardH+42);
+  ctx.fillText(`час на артефакті: ${mm}:${ss}${myPlace?" · місце "+myPlace:""}`,W/2,cy+cardH+42);
   ctx.font="italic 13px Georgia";ctx.fillStyle="#7a6f5c";
   const line=POSTCARD_LINES[(Math.random()*POSTCARD_LINES.length)|0];
   wrapText(ctx,"« "+line+" »",W/2,cy+cardH+80,W-110,18);
@@ -1381,9 +1422,10 @@ function renderGame(){
   const gb=$("glitchBanner");
   if(v.glitch?.active){
     gb.classList.add("on");
-    gb.textContent=v.glitch.kind==="prey_swap"?"⚡ збій: ніпи плутають здобич!"
-      :v.glitch.kind==="value_flip"?"⚡ збій: менша б'є більшу своєї масті!"
-      :"⚡ збій: підкидати можна будь-що!";
+    const gtxt=v.glitch.kind==="prey_swap"?"ніпи плутають здобич"
+      :v.glitch.kind==="value_flip"?"менша б'є більшу своєї масті"
+      :"підкидати можна будь-що";
+    gb.textContent=`⚡ збій артефакта: ${gtxt} · один хід кожного`;
   } else gb.classList.remove("on");
   applyTableBg(v.you.frontier||0);
   $("deckCnt").textContent=v.deckCount;
@@ -1440,16 +1482,26 @@ function renderGame(){
     return a.value-b.value;
   });
   const W=parseInt(getComputedStyle(document.documentElement).getPropertyValue("--cardW"))||64;
+  const H=parseInt(getComputedStyle(document.documentElement).getPropertyValue("--cardH"))||75;
   const minStep=Math.ceil(W*0.56); // номінал зверху по центру завжди видно
   const avail=hand.clientWidth||360,n=hs.length;
-  const step=n>1?Math.min(W+6,Math.max(minStep,(avail-W)/(n-1))):0;
-  const fanW=n>0?W+(n-1)*step:0;
+  const maxPerRow=Math.max(2,Math.floor((avail-W)/minStep)+1);
+  const rows=Math.max(1,Math.ceil(n/maxPerRow));
+  const perRow=Math.ceil(n/rows);
+  const rowGapY=Math.round(H*0.52);
   const fan=document.createElement("div");
-  fan.className="fanIn";fan.style.width=Math.max(fanW,1)+"px";
+  fan.className="fanIn";fan.style.width=avail+"px";
+  fan.style.height=(H+(rows-1)*rowGapY+14)+"px";
   hand.appendChild(fan);
   const anyDecision=["attack","defend","throw","pileOn"].includes(v.phase)&&v.you.active;
   hs.forEach((c,i)=>{
-    const box=document.createElement("div");box.className="slot";box.style.left=Math.round(i*step)+"px";box.style.zIndex=i;
+    const row=Math.floor(i/perRow), col=i%perRow;
+    const inRow=Math.min(perRow,n-row*perRow);
+    const step=inRow>1?Math.min(W+6,(avail-W)/(inRow-1)):0;
+    const rowW=W+(inRow-1)*step;
+    const x=Math.round((avail-rowW)/2+col*step);
+    const box=document.createElement("div");box.className="slot";
+    box.style.left=x+"px";box.style.top=(row*rowGapY)+"px";box.style.zIndex=row*40+col;
     const legal=myPlayable(c);
     const fresh=!seenHand.has(c.uid);seenHand.add(c.uid);
     const el=cardEl(c,legal?"play":(anyDecision?"dim":""));

@@ -43,6 +43,13 @@ const ACH = {
   kolektsioner:{ name: "колекціонер",   desc: "забрати 20+ карт за партію і не стати дур-кицем" },
   nyavmaster:  { name: "нявмайстер",    desc: "виграти няв-няв-няв двічі за одну партію" },
   feniks:      { name: "фенікс",        desc: "перемога після трьох і більше заборів" },
+  nyavkosmos:  { name: "нявкосмос",     desc: "виграти няв-няв-няв тричі за одну партію" },
+  movchvoda:   { name: "мовчазна вода", desc: "перемога, не підкинувши жодної карти" },
+  zhabhor:     { name: "жаб'ячий хор",  desc: "зіграти три ніпи за одну партію" },
+  pyatipyat:   { name: "п'ять п'ятірок",desc: "зіграти п'ять п'ятірок за одну партію" },
+  glitchsurf:  { name: "глітч-серфер",  desc: "перемога в партії, де ти ходив під збоєм артефакта" },
+  zhetonoyid:  { name: "жетоноїд",      desc: "назбирати 150+ жетонів однієї валюти" },
+  tyzhnevyk:   { name: "тижневик",      desc: "грати стіл дня сім днів поспіль" },
 };
 const TITLE_IDS = Object.keys(ACH);
 
@@ -73,6 +80,7 @@ function newGame(code) {
     code, players: {}, order: [],
     state: null, nyavPicks: {}, rematch: {}, chat: [],
     takes: {}, cardsTaken: {}, nyavWins: {}, newAch: {}, banNote: {}, newFrontier: {},
+    throwsBy: {}, nipsPlayed: {}, fivesPlayed: {}, glitchMoved: {}, glitchPending: null,
     lastSide: {}, coinNotes: {}, feeNote: {}, lastCardPlayed: null,
     isPve: false, isDaily: false, glitchWanted: false,
     glitchAt: 0, glitchEndAt: 0, glitchDone: false,
@@ -125,7 +133,13 @@ function settle(game) {
       const tok = humanSeat && game.players[humanSeat].token;
       if (tok) {
         const won = st.places[humanSeat] === 1;
-        store.recordDaily(tok, nickOf(game, humanSeat), { won, durMs: dur, place: st.places[humanSeat] });
+        const streak = store.recordDaily(tok, nickOf(game, humanSeat), { won, durMs: dur, place: st.places[humanSeat] });
+        if (streak >= 7 && store.award(tok, "tyzhnevyk")) {
+          const p = store.get(tok);
+          if (p?.tk) { p.tk.k += 5; p.tk.a += 5; store.dirty(); }
+          game.newAch[humanSeat] = [ACH.tyzhnevyk.name];
+          game.coinNotes[humanSeat] = ["+5 ж.к і +5 ж.а — нове звання"];
+        }
       }
     }
     return;
@@ -195,6 +209,12 @@ function settle(game) {
     tryAch("kolektsioner", (game.cardsTaken[seat] || 0) >= 20 && st.places[seat] < last);
     tryAch("nyavmaster", (game.nyavWins[seat] || 0) >= 2);
     tryAch("feniks", won && (game.takes[seat] || 0) >= 3);
+    tryAch("nyavkosmos", (game.nyavWins[seat] || 0) >= 3);
+    tryAch("movchvoda", won && !(game.throwsBy[seat] > 0));
+    tryAch("zhabhor", (game.nipsPlayed[seat] || 0) >= 3);
+    tryAch("pyatipyat", (game.fivesPlayed[seat] || 0) >= 5);
+    tryAch("glitchsurf", won && !!game.glitchMoved[seat]);
+    tryAch("zhetonoyid", p.tk && (p.tk.k >= 150 || p.tk.a >= 150));
     game.newAch[seat] = got;
 
     /* жетони киць / анти-киць */
@@ -369,6 +389,7 @@ function startDeal(game, seed) {
   game.finished = false; game.settled = false; game.deltas = null; game.boosts = null;
   game.startedAt = Date.now();
   game.lastSide = {}; game.coinNotes = {}; game.lastCardPlayed = null;
+  game.throwsBy = {}; game.nipsPlayed = {}; game.fivesPlayed = {}; game.glitchMoved = {}; game.glitchPending = null;
   game.glitchDone = false;
   for (const s of Object.keys(game.players)) game.players[s].lastAct = Date.now();
   const f = game.state.first;
@@ -427,7 +448,12 @@ function performMove(game, seat, type, uid) {
   if (played) {
     game.lastSide[seat] = core.isNip(played) ? (played.prey === "kyts" ? "anti" : "kyts") : played.side;
     game.lastCardPlayed = played;
+    if (type === "throw") game.throwsBy[seat] = (game.throwsBy[seat] || 0) + 1;
+    if (core.isNip(played)) game.nipsPlayed[seat] = (game.nipsPlayed[seat] || 0) + 1;
+    if (played.value === 5) game.fivesPlayed[seat] = (game.fivesPlayed[seat] || 0) + 1;
   }
+  if (s.glitch?.active) game.glitchMoved[seat] = true;
+  consumeGlitch(game, seat);
   game.players[seat].lastAct = Date.now();
   const me = nickOf(game, seat);
   const ev = r.ev;
@@ -478,15 +504,29 @@ function performMove(game, seat, type, uid) {
   return true;
 }
 
-/* збій кристража: кожен успішний хід — маленький шанс зсуву стрілок */
+/* збій артефакта: кожен успішний хід — маленький шанс зсуву стрілок */
 function maybeGlitchRoll(game) {
   const st = game.state;
-  if (!st || !st.glitch || !st.glitch.enabled || st.glitch.active || game.glitchDone || st.result) return;
-  if (Math.random() < 0.05) {
+  if (!st || !st.glitch || !st.glitch.enabled || st.glitch.active || st.result) return;
+  if (Math.random() < 0.5) {
+    st.glitch.kind = core.GLITCH_KINDS[(Math.random() * core.GLITCH_KINDS.length) | 0];
     st.glitch.active = true;
-    game.glitchEndAt = Date.now() + 20_000;
+    game.glitchPending = new Set(st.active);
     const L = { prey_swap: TXT.glitch.startPreySwap, throw_any: TXT.glitch.startThrowAny, value_flip: TXT.glitch.startValueFlip };
     pushState(game, () => L[st.glitch.kind] || TXT.glitch.startThrowAny);
+  }
+}
+
+/* гравець відходив свій збійний хід */
+function consumeGlitch(game, seat) {
+  const st = game.state;
+  if (!st?.glitch?.active || !game.glitchPending) return;
+  game.glitchPending.delete(seat);
+  for (const x of [...game.glitchPending]) if (!st.active.includes(x)) game.glitchPending.delete(x);
+  if (game.glitchPending.size === 0) {
+    st.glitch.active = false;
+    game.glitchPending = null;
+    if (!st.result) pushState(game, () => TXT.glitch.end);
   }
 }
 
@@ -930,13 +970,6 @@ setInterval(() => {
     if (game.finished || !game.state) continue;
     const st = game.state;
 
-    /* збій кристража: вимикається за 20с після активації (активація — кожен хід) */
-    if (st.glitch && st.glitch.active && now >= game.glitchEndAt) {
-      st.glitch.active = false;
-      game.glitchDone = true;
-      pushState(game, () => TXT.glitch.end);
-    }
-
     if (st.phase === "nyav") {
       for (const seat of st.nyavSet || []) {
         if (game.players[seat]?.bot) continue;
@@ -961,6 +994,7 @@ setInterval(() => {
         const r = core.moveTake(st, st.defender);
         game.players[st.defender].lastAct = now;
         if (r.ok) {
+          consumeGlitch(game, st.defender);
           if (r.ev?.type === "bout" && !r.ev.defended && r.ev.taker) {
             game.takes[r.ev.taker] = (game.takes[r.ev.taker] || 0) + 1;
             game.cardsTaken[r.ev.taker] = (game.cardsTaken[r.ev.taker] || 0) + r.ev.count;
@@ -975,6 +1009,7 @@ setInterval(() => {
         if (!st.passes.includes(seat) && now - game.players[seat].lastAct > IDLE_SOFT_MS) {
           const r = core.movePass(st, seat);
           game.players[seat].lastAct = now;
+          if (r.ok) consumeGlitch(game, seat);
           if (r.ok && r.ev?.type === "bout" && !r.ev.defended && r.ev.taker) {
             game.takes[r.ev.taker] = (game.takes[r.ev.taker] || 0) + 1;
             game.cardsTaken[r.ev.taker] = (game.cardsTaken[r.ev.taker] || 0) + r.ev.count;

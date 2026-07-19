@@ -36,7 +36,8 @@ function load() {
       if (p.frontier == null) p.frontier = 0;                 // мапа завойовувань: -4..4
       if (!p.frontierWins) p.frontierWins = { kyts: 0, anti: 0 };
       if (p.dailyDate == null) p.dailyDate = null;
-      if (p.side !== "kyts" && p.side !== "anti") p.side = "kyts";  // сторона мапи             // «стіл дня»: дата останньої спроби
+      if (p.side !== "kyts" && p.side !== "anti") p.side = "kyts";
+      if (!p.dailyStreak) p.dailyStreak = 0;  // сторона мапи             // «стіл дня»: дата останньої спроби
     }
   } catch (e) {
     console.error("сховище не прочиталось, з нуля:", e.message);
@@ -75,6 +76,7 @@ function saveDaily() {
 
 /* «стіл дня»: сьогоднішня дата UTC як ключ дня */
 function todayKey() { return new Date().toISOString().slice(0, 10); }
+function yesterdayKey() { return new Date(Date.now() - 86_400_000).toISOString().slice(0, 10); }
 
 /* чи вже грав сьогодні (одна спроба на добу — вордл-стиль) */
 function dailyPlayedToday(token) {
@@ -85,7 +87,13 @@ function dailyPlayedToday(token) {
 /* записати результат столу дня. once-per-day гейт перевіряє викликач */
 function recordDaily(token, nick, entry) {
   const p = players[token];
-  if (p) { p.dailyDate = todayKey(); save(); }
+  let streak = 0;
+  if (p) {
+    p.dailyStreak = p.dailyDate === yesterdayKey() ? (p.dailyStreak || 0) + 1 : 1;
+    streak = p.dailyStreak;
+    p.dailyDate = todayKey();
+    save();
+  }
   if (daily.date !== todayKey()) daily = { date: todayKey(), entries: [] };
   daily.entries = daily.entries.filter((e) => e.token !== token);
   daily.entries.push({ token, nick, ...entry, ts: Date.now() });
@@ -94,6 +102,7 @@ function recordDaily(token, nick, entry) {
     return a.durMs - b.durMs;
   });
   saveDaily();
+  return streak;
 }
 
 function dailyBoard() {
@@ -103,7 +112,7 @@ function dailyBoard() {
 
 function getOrCreate(token, nick) {
   if (!players[token]) {
-    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, seenTitry: false, frontier: 0, frontierWins: { kyts: 0, anti: 0 }, dailyDate: null, side: "kyts", migr2: true, seen: Date.now() };
+    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, seenTitry: false, frontier: 0, frontierWins: { kyts: 0, anti: 0 }, dailyDate: null, dailyStreak: 0, side: "kyts", migr2: true, seen: Date.now() };
   } else {
     players[token].nick = nick || players[token].nick;
     players[token].seen = Date.now();
