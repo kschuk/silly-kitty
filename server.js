@@ -12,7 +12,7 @@ const TXT = require("./texts_ua");
 const bot = require("./bot");
 let AMB = {};
 try { AMB = require("./ambassadors"); } catch (e) { AMB = {}; }
-const AMB_DEF = { greg: { name: "жабка ґреґ", idle: ["няв? квак."] }, zhreg: { name: "ґабка жреґ", idle: ["квак."] } };
+const AMB_DEF = { greg: { name: "ґреґ", idle: ["няв? квак."] }, zhreg: { name: "жреґ", idle: ["квак."] } };
 for (const k of ["greg", "zhreg"]) AMB[k] = Object.assign({}, AMB_DEF[k], AMB[k] || {});
 const ambLine = (who, key) => {
   const arr = (AMB[who] && AMB[who][key]) || [];
@@ -51,19 +51,29 @@ const ACH = {
   feniks:      { name: "фенікс",        desc: "перемога після трьох і більше заборів" },
   nyavkosmos:  { name: "нявкосмос",     desc: "виграти няв-няв-няв тричі за одну партію" },
   movchvoda:   { name: "мовчазна вода", desc: "перемога, не підкинувши жодної карти" },
-  zhabhor:     { name: "жаб'ячий хор",  desc: "зіграти три ніпи за одну партію" },
+  zhabhor:     { name: "хор анти-киць",  desc: "зіграти три ніпи за одну партію" },
   pyatipyat:   { name: "п'ять п'ятірок",desc: "зіграти п'ять п'ятірок за одну партію" },
   glitchsurf:  { name: "глітч-серфер",  desc: "перемога в партії, де ти ходив під збоєм артефакта" },
   zhetonoyid:  { name: "жетоноїд",      desc: "назбирати 150+ жетонів однієї валюти" },
   tyzhnevyk:   { name: "тижневик",      desc: "грати стіл дня сім днів поспіль" },
-  /* ── ПвЕ-набір: здобувається лише проти амбасадорів ── */
-  pve_znaiomstvo:{ name: "знайомство",   desc: "ПвЕ: зіграти партію проти амбасадора", pve: true },
-  pve_greg:    { name: "друг ґрега",     desc: "ПвЕ: перемогти жабку ґрега", pve: true },
-  pve_zhreg:   { name: "гроза жрега",    desc: "ПвЕ: перемогти ґабку жрега", pve: true },
-  pve_obydva:  { name: "дипломат",       desc: "ПвЕ: перемогти обох амбасадорів", pve: true },
-  pve_sukho:   { name: "суха дипломатія",desc: "ПвЕ: перемога над амбасадором без жодного забору", pve: true },
-  pve_shvydko: { name: "бліц-візит",     desc: "ПвЕ: перемога над амбасадором швидше 2 хвилин", pve: true },
-  pve_desyat:  { name: "постійний гість",desc: "ПвЕ: десять перемог над амбасадорами", pve: true },
+  /* ── ПвЄ-набір: здобувається лише проти амбасадорів ── */
+  pve_znaiomstvo:{ name: "знайомство",   desc: "ПвЄ: зіграти партію проти амбасадора", pve: true },
+  pve_greg:    { name: "друг ґрега",     desc: "ПвЄ: перемогти ґрега", pve: true },
+  pve_zhreg:   { name: "гроза жрега",    desc: "ПвЄ: перемогти ґабку жрега", pve: true },
+  pve_obydva:  { name: "дипломат",       desc: "ПвЄ: перемогти обох амбасадорів", pve: true },
+  pve_sukho:   { name: "суха дипломатія",desc: "ПвЄ: перемога над амбасадором без жодного забору", pve: true },
+  pve_shvydko: { name: "бліц-візит",     desc: "ПвЄ: перемога над амбасадором швидше 2 хвилин", pve: true },
+  pve_desyat:  { name: "постійний гість",desc: "ПвЄ: десять перемог над амбасадорами", pve: true },
+  amb_stil:    { name: "між двох вогнів", desc: "ПвЄ: зіграти за столом з обома амбасадорами", pve: true },
+  amb_obydva:  { name: "розборка амбасадорів", desc: "ПвЄ: виграти стіл, де були обидва амбасадори", pve: true },
+  amb_ostanni: { name: "миротворець",    desc: "ПвЄ: за столом на трьох вийти першим, лишивши амбасадорів самих", pve: true },
+  /* ── секретні: опис зʼявляється лише після здобуття ── */
+  sec_poklykach:{ name: "покликач",       desc: "покликати амбасадора на імʼя в чаті", secret: true },
+  sec_balakun: { name: "балакун у пустці",desc: "написати п'ять повідомлень, чекаючи суперника", secret: true },
+  sec_nichnyi: { name: "нічний киць",    desc: "зіграти партію між 3 і 5 ранку", secret: true },
+  sec_hodynnyk:{ name: "не чіпай стрілки",desc: "клікнути по артефакту 15 разів за партію", secret: true },
+  sec_kolekcioner_pc: { name: "філателіст", desc: "секрет: зібрати три листівки в колекцію", secret: true },
+  sec_odna:    { name: "одна-єдина",     desc: "перемогти, маючи в руці лише одну карту весь останній бій", secret: true },
 };
 const TITLE_IDS = Object.keys(ACH);
 
@@ -115,7 +125,7 @@ function tagOf(g, seat) {
   if (p.title && ACH[p.title] && p.ach.includes(p.title)) return ` [${ACH[p.title].name}]`;
   return ` [${core.rankOf(p.sp)}]`;
 }
-const avatarOf = (g, seat) => g.players[seat]?.bot ? "frog_green" : (store.get(g.players[seat]?.token)?.avatar || "cat_black");
+const avatarOf = (g, seat) => g.players[seat]?.bot ? (g.players[seat].amb === "zhreg" ? "frog_violet" : "frog_green") : (store.get(g.players[seat]?.token)?.avatar || "cat_black");
 
 function banLeft(token) {
   const p = store.get(token);
@@ -136,13 +146,13 @@ function settle(game) {
   const last = Math.max(...seats.map((x) => st.places[x]));
   game.deltas = {}; game.boosts = {}; game.newAch = {}; game.banNote = {}; game.newFrontier = {};
 
-  /* ── ПвЕ і «стіл дня» — тренування, рейтинг/жетони/досягнення не чіпаємо ── */
+  /* ── ПвЄ і «стіл дня» — тренування, рейтинг/жетони/досягнення не чіпаємо ── */
   if (game.isPve) {
     for (const seat of seats) {
       game.deltas[seat] = 0; game.boosts[seat] = []; game.newAch[seat] = [];
       game.coinNotes[seat] = []; game.banNote[seat] = "";
     }
-    /* ПвЕ-набір досягнень + амбасадорська мапа (рейтинг і далі не чіпаємо) */
+    /* ПвЄ-набір досягнень + амбасадорська мапа (рейтинг і далі не чіпаємо) */
     const hSeat = seats.find((x) => !game.players[x].bot);
     const hTok = hSeat && game.players[hSeat].token;
     if (hTok && !game.isDaily) {
@@ -151,6 +161,10 @@ function settle(game) {
       const got = [], notes = [];
       const tryA = (id, cond) => { if (cond && store.award(hTok, id)) got.push(ACH[id].name); };
       tryA("pve_znaiomstvo", true);
+      tryA("amb_stil", !!game.ambBoth);
+      { const h = new Date().getHours(); tryA("sec_nichnyi", h >= 3 && h < 5); }
+      tryA("sec_hodynnyk", (game.clockClicks?.[hSeat] || 0) >= 15);
+      tryA("sec_odna", st.places[hSeat] === 1 && !!(game.wasLoneCard || {})[hSeat]);
       if (won) {
         p.pveWins = (p.pveWins || 0) + 1;
         if (game.amb === "greg") p.beatGreg = true;
@@ -161,6 +175,8 @@ function settle(game) {
         tryA("pve_sukho", !(game.takes[hSeat] > 0));
         tryA("pve_shvydko", dur < 120_000);
         tryA("pve_desyat", p.pveWins >= 10);
+      tryA("amb_obydva", !!game.ambBoth);
+      tryA("amb_ostanni", !!game.ambBoth && st.places[hSeat] === 1);
         /* амбасадорство: перемога над ПРОТИЛЕЖНИМ амбасадором рухає мапу */
         const ambSide = game.amb === "zhreg" ? "anti" : "kyts";
         const mySide = p.side || "kyts";
@@ -176,7 +192,7 @@ function settle(game) {
           notes.push("свій амбасадор — мапа не зрушилась. шукай протилежного.");
         }
       }
-      if (got.length && p.tk) { p.tk.k += 3 * got.length; p.tk.a += 3 * got.length; notes.push(`+${3 * got.length} ж.к і +${3 * got.length} ж.а — ПвЕ-звання`); }
+      if (got.length && p.tk) { p.tk.k += 3 * got.length; p.tk.a += 3 * got.length; notes.push(`+${3 * got.length} ж.к і +${3 * got.length} ж.а — ПвЄ-звання`); }
       game.newAch[hSeat] = got;
       game.coinNotes[hSeat] = notes;
       store.dirty();
@@ -445,6 +461,7 @@ function startDeal(game, seed) {
   game.lastSide = {}; game.coinNotes = {}; game.lastCardPlayed = null;
   game.throwsBy = {}; game.nipsPlayed = {}; game.fivesPlayed = {}; game.glitchMoved = {}; game.glitchPending = null;
   game.ambUsed = new Set(); game.ambCount = 0; game.ambLast = 0;
+  game.clockClicks = {}; game.wasLoneCard = {};
   game.glitchDone = false;
   for (const s of Object.keys(game.players)) game.players[s].lastAct = Date.now();
   const f = game.state.first;
@@ -459,7 +476,8 @@ function startDeal(game, seed) {
   maybeBotMove(game);
 }
 
-function endAndSettle(game) { settle(game); pushState(game); scheduleCleanup(game); }
+function endAndSettle(game) {
+  clearTimeout(game.banterTimer); settle(game); pushState(game); scheduleCleanup(game); }
 
 function scheduleCleanup(game) {
   setTimeout(() => {
@@ -507,6 +525,7 @@ function performMove(game, seat, type, uid) {
     if (core.isNip(played)) game.nipsPlayed[seat] = (game.nipsPlayed[seat] || 0) + 1;
     if (played.value === 5) game.fivesPlayed[seat] = (game.fivesPlayed[seat] || 0) + 1;
   }
+  if ((s.hands[seat]?.length ?? 9) === 1 && s.deck.length === 0) { game.wasLoneCard = game.wasLoneCard || {}; game.wasLoneCard[seat] = true; }
   if (s.glitch?.active) game.glitchMoved[seat] = true;
   consumeGlitch(game, seat);
 
@@ -518,11 +537,26 @@ function performMove(game, seat, type, uid) {
     const myHand = s.hands[seat]?.length ?? 6;
     const botSeat = s.seats.find((x) => game.players[x]?.bot);
     const botHand = botSeat ? (s.hands[botSeat]?.length ?? 6) : 6;
-    if (played && core.isNip(played) && (game.nipsPlayed[seat] || 0) === 1) ambSay(game, "nip");
-    else if (ev.type === "bout" && !ev.defended && ev.taker === seat && ev.count >= 4) ambSay(game, "takes");
-    else if (ev.type === "defend" && ev.allBeaten && s.table.length >= 3) ambSay(game, "beats");
-    else if (botHand + 3 <= myHand) ambSay(game, "winning");
-    else if (myHand + 3 <= botHand) ambSay(game, "losing");
+    const voice = (k) => ambSay(game, k, false, game.ambBoth ? (Math.random() < 0.5 ? "greg" : "zhreg") : undefined);
+    if (played && core.isNip(played) && (game.nipsPlayed[seat] || 0) === 1) voice("nip");
+    else if (ev.type === "bout" && !ev.defended && ev.taker === seat && ev.count >= 4) voice("takes");
+    else if (ev.type === "defend" && ev.allBeaten && s.table.length >= 3) voice("beats");
+    else if (botHand + 3 <= myHand) voice("winning");
+    else if (myHand + 3 <= botHand) voice("losing");
+  }
+  /* за столом на трьох амбасадори коментують хід одне одного */
+  if (game.ambBoth && game.players[seat]?.bot && Math.random() < 0.22) {
+    const other = game.players[seat].amb === "greg" ? "zhreg" : "greg";
+    const lines = (AMB.cross && AMB.cross[other]) || [];
+    if (lines.length) setTimeout(() => {
+      const entry = { nick: AMB[other].name, text: lines[(Math.random() * lines.length) | 0], ts: Date.now() };
+      if (rooms.get(game.code) !== game || game.finished) return;
+      game.chat.push(entry);
+      for (const s2 of Object.keys(game.players)) {
+        const pp = game.players[s2];
+        if (pp?.socketId) io.to(pp.socketId).emit("chat", entry);
+      }
+    }, 800);
   }
   if (ev.type === "bout" && !ev.defended && ev.taker) {
     game.takes[ev.taker] = (game.takes[ev.taker] || 0) + 1;
@@ -629,9 +663,11 @@ function applyNyavPick(game, seat, sign) {
   maybeBotMove(game);
 }
 
-/* амбасадор кидає репліку в чат ПвЕ-матчу (не частіше, ніж раз на 6с) */
-function ambSay(game, key, force) {
-  if (!game.isPve || !game.amb || game.finished) return;
+/* амбасадор кидає репліку в чат ПвЄ-матчу (не частіше, ніж раз на 6с) */
+function ambSay(game, key, force, who) {
+  if (!game.isPve || game.finished) return;
+  const speaker = who || game.amb;
+  if (!speaker || !AMB[speaker]) return;
   const now = Date.now();
   /* рідше: не частіше разу на 25с і не більше 6 реплік за партію (фінал і вітання — поза лімітом) */
   if (!force) {
@@ -640,13 +676,13 @@ function ambSay(game, key, force) {
   }
   /* унікальність: кожна репліка звучить за партію лише раз */
   if (!game.ambUsed) game.ambUsed = new Set();
-  const pool = ((AMB[game.amb] && AMB[game.amb][key]) || []).filter((x) => !game.ambUsed.has(x));
+  const pool = ((AMB[speaker] && AMB[speaker][key]) || []).filter((x) => !game.ambUsed.has(x));
   if (!pool.length) return;
   const text = pool[(Math.random() * pool.length) | 0];
   game.ambUsed.add(text);
   if (!force) game.ambCount = (game.ambCount || 0) + 1;
   game.ambLast = now;
-  const entry = { nick: AMB[game.amb].name, text, ts: now };
+  const entry = { nick: AMB[speaker].name, text, ts: now };
   game.chat.push(entry);
   if (game.chat.length > 40) game.chat.shift();
   for (const s2 of Object.keys(game.players)) {
@@ -655,32 +691,82 @@ function ambSay(game, key, force) {
   }
 }
 
+/* репліка від конкретного амбасадора у будь-якій кімнаті (працює і в лобі) */
+function ambSayAny(game, who, key) {
+  if (!game || rooms.get(game.code) !== game || game.finished) return;
+  if (!game.ambUsedAny) game.ambUsedAny = new Set();
+  const pool = ((AMB[who] && AMB[who][key]) || []).filter((x) => !game.ambUsedAny.has(x));
+  const list = pool.length ? pool : ((AMB[who] && AMB[who][key]) || []);
+  if (!list.length) return;
+  const text = list[(Math.random() * list.length) | 0];
+  game.ambUsedAny.add(text);
+  const entry = { nick: AMB[who].name, text, ts: Date.now() };
+  game.chat.push(entry);
+  if (game.chat.length > 40) game.chat.shift();
+  for (const s2 of Object.keys(game.players)) {
+    const pp = game.players[s2];
+    if (pp?.socketId) io.to(pp.socketId).emit("chat", entry);
+  }
+}
+
+/* обмін репліками між ґреґом і жреґом — по одній фразі з паузами */
+function banterStep(game) {
+  if (!game || rooms.get(game.code) !== game || game.finished || !game.ambBoth) return;
+  if (!game.banterBag || !game.banterBag.length)
+    game.banterBag = [...(AMB.banter || [])].sort(() => Math.random() - 0.5);
+  const dlg = game.banterBag.pop();
+  if (!dlg) return;
+  dlg.forEach(([who, text], i) => {
+    setTimeout(() => {
+      if (rooms.get(game.code) !== game || game.finished) return;
+      const entry = { nick: AMB[who].name, text, ts: Date.now() };
+      game.chat.push(entry);
+      if (game.chat.length > 40) game.chat.shift();
+      for (const s2 of Object.keys(game.players)) {
+        const pp = game.players[s2];
+        if (pp?.socketId) io.to(pp.socketId).emit("chat", entry);
+      }
+    }, i * 1900);
+  });
+  game.banterTimer = setTimeout(() => banterStep(game), 26_000 + Math.random() * 22_000);
+}
+
 /* чи хтось із ботів має ходити — і якщо так, з невеликою людською затримкою */
+/* кого з ботів зараз черга — рахуємо ЗАВЖДИ від актуального стану */
+function pendingBot(game) {
+  const st = game.state;
+  if (!st || game.finished || st.result) return null;
+  if (st.phase === "nyav") {
+    const seat = (st.nyavSet || []).find((x) => game.players[x]?.bot && !game.nyavPicks[x]);
+    return seat ? { seat, nyav: true } : null;
+  }
+  if (st.phase === "attack") return game.players[st.attacker]?.bot ? { seat: st.attacker } : null;
+  if (st.phase === "defend") return game.players[st.defender]?.bot ? { seat: st.defender } : null;
+  if (st.phase === "throw" || st.phase === "pileOn") {
+    const seat = core.throwers(st).find((x) => game.players[x]?.bot && !st.passes.includes(x));
+    return seat ? { seat } : null;
+  }
+  return null;
+}
+
 function maybeBotMove(game) {
   if (game.botTimer) return;
-  const st = game.state;
-  if (!st || game.finished || st.result) return;
-  let botSeat = null, isNyav = false;
-  if (st.phase === "nyav") {
-    botSeat = (st.nyavSet || []).find((x) => game.players[x]?.bot && !game.nyavPicks[x]);
-    isNyav = true;
-  } else if (st.phase === "attack") {
-    if (game.players[st.attacker]?.bot) botSeat = st.attacker;
-  } else if (st.phase === "defend") {
-    if (game.players[st.defender]?.bot) botSeat = st.defender;
-  } else if (st.phase === "throw" || st.phase === "pileOn") {
-    botSeat = core.throwers(st).find((x) => game.players[x]?.bot && !st.passes.includes(x));
-  }
-  if (!botSeat) return;
+  if (!pendingBot(game)) return;
   game.botTimer = setTimeout(() => {
     game.botTimer = null;
     if (rooms.get(game.code) !== game || game.finished) return;
-    if (isNyav) {
-      applyNyavPick(game, botSeat, bot.decideNyav());
-    } else {
-      const d = bot.botDecide(game.state, botSeat);
-      if (d) performMove(game, botSeat, d.type, d.uid);
+    /* стан міг змінитися, поки цокав таймер (людина встигла походити) —
+       тому черговість перевіряємо ще раз, а не покладаємось на «заморожене» сидіння */
+    const turn = pendingBot(game);
+    if (!turn) return;
+    let acted = false;
+    if (turn.nyav) { applyNyavPick(game, turn.seat, bot.decideNyav()); acted = true; }
+    else {
+      const d = bot.botDecide(game.state, turn.seat);
+      if (d) acted = performMove(game, turn.seat, d.type, d.uid);
     }
+    /* страховка від застрягання: якщо хід не пройшов — пробуємо ще раз наступним тіком */
+    if (!acted && pendingBot(game)) setTimeout(() => maybeBotMove(game), 250);
   }, botDelay());
 }
 /* людський темп у проді; прискорено лише для автотестів (BOT_FAST=1) */
@@ -835,6 +921,19 @@ io.on("connection", (socket) => {
     const oppo = queue.find((q) => q.token !== token && banLeft(q.token) === 0 && !!q.glitch === want);
     if (!oppo) {
       queue.push({ token, socketId: socket.id, glitch: want, since: Date.now() });
+      /* поки шукається суперник — ґреґ і жреґ розважають розмовою */
+      const sid = socket.id;
+      const chatter = (i) => setTimeout(() => {
+        if (!queue.some((q) => q.socketId === sid)) return;
+        const bag = AMB.banter || [];
+        const dlg = bag[(Math.random() * bag.length) | 0] || [];
+        dlg.forEach(([who, txt], k) => setTimeout(() => {
+          if (!queue.some((q) => q.socketId === sid)) return;
+          io.to(sid).emit("chat", { nick: AMB[who].name, text: txt, ts: Date.now() });
+        }, k * 1900));
+        chatter(i + 1);
+      }, i === 0 ? 4000 : 22_000 + Math.random() * 14_000);
+      chatter(0);
       /* є хтось з іншим налаштуванням — за 5с запропонуємо перемкнутись */
       const other = queue.some((q) => q.token !== token && !!q.glitch !== want);
       return cb?.({ queued: true, otherModeWaiting: other });
@@ -855,6 +954,58 @@ io.on("connection", (socket) => {
 
   socket.on("leaveQueue", () => { queue = queue.filter((q) => q.token !== token); });
 
+  /* ── чат «у нікуди» під час пошуку: амбасадори складають компанію ── */
+  const lobbyEcho = (nick, text) => socket.emit("chat", { nick, text, ts: Date.now() });
+  let lobbyTimer = null, lobbyBag = [], lobbyIdle = null;
+
+  const lobbySay = (who, key) => {
+    const pool = (AMB[who] && AMB[who][key]) || [];
+    if (pool.length) lobbyEcho(AMB[who].name, pool[(Math.random() * pool.length) | 0]);
+  };
+  const lobbyBanter = () => {
+    if (!lobbyBag.length) lobbyBag = [...(AMB.banter || [])].sort(() => Math.random() - 0.5);
+    const dlg = lobbyBag.pop();
+    if (!dlg) return;
+    dlg.forEach(([who, text], i) => setTimeout(() => {
+      if (socket.connected) lobbyEcho(AMB[who].name, text);
+    }, i * 1900));
+  };
+  const startLobbyChat = () => {
+    clearInterval(lobbyTimer);
+    setTimeout(() => { if (socket.connected) lobbySay(Math.random() < 0.5 ? "greg" : "zhreg", "lobby"); }, 2500);
+    lobbyTimer = setInterval(() => {
+      if (!socket.connected) return clearInterval(lobbyTimer);
+      if (Math.random() < 0.55) lobbyBanter();
+      else lobbySay(Math.random() < 0.5 ? "greg" : "zhreg", "lobby");
+    }, 17_000);
+  };
+  const stopLobbyChat = () => { clearInterval(lobbyTimer); lobbyTimer = null; clearTimeout(lobbyIdle); };
+  socket.on("disconnect", stopLobbyChat);
+
+  socket.on("lobbyChat", ({ text }) => {
+    text = String(text || "").trim().slice(0, 120);
+    if (!text) return;
+    const p = token && store.get(token);
+    lobbyEcho(p?.nick || "ти", text);
+    /* згадав на ім'я — відповідає саме той */
+    const low = text.toLowerCase();
+    const gregHit = /ґ?реґ|грег|greg/.test(low) && !/жреґ|жрег|zhreg/.test(low);
+    const zhregHit = /жреґ|жрег|zhreg/.test(low);
+    if (gregHit || zhregHit) {
+      const who = zhregHit ? "zhreg" : "greg";
+      setTimeout(() => { if (socket.connected) lobbySay(who, "mention"); }, 900);
+      if (token) store.award(token, "sec_poklykach");
+      return;
+    }
+    clearTimeout(lobbyIdle);
+    lobbyIdle = setTimeout(() => {
+      if (socket.connected) lobbySay(Math.random() < 0.5 ? "greg" : "zhreg", "lobby");
+    }, 3000 + Math.random() * 2500);
+  });
+
+  socket.on("lobbyChatOn", () => startLobbyChat());
+  socket.on("lobbyChatOff", () => stopLobbyChat());
+
   socket.on("queueInfo", (cb) => {
     const me = queue.find((q) => q.token === token);
     if (!me) return cb?.({ inQueue: false });
@@ -866,7 +1017,43 @@ io.on("connection", (socket) => {
     });
   });
 
-  /* ── ПвЕ: жабка ґреґ сідає за стіл, коли людей бракує ── */
+  /* ── ПвЄ: ґреґ сідає за стіл, коли людей бракує ── */
+  /* стіл з амбасадорами: both — троє за столом; solo — 1 на 1 проти ПРОТИЛЕЖНОЇ фракції */
+  socket.on("playAmbassadors", ({ glitch, both } = {}, cb) => {
+    if (!token) return cb?.({ error: "спершу hello." });
+    if (banGuard(cb)) return;
+    if (byToken.has(token)) return cb?.({ error: "ти вже в кімнаті." });
+    const p = store.get(token);
+    const code = newCode();
+    const game = newGame(code);
+    game.isPve = true;
+    game.glitchWanted = !!glitch;
+    game.players.A = { token, nick: p.nick, socketId: socket.id, connected: true, lastAct: Date.now() };
+    if (both) {
+      game.amb = "greg"; game.ambBoth = true;
+      game.players.B = { bot: true, amb: "greg", nick: AMB.greg.name, connected: true, lastAct: Date.now() };
+      game.players.C = { bot: true, amb: "zhreg", nick: AMB.zhreg.name, connected: true, lastAct: Date.now() };
+      game.order = ["A", "B", "C"];
+    } else {
+      /* амбасадор ніколи не тієї ж фракції, що гравець */
+      game.amb = (p.side === "anti") ? "greg" : "zhreg";
+      game.players.B = { bot: true, amb: game.amb, nick: AMB[game.amb].name, connected: true, lastAct: Date.now() };
+      game.order = ["A", "B"];
+    }
+    rooms.set(code, game);
+    byToken.set(token, code);
+    cb?.({ code, amb: game.amb, both: !!both });
+    startDeal(game);
+    /* за столом на трьох вітаються обидва — кожен своїм голосом */
+    if (both) {
+      setTimeout(() => ambSayAny(game, "greg", "greeting"), 800);
+      setTimeout(() => ambSayAny(game, "zhreg", "greeting"), 2200);
+      game.banterTimer = setTimeout(() => banterStep(game), 5000);
+    } else {
+      setTimeout(() => ambSay(game, "greeting", true), 800);
+    }
+  });
+
   socket.on("playGreg", ({ glitch } = {}, cb) => {
     if (!token) return cb?.({ error: "спершу hello." });
     if (banGuard(cb)) return;
@@ -916,7 +1103,27 @@ io.on("connection", (socket) => {
   /* чат кімнати — і в лобі, і під час партії */
   socket.on("chat", ({ text }) => {
     const c = ctx();
-    if (!c) return;
+    /* у черзі кімнати нема — але писати можна: відповідають амбасадори */
+    if (!c) {
+      const inQ = queue.some((q) => q.token === token);
+      if (!inQ || !token) return;
+      const t = String(text || "").trim().slice(0, 120);
+      if (!t) return;
+      const me = store.get(token);
+      socket.emit("chat", { nick: me?.nick || "ти", text: t, ts: Date.now(), self: true });
+      const low = t.toLowerCase();
+      const g = /(ґреґ|греґ|ґрег|грег|greg)/i.test(low), z = /(жреґ|жрег|zhreg)/i.test(low);
+      const say = (who, key, delay) => setTimeout(() => {
+        if (!queue.some((q) => q.token === token)) return;
+        const arr = (AMB[who] && AMB[who][key]) || [];
+        if (!arr.length) return;
+        socket.emit("chat", { nick: AMB[who].name, text: arr[(Math.random() * arr.length) | 0], ts: Date.now() });
+      }, delay);
+      if (g) say("greg", "mention", 800);
+      if (z) say("zhreg", "mention", g ? 2200 : 800);
+      if (!g && !z && Math.random() < 0.55) say(Math.random() < 0.5 ? "greg" : "zhreg", "lobby", 1200);
+      return;
+    }
     const { game, seat } = c;
     const pl = game.players[seat];
     const now = Date.now();
@@ -931,6 +1138,15 @@ io.on("connection", (socket) => {
       const pp = game.players[s];
       if (pp?.socketId) io.to(pp.socketId).emit("chat", entry);
     }
+    /* амбасадор відгукується на своє імʼя (усі варіанти написання) */
+    const low = text.toLowerCase();
+    const hitG = /(ґреґ|греґ|ґрег|грег|greg)/i.test(low);
+    const hitZ = /(жреґ|жрег|жрeґ|zhreg)/i.test(low);
+    const hereG = game.isPve && (game.amb === "greg" || game.ambBoth) || !game.isPve;
+    const hereZ = game.isPve && (game.amb === "zhreg" || game.ambBoth) || !game.isPve;
+    if (hitG && hereG) setTimeout(() => ambSayAny(game, "greg", "mention"), 700);
+    if (hitZ && hereZ) setTimeout(() => ambSayAny(game, "zhreg", "mention"), hitG ? 2100 : 700);
+
     const othersOnline = Object.keys(game.players)
       .filter((x) => x !== seat && game.players[x].connected);
     if (!othersOnline.length) {
@@ -1044,6 +1260,22 @@ io.on("connection", (socket) => {
     cb?.({ ok: true, tk: p.tk });
   });
 
+  socket.on("shopBuyCard", ({ id, side, price }, cb) => {
+    const p = token && store.get(token);
+    if (!p) return cb?.({ error: "нема профілю." });
+    const k = side === "a" ? "a" : "k";
+    const cost = Math.max(1, Math.min(50, parseInt(price, 10) || 8));
+    p.cards = Array.isArray(p.cards) ? p.cards : [];
+    if (id && p.cards.includes(id)) return cb?.({ error: "така листівка вже в колекції." });
+    if (!p.tk || p.tk[k] < cost) return cb?.({ error: "не вистачає жетонів цієї фракції." });
+    p.tk[k] -= cost;
+    if (id) p.cards.push(id);
+    const got = [];
+    if (p.cards.length >= 3 && store.award(token, "sec_kolekcioner_pc")) got.push(ACH.sec_kolekcioner_pc.name);
+    store.dirty();
+    cb?.({ ok: true, tk: p.tk, cards: p.cards, newAch: got });
+  });
+
   socket.on("shopBuy", ({ pay }, cb) => {
     const p = token && store.get(token);
     if (!p) return cb?.({ error: "нема профілю." });
@@ -1063,11 +1295,29 @@ io.on("connection", (socket) => {
     cb?.({ list: store.topPve(100), mePos: token ? store.positionPve(token) : null });
   });
 
+  socket.on("clockClick", () => {
+    const c = ctx();
+    if (!c) return;
+    const { game, seat } = c;
+    game.clockClicks = game.clockClicks || {};
+    game.clockClicks[seat] = (game.clockClicks[seat] || 0) + 1;
+  });
+
+  socket.on("secretAch", ({ id }) => {
+    if (!token) return;
+    if (!["sec_poklykach", "sec_balakun"].includes(id)) return;
+    if (store.award(token, id)) {
+      const p = store.get(token);
+      if (p?.tk) { p.tk.k += 3; p.tk.a += 3; store.dirty(); }
+      socket.emit("secretUnlocked", { id, name: ACH[id].name });
+    }
+  });
+
   socket.on("onlineInfo", (cb) => {
     cb?.({ online: io.engine.clientsCount, inGame: [...rooms.values()].filter((g) => g.state && !g.finished).length, queue: queue.length });
   });
 
-  socket.on("achList", (cb) => cb?.(Object.entries(ACH).map(([id, a]) => ({ id, name: a.name, desc: a.desc, pve: !!a.pve }))));
+  socket.on("achList", (cb) => cb?.(Object.entries(ACH).map(([id, a]) => ({ id, name: a.name, desc: a.desc, pve: !!a.pve, secret: !!a.secret }))));
 
   socket.on("disconnect", () => {
     queue = queue.filter((q) => q.socketId !== socket.id);

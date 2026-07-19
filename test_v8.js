@@ -178,6 +178,59 @@ async function testLeagueOnline() {
   a.s.close();
 }
 
+async function testAmbTable() {
+  console.log("── тест I: стіл з амбасадорами ──");
+  const a = mkClient("ambtable-token-iiii", true);
+  await wait(200);
+  await new Promise((r) => a.s.emit("hello", { token: a.tok, nick: "троєборець" }, r));
+  /* 1 на 1: амбасадор має бути ПРОТИЛЕЖНОЇ фракції */
+  await new Promise((r) => a.s.emit("setProfile", { side: "kyts" }, r));
+  a.view = null;
+  const solo = await new Promise((r) => a.s.emit("playAmbassadors", { both: false }, r));
+  if (solo.amb !== "zhreg") throw new Error("гравець за киць мав отримати жрега, а отримав " + solo.amb);
+  await until(() => a.view?.started && a.view.code === solo.code, 4000, "старт 1на1");
+  a.s.emit("leaveRoom"); await wait(250);
+  await new Promise((r) => a.s.emit("setProfile", { side: "anti" }, r));
+  a.view = null;
+  const solo2 = await new Promise((r) => a.s.emit("playAmbassadors", { both: false }, r));
+  if (solo2.amb !== "greg") throw new Error("гравець за анти-киць мав отримати ґрега, а отримав " + solo2.amb);
+  await until(() => a.view?.started && a.view.code === solo2.code, 4000, "старт 1на1 #2");
+  a.s.emit("leaveRoom"); await wait(250);
+  /* стіл на трьох з обома + діалоги в чаті */
+  let banter = new Set();
+  a.s.on("chat", (e) => { if (e.nick.includes("ґреґ")) banter.add("greg"); if (e.nick.includes("жреґ")) banter.add("zhreg"); });
+  a.view = null;
+  const both = await new Promise((r) => a.s.emit("playAmbassadors", { both: true }, r));
+  if (!both.both) throw new Error("режим на трьох не увімкнувся");
+  await until(() => a.view?.started && a.view.code === both.code, 4000, "старт столу на трьох");
+  if (a.view.others.length !== 2) throw new Error("за столом мало бути двоє амбасадорів, а є " + a.view.others.length);
+  await until(() => banter.size >= 2, 20_000, "діалог обох амбасадорів у чаті");
+  await until(() => a.view?.result, 45_000, "фінал столу на трьох");
+  if (a.view.result.spDelta !== 0) throw new Error("стіл з амбасадорами вплинув на рейтинг!");
+  console.log("фракційне правило дотримано, троє за столом, діалоги йдуть · тест I OK\n");
+  a.s.emit("leaveRoom"); a.s.close();
+}
+
+async function testPostcards() {
+  console.log("── тест J: колекційні листівки ──");
+  const a = mkClient("pc-token-jjjj", false);
+  await wait(200);
+  await new Promise((r) => a.s.emit("hello", { token: a.tok, nick: "збирач" }, r));
+  const p0 = await new Promise((r) => a.s.emit("profileInfo", r));
+  const before = p0.tk.k;
+  const buy = await new Promise((r) => a.s.emit("shopBuyCard", { id: "avan_5", side: "k", price: 8 }, r));
+  if (!buy?.ok) throw new Error("купівля не пройшла: " + JSON.stringify(buy));
+  if (buy.tk.k !== before - 8) throw new Error("жетони списались неправильно: " + before + " → " + buy.tk.k);
+  if (!buy.cards.includes("avan_5")) throw new Error("листівка не потрапила в колекцію");
+  const again = await new Promise((r) => a.s.emit("shopBuyCard", { id: "avan_5", side: "k", price: 8 }, r));
+  if (!again?.error) throw new Error("дозволило купити ту саму листівку двічі!");
+  await new Promise((r) => a.s.emit("shopBuyCard", { id: "char_5", side: "k", price: 8 }, r));
+  const third = await new Promise((r) => a.s.emit("shopBuyCard", { id: "krad_5", side: "a", price: 8 }, r));
+  if (!third?.newAch?.length) throw new Error("за три листівки не видалось секретне звання");
+  console.log(`куплено 3 листівки, дублікат заблоковано, звання «${third.newAch[0]}» · тест J OK\n`);
+  a.s.close();
+}
+
 (async () => {
   await testPve();
   await testDaily();
@@ -185,6 +238,8 @@ async function testLeagueOnline() {
   await testAmb();
   await testGlitchQueue();
   await testLeagueOnline();
+  await testAmbTable();
+  await testPostcards();
   console.log("УСІ ТЕСТИ v8+v11 OK. няв.");
   process.exit(0);
 })().catch((e) => { console.error("ТЕСТ ВПАВ:", e.message); process.exit(1); });
