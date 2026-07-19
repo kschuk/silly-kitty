@@ -163,6 +163,25 @@ function pushHist(token, entry) {
   save();
 }
 
+/* окрема ліга ПвЕ: рахуємо перемоги над амбасадорами */
+function topPve(n = 50) {
+  return Object.values(players)
+    .filter((p) => (p.pveWins || 0) > 0)
+    .sort((a, b) => (b.pveWins || 0) - (a.pveWins || 0))
+    .slice(0, n)
+    .map((p) => ({
+      nick: p.nick, pveWins: p.pveWins || 0, avatar: p.avatar || "cat_black",
+      side: p.side || "kyts", beatGreg: !!p.beatGreg, beatZhreg: !!p.beatZhreg,
+    }));
+}
+
+function positionPve(token) {
+  const me = players[token];
+  if (!me || !(me.pveWins > 0)) return null;
+  const all = Object.values(players).filter((p) => (p.pveWins || 0) > 0).sort((a, b) => (b.pveWins || 0) - (a.pveWins || 0));
+  return all.findIndex((p) => p === me) + 1;
+}
+
 function position(token) {
   const me = players[token];
   if (!me || !me.games) return null;
@@ -211,7 +230,7 @@ function top(n = 50) {
 load();
 
 module.exports = {
-  getOrCreate, get, applyMatch, award, top, setProfile, pushHist, position, dirty: save,
+  getOrCreate, get, applyMatch, award, top, topPve, positionPve, setProfile, pushHist, position, dirty: save,
   todayKey, dailyPlayedToday, recordDaily, dailyBoard,
   bumpFrontier, FRONTIER_N, FRONTIER_MAX,
 };

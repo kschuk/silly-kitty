@@ -51,7 +51,7 @@ async function testPve() {
   const spBefore = prof.sp;
   await new Promise((r, rej) => a.s.emit("playGreg", {}, (x) => x.error ? rej(new Error(x.error)) : r(x)));
   await until(() => a.view?.started, 3000, "старт ПвЕ");
-  if (!a.view.others.some((o) => o.nick === "жабка ґреґ")) throw new Error("ґреґ не сів за стіл");
+  if (!a.view.others.some((o) => o.nick.includes("ґреґ") || o.nick.includes("жреґ"))) throw new Error("амбасадор не сів за стіл");
   await until(() => a.view?.result, 30_000, "фінал ПвЕ");
   if (a.view.result.spDelta !== 0) throw new Error("ПвЕ вплинуло на рейтинг! delta=" + a.view.result.spDelta);
   const profAfter = await new Promise((r) => a.s.emit("profileInfo", r));
@@ -158,12 +158,33 @@ async function testGlitchQueue() {
   a.s.close(); b.s.close(); c.s.close();
 }
 
+async function testLeagueOnline() {
+  console.log("── тест H: ліга ПвЕ та лічильник онлайну ──");
+  const a = mkClient("league-token-hhhh", true);
+  await wait(200);
+  await new Promise((r) => a.s.emit("hello", { token: a.tok, nick: "лігіст" }, r));
+  const on = await new Promise((r) => a.s.emit("onlineInfo", r));
+  if (!(on?.online >= 1)) throw new Error("лічильник онлайну не рахує: " + JSON.stringify(on));
+  await new Promise((r, rej) => a.s.emit("playGreg", {}, (x) => x.error ? rej(new Error(x.error)) : r(x)));
+  await until(() => a.view?.started, 3000, "старт ПвЕ");
+  await until(() => a.view?.result, 30_000, "фінал ПвЕ");
+  const won = a.view.result.standings.find((s) => s.you)?.place === 1;
+  a.s.emit("leaveRoom");
+  await wait(200);
+  const lg = await new Promise((r) => a.s.emit("topPve", r));
+  if (won && !lg.list.some((e) => e.nick === "лігіст")) throw new Error("переможець не потрапив у лігу ПвЕ");
+  if (!Array.isArray(lg.list)) throw new Error("ліга ПвЕ не віддає список");
+  console.log(`онлайн: ${on.online} · ліга ПвЕ: ${lg.list.length} запис(ів)${won ? " (наш у ній)" : " (партія програна — це ок)"} · тест H OK\n`);
+  a.s.close();
+}
+
 (async () => {
   await testPve();
   await testDaily();
   await testBet();
   await testAmb();
   await testGlitchQueue();
+  await testLeagueOnline();
   console.log("УСІ ТЕСТИ v8+v11 OK. няв.");
   process.exit(0);
 })().catch((e) => { console.error("ТЕСТ ВПАВ:", e.message); process.exit(1); });

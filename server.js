@@ -444,6 +444,7 @@ function startDeal(game, seed) {
   game.startedAt = Date.now();
   game.lastSide = {}; game.coinNotes = {}; game.lastCardPlayed = null;
   game.throwsBy = {}; game.nipsPlayed = {}; game.fivesPlayed = {}; game.glitchMoved = {}; game.glitchPending = null;
+  game.ambUsed = new Set(); game.ambCount = 0; game.ambLast = 0;
   game.glitchDone = false;
   for (const s of Object.keys(game.players)) game.players[s].lastAct = Date.now();
   const f = game.state.first;
@@ -508,14 +509,21 @@ function performMove(game, seat, type, uid) {
   }
   if (s.glitch?.active) game.glitchMoved[seat] = true;
   consumeGlitch(game, seat);
-  if (game.isPve && !game.players[seat].bot) {
-    if (played && core.isNip(played)) ambSay(game, "nip");
-    else if (type === "take") ambSay(game, "takes");
-    else if (type === "defend" && r.ev?.type === "defend" && r.ev.allBeaten) ambSay(game, "beats");
-  }
+
   game.players[seat].lastAct = Date.now();
   const me = nickOf(game, seat);
   const ev = r.ev;
+  /* амбасадор реагує на ПОДІЇ, а не на кожен хід */
+  if (game.isPve && !game.players[seat].bot && ev) {
+    const myHand = s.hands[seat]?.length ?? 6;
+    const botSeat = s.seats.find((x) => game.players[x]?.bot);
+    const botHand = botSeat ? (s.hands[botSeat]?.length ?? 6) : 6;
+    if (played && core.isNip(played) && (game.nipsPlayed[seat] || 0) === 1) ambSay(game, "nip");
+    else if (ev.type === "bout" && !ev.defended && ev.taker === seat && ev.count >= 4) ambSay(game, "takes");
+    else if (ev.type === "defend" && ev.allBeaten && s.table.length >= 3) ambSay(game, "beats");
+    else if (botHand + 3 <= myHand) ambSay(game, "winning");
+    else if (myHand + 3 <= botHand) ambSay(game, "losing");
+  }
   if (ev.type === "bout" && !ev.defended && ev.taker) {
     game.takes[ev.taker] = (game.takes[ev.taker] || 0) + 1;
     game.cardsTaken[ev.taker] = (game.cardsTaken[ev.taker] || 0) + ev.count;
@@ -625,12 +633,19 @@ function applyNyavPick(game, seat, sign) {
 function ambSay(game, key, force) {
   if (!game.isPve || !game.amb || game.finished) return;
   const now = Date.now();
-  if (!force && game.ambLast && now - game.ambLast < 6000) return;
-  if (key !== "takes" && key !== "beats" && game.ambSaid[key] && !force) return;
-  const text = ambLine(game.amb, key);
-  if (!text) return;
+  /* рідше: не частіше разу на 25с і не більше 6 реплік за партію (фінал і вітання — поза лімітом) */
+  if (!force) {
+    if (game.ambLast && now - game.ambLast < 25_000) return;
+    if ((game.ambCount || 0) >= 6) return;
+  }
+  /* унікальність: кожна репліка звучить за партію лише раз */
+  if (!game.ambUsed) game.ambUsed = new Set();
+  const pool = ((AMB[game.amb] && AMB[game.amb][key]) || []).filter((x) => !game.ambUsed.has(x));
+  if (!pool.length) return;
+  const text = pool[(Math.random() * pool.length) | 0];
+  game.ambUsed.add(text);
+  if (!force) game.ambCount = (game.ambCount || 0) + 1;
   game.ambLast = now;
-  game.ambSaid[key] = true;
   const entry = { nick: AMB[game.amb].name, text, ts: now };
   game.chat.push(entry);
   if (game.chat.length > 40) game.chat.shift();
@@ -1044,6 +1059,14 @@ io.on("connection", (socket) => {
     const list = store.top(100).map((p) => ({ ...p, rank: core.rankOf(p.sp) }));
     cb?.({ list, mePos: token ? store.position(token) : null });
   });
+  socket.on("topPve", (cb) => {
+    cb?.({ list: store.topPve(100), mePos: token ? store.positionPve(token) : null });
+  });
+
+  socket.on("onlineInfo", (cb) => {
+    cb?.({ online: io.engine.clientsCount, inGame: [...rooms.values()].filter((g) => g.state && !g.finished).length, queue: queue.length });
+  });
+
   socket.on("achList", (cb) => cb?.(Object.entries(ACH).map(([id, a]) => ({ id, name: a.name, desc: a.desc, pve: !!a.pve }))));
 
   socket.on("disconnect", () => {
