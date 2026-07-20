@@ -1194,30 +1194,21 @@ $("btnMenu").onclick=()=>{
 $("mClose").onclick=()=>ov("ovMenu",false);
 $("mPanic").onclick=()=>{
   Audio5.sfx.click();
-  /* тривожна дія — питаємо підтвердження */
   $("confirmText").innerHTML=`<b>вийти з усіх столів?</b><br><br>
     поточні партії буде покинуто: за живі столи зарахується останнє місце,
     столи з амбасадорами просто закриються.`;
   const p=$("confirmPanel");p.className="panel popBounce";
   $("confYes").style.display="";$("confYes").textContent="так, вийти";$("confNo").textContent="скасувати";
   ov("ovConfirm",true);
-  $("confNo").onclick=()=>{Audio5.sfx.click();ov("ovConfirm",false);$("confYes").textContent="так";bindConfNo();};
+  $("confNo").onclick=()=>{Audio5.sfx.click();ov("ovConfirm",false);$("confYes").textContent="так";$("confNo").textContent="ні";bindConfNo();};
   $("confYes").onclick=()=>{
-  Audio5.sfx.click();
-  ov("ovConfirm",false);
-  $("confYes").textContent="так";
-  socket.emit("panicLeave",()=>{
-    inRoom=false;view=null;
-    ["ovMenu","ovRes","ovBet","ovNyav","ovPostcard","ovWanted"].forEach(id=>ov(id,false));
-    stopQueueWatch();
-    leaveUI();
-    show("scrLobby");
-    refreshProfile();refreshDaily();
-    $("errLobby").textContent="ти вийшов з усіх столів.";
-    setTimeout(()=>{$("errLobby").textContent="";},2500);
-  });
+    Audio5.sfx.click();
+    ov("ovConfirm",false);
+    $("confYes").textContent="так";
+    panicLeave();
   };
 };
+
 const backTo=(from)=>{Audio5.sfx.click();ov(from,false);ov("ovMenu",true);};
 $("mCredits").onclick=()=>{
   Audio5.sfx.click();
@@ -1981,36 +1972,6 @@ function pollOnline(){
 setInterval(()=>{if(!document.hidden)pollOnline();},20000);
 socket.on("connect",()=>setTimeout(pollOnline,600));
 
-/* ── постійний музичний плеєр ── */
-function playerRender(){
-  const on=Audio5.isRunning()&&Audio5.vols.music>0&&!Audio5.isPaused();
-  $("player").classList.toggle("on",on);
-  $("pPlay").textContent=Audio5.isPaused()||!Audio5.isRunning()?"▶":"❚❚";
-  const g=Audio5.getGenre();
-  const scene=(view&&view.started&&!view.result)?"партія":(view&&view.result)?"підсумки":"меню";
-  $("pName").textContent=Audio5.isRunning()
-    ?`${genreLabel(g)} · ${scene}`
-    :"звук вимкнено — тапни ▶";
-}
-$("pPlay").onclick=()=>{
-  Audio5.unlock();
-  Audio5.togglePause();
-  Audio5.sfx.click();
-  playerRender();
-};
-$("pPrev").onclick=()=>{shiftGenre(-1);playerRender();};
-$("pNext").onclick=()=>{shiftGenre(1);playerRender();};
-$("pMore").onclick=()=>{
-  Audio5.sfx.click();
-  $("pMoreBox").classList.toggle("on");
-  $("pVol").value=Audio5.vols.music;$("pVolSfx").value=Audio5.vols.sfx;
-};
-$("pVol").oninput=e=>{Audio5.setVol("music",+e.target.value);playerRender();};
-$("pVolSfx").oninput=e=>{Audio5.setVol("sfx",+e.target.value);Audio5.sfx.click();};
-setInterval(playerRender,1500);
-
-function refreshProfile(){const n=localStorage.getItem("dk_nick");if(n)hello(n);}
-
 /* ── ставка няву: оверлей перед роздачею ── */
 function renderBet(v){
   if(!v.bet){ov("ovBet",false);return;}
@@ -2116,20 +2077,20 @@ $("btnQuick").onclick=()=>{
   const glitch=$("pveGlitch").checked;
   if(gameMode==="daily"){
     socket.emit("playDaily",{glitch:false},r=>{
-      if(r?.error){$("errLobby").textContent=r.error==="already"?DAILY.doneMsg:r.error;refreshDaily();return;}
+      if(r?.error){lobbyError(r.error==="already"?DAILY.doneMsg:r.error);refreshDaily();return;}
       inRoom=true;dailyPlayed=true;renderMode();
     });
     return;
   }
   if(gameMode==="pve"){
     socket.emit("playAmbassadors",{glitch,both:false},r=>{
-      if(r?.error){$("errLobby").textContent=r.error;return;}
+      if(r?.error){lobbyError(r.error);return;}
       inRoom=true;
     });
     return;
   }
   socket.emit("quickMatch",{glitch},r=>{
-    if(r?.error){$("errLobby").textContent=r.error;return;}
+    if(r?.error){lobbyError(r.error);return;}
     inRoom=true;
     if(r?.queued){
       $("roomCode").textContent="· · · ·";$("waitList").textContent="";
@@ -2144,6 +2105,32 @@ $("btnQuick").onclick=()=>{
 
 /* якщо 5с шукаємо зі збоєм, а поруч чекає хтось без нього — пропонуємо перемкнутись */
 let queueWatch=null;
+/* показує помилку лобі; на «ти вже в кімнаті» одразу дає кнопку виходу */
+function lobbyError(msg){
+  const box=$("errLobby");
+  if(!box)return;
+  box.innerHTML=esc(msg||"");
+  if(/вже в кімнаті|вже за столом/i.test(msg||"")){
+    box.innerHTML+=` <button class="small danger" id="errPanic" style="margin-left:6px;padding:3px 9px">вийти з усіх столів</button>`;
+    const b=document.getElementById("errPanic");
+    if(b)b.onclick=()=>{Audio5.sfx.click();panicLeave();};
+  }
+}
+
+/* спільний вихід з усіх столів — з меню і з підказки в лобі */
+function panicLeave(){
+  socket.emit("panicLeave",()=>{
+    inRoom=false;view=null;
+    ["ovMenu","ovRes","ovBet","ovNyav","ovPostcard","ovWanted","ovConfirm"].forEach(id=>ov(id,false));
+    stopQueueWatch();
+    leaveUI();
+    show("scrLobby");
+    refreshProfile();refreshDaily();
+    $("errLobby").textContent="ти вийшов з усіх столів.";
+    setTimeout(()=>{if($("errLobby").textContent==="ти вийшов з усіх столів.")$("errLobby").textContent="";},2500);
+  });
+}
+
 function stopQueueWatch(){clearInterval(queueWatch);queueWatch=null;$("queueHint").style.display="none";socket.emit("lobbyChatOff");}
 function startQueueWatch(glitch){
   stopQueueWatch();
@@ -2174,7 +2161,7 @@ function startQueueWatch(glitch){
 $("btnCoop").onclick=()=>{
   Audio5.sfx.click();
   socket.emit("coopQueue",r=>{
-    if(r?.error){$("errLobby").textContent=r.error;return;}
+    if(r?.error){lobbyError(r.error);return;}
     inRoom=true;
     if(r?.queued){
       $("roomCode").textContent="· · · ·";$("waitList").textContent="";
@@ -2187,16 +2174,16 @@ $("btnCoop").onclick=()=>{
 $("btnAmbBoth").onclick=()=>{
   Audio5.sfx.click();
   socket.emit("playAmbassadors",{glitch:$("pveGlitch").checked,both:true},r=>{
-    if(r?.error){$("errLobby").textContent=r.error;return;}
+    if(r?.error){lobbyError(r.error);return;}
     inRoom=true;
   });
 };
 $("btnCreate").onclick=()=>{Audio5.sfx.click();socket.emit("createRoom",r=>{
-  if(r?.error){$("errLobby").textContent=r.error;return;}
+  if(r?.error){lobbyError(r.error);return;}
   inRoom=true;chatReset();
 });};
 $("btnJoin").onclick=()=>{Audio5.sfx.click();socket.emit("joinRoom",{code:$("joinCode").value},r=>{
-  if(r?.error){$("errLobby").textContent=r.error;return;}
+  if(r?.error){lobbyError(r.error);return;}
   inRoom=true;chatReset();
 });};
 $("btnCancelWait").onclick=()=>{stopQueueWatch();socket.emit("leaveQueue");socket.emit("leaveRoom");inRoom=false;view=null;leaveUI();show("scrLobby");};
