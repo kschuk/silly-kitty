@@ -950,7 +950,11 @@ function maybeBotMove(game) {
   }, botDelay());
 }
 /* людський темп у проді; прискорено лише для автотестів (BOT_FAST=1) */
-function botDelay() { return process.env.BOT_FAST ? 60 + Math.random() * 90 : 650 + Math.random() * 700; }
+function botDelay() {
+  /* п.4: пауза на обдумування — бот не сипле ходами швидше, ніж людина встигає
+     їх прочитати. у тестах прискорено через BOT_FAST. */
+  return process.env.BOT_FAST ? 60 + Math.random() * 90 : 1900 + Math.random() * 700;
+}
 
 /* ── п.35: обмеження частоти подій на сокет ──
    загальний ліміт ~20 подій/с; для «дорогих» подій, що пишуть на диск, — суворіший */
@@ -1750,7 +1754,25 @@ io.on("connection", (socket) => {
     cb?.({ online: io.engine.clientsCount, inGame: [...rooms.values()].filter((g) => g.state && !g.finished).length, queue: queue.length });
   });
 
-  socket.on("achList", (cb) => cb?.(Object.entries(ACH).map(([id, a]) => ({ id, name: a.name, desc: a.desc, pve: !!a.pve, secret: !!a.secret }))));
+  /* рідкість і бали досягнень: чим важче — тим дорожча рамка */
+  const ACH_RARITY = {
+    pve_znaiomstvo: "common", nipdyp: "common", seriya: "common", amb_stil: "common",
+    blyskavka: "uncommon", sukha: "uncommon", movchvoda: "uncommon", pve_greg: "uncommon",
+    pve_zhreg: "uncommon", pve_sukho: "uncommon", pve_shvydko: "uncommon", zhabhor: "uncommon",
+    maraton: "rare", kolektsioner: "rare", nyavmaster: "rare", feniks: "rare", pyatykut: "rare",
+    pyatipyat: "rare", glitchsurf: "rare", zhetonoyid: "rare", pve_obydva: "rare",
+    amb_obydva: "rare", sec_kolekcioner_pc: "rare", sec_kupets: "rare",
+    nyavkosmos: "epic", tyzhnevyk: "epic", pve_desyat: "epic", amb_ostanni: "epic",
+    amb_albom: "epic", sec_lovets: "epic", sec_obminyaka: "epic",
+    sec_povna_kolekciya: "legendary", sec_poklykach: "legendary", sec_balakun: "legendary",
+    sec_nichnyi: "legendary", sec_hodynnyk: "legendary", sec_odna: "legendary",
+  };
+  const ACH_POINTS = { common: 5, uncommon: 10, rare: 15, epic: 25, legendary: 50 };
+
+  socket.on("achList", (cb) => cb?.(Object.entries(ACH).map(([id, a]) => {
+    const rar = ACH_RARITY[id] || (a.secret ? "legendary" : "common");
+    return { id, name: a.name, desc: a.desc, pve: !!a.pve, secret: !!a.secret, rarity: rar, points: ACH_POINTS[rar] };
+  })));
 
   socket.on("disconnect", () => {
     queue = queue.filter((q) => q.socketId !== socket.id);
