@@ -1312,7 +1312,8 @@ io.on("connection", (socket) => {
     const game = newGame(code);
     game.isPve = true;
     game.glitchWanted = !!glitch;
-    game.amb = Math.random() < 0.5 ? "zhreg" : "greg";
+    /* п.11: амбасадор ніколи не своєї фракції — і тут теж, не лише в «столі з амбасадорами» */
+    game.amb = (store.get(token)?.side === "anti") ? "greg" : "zhreg";
     game.players.A = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
     game.players.B = { bot: true, nick: AMB[game.amb].name, connected: true, lastAct: Date.now() };
     game.order = ["A", "B"];
@@ -1537,6 +1538,11 @@ io.on("connection", (socket) => {
   });
 
   socket.on("wantedToday", (cb) => cb?.(store.wantedToday()));
+
+  socket.on("factionStats", (cb) => {
+    const m = store.factionMissionStats();
+    cb?.({ today: { kyts: m.kyts, anti: m.anti }, total: { kyts: m.allKyts, anti: m.allAnti } });
+  });
 
   socket.on("missionToday", (cb) => {
     if (!token) return cb?.(null);

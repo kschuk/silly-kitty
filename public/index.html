@@ -159,7 +159,10 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .wantedCard img{width:100%;max-width:130px;aspect-ratio:6/7;object-fit:cover;border:2px solid var(--ink);border-radius:10px;display:block;margin:0 auto 6px}
 .wantedCard.kyts{border-color:#e0a33a}.wantedCard.anti{border-color:#5c9a4e}
 @media(min-width:700px){.wantedCard img{max-width:170px}}
-.achWrap{max-height:min(58vh,520px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-right:4px}
+.panelScroll{display:flex;flex-direction:column;max-height:88vh}
+.panelScroll>.big,.panelScroll>.sub,.panelScroll>.row{flex:0 0 auto}
+.achWrap{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-right:4px}
+#achList{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
 .achGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .achCard{border:2px solid var(--ink);border-radius:10px;padding:9px 8px 8px;background:var(--paper);text-align:left;font-size:10px;line-height:1.45;position:relative;min-height:70px}
 .achCard .ai{font-size:16px;line-height:1}
@@ -396,14 +399,12 @@ body.no-anim .mascot{animation:none}
       <div class="tipLine" id="tipLine"></div>
       <div class="bar" id="profileLine"></div>
       <div class="row" id="walletRow" style="margin:2px 0;gap:10px"></div>
-      <div class="wantedBar" id="wantedBar" style="display:none"></div>
       <div class="missionBar" id="missionBar" style="display:none"></div>
       <div class="row" style="margin:2px 0 4px">
         <button class="small iconBtn" id="miniProfile" title="профіль"></button>
         <button class="small iconBtn" id="miniAch" title="досягнення">✦ досягнення</button>
         <button class="small iconBtn" id="miniTop" title="рекорди">♛ рекорди</button>
         <button class="small iconBtn" id="miniShop" title="магазин"></button>
-        <button class="small iconBtn" id="miniMap" title="мапа">🗺 мапа</button>
       </div>
       <div class="modeRow">
         <button class="modeBtn sel" data-mode="pvp">ПвП</button>
@@ -531,7 +532,7 @@ body.no-anim .mascot{animation:none}
   <div class="sub" style="color:var(--paper);opacity:.7">всесвітні рекорди</div>
   <div class="arcTools" style="margin-bottom:2px">
     <button data-league="pvp" class="sel lg">рейтингова ліга</button>
-    <button data-league="pve" class="lg">ліга ПвЄ</button>
+    <button data-league="pve" class="lg">ліга ПвЄ</button><button data-league="daily" class="lg">☀ стіл дня</button>
   </div>
   <div class="arcTools" id="pvpTools">
     <input id="topSearch" maxlength="12" placeholder="пошук ніка">
@@ -543,7 +544,7 @@ body.no-anim .mascot{animation:none}
   <div class="row"><button id="topBack" style="background:transparent;color:var(--paper);border-color:var(--paper);box-shadow:none">назад</button></div>
 </div></div>
 
-<div class="overlay" id="ovAch"><div class="panel">
+<div class="overlay" id="ovAch"><div class="panel panelScroll">
   <div class="big">ДОСЯГНЕННЯ</div>
   <div class="sub">челенжі → унікальні звання. іконки — потім.</div>
   <div id="achList"></div>
@@ -565,24 +566,6 @@ body.no-anim .mascot{animation:none}
     <button class="small" id="btnCardShare">🔗 моя візитівка</button>
     <button class="small" id="btnInventory">📦 інвентар</button>
     <button class="small" id="btnFaction">⚑ фракція</button>
-  </div>
-  <div class="divider">───── банери ─────</div>
-  <div class="sub">альбом: усі шість ніпів. клік по здобутому — вдягнути.</div>
-  <div class="shopGrid" id="albumGrid" style="margin-top:8px"></div>
-  <div class="row" style="margin-top:8px"><button class="small" id="btnTrade">обмін дублікатами ▾</button></div>
-  <div id="tradeBox" style="display:none;margin-top:8px">
-    <div class="sub">створи код і надішли другу — або введи чужий.</div>
-    <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;justify-content:center">
-      <select id="tradeGive" class="selBox"></select>
-      <span style="align-self:center">→</span>
-      <select id="tradeWant" class="selBox"></select>
-      <button class="small" id="btnTradeMake">створити код</button>
-    </div>
-    <div style="display:flex;gap:6px;margin-top:8px;justify-content:center">
-      <input id="tradeCode" maxlength="5" placeholder="код обміну" style="text-transform:uppercase;max-width:130px">
-      <button class="small" id="btnTradeTake">обміняти</button>
-    </div>
-    <div class="err" id="tradeErr"></div>
   </div>
   <div class="divider">───── історія матчів ─────</div>
   <div id="histList" style="max-height:180px;overflow-y:auto"></div>
@@ -1152,12 +1135,17 @@ function renderRules(){
 }
 
 /* ── аркадні рекорди: пошук + сортування ── */
-let topData=null, topSort="sp", topLeague="pvp", pveData=null;
+let topData=null, topSort="sp", topLeague="pvp", pveData=null, dailyData=null;
 function openTop(){
   ov("ovTop",true);
   loadLeague();
 }
 function loadLeague(){
+  if(topLeague==="daily"){
+    $("pvpTools").style.display="none";
+    socket.emit("dailyInfo",r=>{dailyData=r;renderTop();});
+    return;
+  }
   if(topLeague==="pve"){
     $("pvpTools").style.display="none";
     socket.emit("topPve",r=>{pveData=r;renderTop();});
@@ -1167,6 +1155,7 @@ function loadLeague(){
   }
 }
 function renderTop(){
+  if(topLeague==="daily"){renderDailyLeague();return;}
   if(topLeague==="pve"){renderPve();return;}
   if(!topData)return;
   const q=$("topSearch").value.trim().toLowerCase();
@@ -1188,6 +1177,19 @@ function renderTop(){
       <b>${val}</b></div>`;
   }).join(""):"<div class='arcRow'>порожньо. стань першим. няв.</div>";
   $("topMe").textContent=topData.mePos?`ти — #${topData.mePos} у всесвіті`:"зіграй партію — і ти на табло";
+}
+function renderDailyLeague(){
+  if(!dailyData){$("topList").innerHTML="<div class='arcRow'>вантажимо…</div>";return;}
+  const b=dailyData.board||[];
+  const myNick=profile?.nick;
+  $("topList").innerHTML=b.length?b.map((e,i)=>{
+    const pos=i+1,cls=pos<=3?`top${pos}`:"",me=(e.nick===myNick)?" me":"";
+    const mm=Math.floor(e.durMs/60000),ss=String(Math.floor(e.durMs/1000)%60).padStart(2,"0");
+    return `<div class="arcRow ${cls}${me}"><span class="pos">${String(pos).padStart(2,"0")}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.won?"🏆 ":""}${esc(e.nick)}</span>
+      <b>${mm}:${ss}</b></div>`;
+  }).join(""):"<div class='arcRow'>сьогодні ще ніхто не грав. будь першим.</div>";
+  $("topMe").textContent=dailyData.played?"сьогоднішню спробу вже використано":"твоя спроба на сьогодні ще жива";
 }
 function renderPve(){
   if(!pveData){$("topList").innerHTML="<div class='arcRow'>вантажимо…</div>";return;}
@@ -1254,7 +1256,6 @@ function openProfile(){
       $("profTop").insertAdjacentHTML("afterbegin",
         `<div class="profBanner"><img src="/cards/${p.banner}.jpg" alt=""><span class="pbName">${esc(BANNER_META[p.banner].name)}</span></div>`);
     }
-    loadBanners(()=>renderAlbum());
     $("avGrid").innerHTML=Object.keys(AVATARS).map(id=>
       `<div class="avCell ${p.avatar===id?"sel":""}" data-a="${id}">${avatarSvg(id,30)}</div>`).join("");
     $("avGrid").querySelectorAll(".avCell").forEach(c=>c.onclick=()=>{
@@ -1319,8 +1320,25 @@ function renderInv(){
   document.querySelectorAll("#invTabs button").forEach(b=>b.classList.toggle("sel",b.dataset.inv===invTab));
   const host=$("invBody");
   if(invTab==="banners"){
-    host.innerHTML=`<div class="sub">клік по здобутому — вдягнути або зняти</div><div class="shopGrid" id="invBanners"></div>`;
+    host.innerHTML=`<div class="sub">клік по здобутому — вдягнути або зняти</div>
+      <div class="shopGrid" id="invBanners"></div>
+      <div class="row" style="margin-top:8px"><button class="small" id="btnTrade">обмін дублікатами ▾</button></div>
+      <div id="tradeBox" style="display:none;margin-top:8px">
+        <div class="sub">створи код і надішли другу — або введи чужий.</div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;justify-content:center">
+          <select id="tradeGive" class="selBox"></select>
+          <span style="align-self:center">→</span>
+          <select id="tradeWant" class="selBox"></select>
+          <button class="small" id="btnTradeMake">створити код</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;justify-content:center">
+          <input id="tradeCode" maxlength="5" placeholder="код обміну" style="text-transform:uppercase;max-width:130px">
+          <button class="small" id="btnTradeTake">обміняти</button>
+        </div>
+        <div class="err" id="tradeErr"></div>
+      </div>`;
     renderBannerGrid($("invBanners"),false);
+    bindTrade();
     return;
   }
   if(invTab==="titles"){
@@ -1382,7 +1400,15 @@ function openFaction(){
     const wins=fr>=0?(p.frontierWins?.kyts||0):(p.frontierWins?.anti||0);
     $("facProgBar").style.width=Math.min(100,(wins/5)*100)+"%";
     $("facProgText").textContent=`до наступного кроку: ${wins}/5 перемог над протилежним амбасадором`;
-    $("facStats").innerHTML=`перемог кицями: <b>${p.frontierWins?.kyts||0}</b><br>
+    socket.emit("factionStats",fs=>{
+      if(!fs)return;
+      const mine=side==="anti"?"anti":"kyts";
+      const box=document.getElementById("facMissions");
+      if(box)box.innerHTML=`<b>доручень виконано фракцією</b><br>
+        сьогодні: ${coinSvg("k")} киці <b>${fs.today.kyts}</b> · ${coinSvg("a")} анти-киці <b>${fs.today.anti}</b><br>
+        <span class="sub">за весь час: ${fs.total.kyts} / ${fs.total.anti} · твій внесок іде до ${mine==="anti"?"анти-киць":"киць"}</span>`;
+    });
+    $("facStats").innerHTML=`<div id="facMissions" style="margin-bottom:8px"></div>перемог кицями: <b>${p.frontierWins?.kyts||0}</b><br>
       перемог анти-кицями: <b>${p.frontierWins?.anti||0}</b><br>
       перемог над амбасадорами: <b>${p.pveWins||0}</b><br>
       гаманець: ${coinSvg("k")} ${p.tk?.k||0} · ${coinSvg("a")} ${p.tk?.a||0}`;
@@ -1400,41 +1426,41 @@ $("btnFaction").onclick=()=>{Audio5.sfx.click();ov("ovProfile",false);openFactio
 $("facBack").onclick=()=>{Audio5.sfx.click();ov("ovFaction",false);openProfile();};
 
 /* ── альбом і обмін дублікатами ── */
-function renderAlbum(){
-  renderBannerGrid($("albumGrid"),false);
+function bindTrade(){
   const dupIds=Object.keys(bannerState.dupes||{}).filter(k=>bannerState.dupes[k]>0);
   const opts=(list)=>list.map(id=>`<option value="${id}">${esc(BANNER_META[id]?.name||id)}</option>`).join("");
-  $("tradeGive").innerHTML=dupIds.length?opts(dupIds):`<option value="">нема дублікатів</option>`;
-  $("tradeWant").innerHTML=opts(Object.keys(BANNER_META));
+  if($("tradeGive"))$("tradeGive").innerHTML=dupIds.length?opts(dupIds):`<option value="">нема дублікатів</option>`;
+  if($("tradeWant"))$("tradeWant").innerHTML=opts(Object.keys(BANNER_META));
+  const t=$("btnTrade");
+  if(t)t.onclick=()=>{
+    Audio5.sfx.click();
+    const box=$("tradeBox"),open=box.style.display==="none";
+    box.style.display=open?"":"none";
+    t.textContent=open?"обмін дублікатами ▴":"обмін дублікатами ▾";
+  };
+  const mk=$("btnTradeMake");
+  if(mk)mk.onclick=()=>{
+    const give=$("tradeGive").value;
+    if(!give){$("tradeErr").textContent="спершу потрібен дублікат.";return;}
+    socket.emit("tradeCreate",{giveId:give},r=>{
+      if(r?.error){$("tradeErr").textContent=r.error;return;}
+      Audio5.sfx.coin();
+      $("tradeErr").innerHTML=`<span style="color:var(--kyts)">код: <b style="font-size:14px;letter-spacing:.14em">${esc(r.code)}</b> — надішли другу</span>`;
+    });
+  };
+  const tk=$("btnTradeTake");
+  if(tk)tk.onclick=()=>{
+    socket.emit("tradeAccept",{code:$("tradeCode").value,giveId:$("tradeGive").value},r=>{
+      if(r?.error){$("tradeErr").textContent=r.error;return;}
+      if(r.owned)bannerState.owned=r.owned;
+      if(r.dupes)bannerState.dupes=r.dupes;
+      Audio5.sfx.win();
+      $("tradeErr").innerHTML=`<span style="color:var(--kyts)">обміняно!${r.newAch&&r.newAch.length?` звання «${esc(r.newAch[0])}»`:""}</span>`;
+      $("tradeCode").value="";
+      renderInv();
+    });
+  };
 }
-$("btnTrade").onclick=()=>{
-  Audio5.sfx.click();
-  const box=$("tradeBox"), open=box.style.display==="none";
-  box.style.display=open?"":"none";
-  $("btnTrade").textContent=open?"обмін дублікатами ▴":"обмін дублікатами ▾";
-  if(open)renderAlbum();
-};
-$("btnTradeMake").onclick=()=>{
-  const give=$("tradeGive").value, want=$("tradeWant").value;
-  if(!give){$("tradeErr").textContent="спершу потрібен дублікат.";return;}
-  socket.emit("tradeCreate",{giveId:give},r=>{
-    if(r?.error){$("tradeErr").textContent=r.error;return;}
-    Audio5.sfx.coin();
-    $("tradeErr").innerHTML=`<span style="color:var(--kyts)">код: <b style="font-size:14px;letter-spacing:.14em">${esc(r.code)}</b> — надішли другу</span>`;
-  });
-};
-$("btnTradeTake").onclick=()=>{
-  socket.emit("tradeAccept",{code:$("tradeCode").value,giveId:$("tradeGive").value},r=>{
-    if(r?.error){$("tradeErr").textContent=r.error;return;}
-    if(r.owned)bannerState.owned=r.owned;
-    if(r.dupes)bannerState.dupes=r.dupes;
-    Audio5.sfx.win();
-    $("tradeErr").innerHTML=`<span style="color:var(--kyts)">обміняно! у тебе тепер «${esc(BANNER_META[r.gained||r.gotId]?.name||r.gained||"новий банер")}»${r.newAch&&r.newAch.length?` · звання «${esc(r.newAch[0])}»`:""}</span>`;
-    $("tradeCode").value="";
-    renderAlbum();renderProfile();
-  });
-};
-
 $("profNickSave").onclick=()=>{
   socket.emit("setProfile",{nick:$("profNick").value},r=>{
     if(r?.profile){profile=r.profile;localStorage.setItem("dk_nick",r.profile.nick);renderProfile();openProfile();}
@@ -1582,7 +1608,7 @@ function openMap(){
   });
 }
 
-$("miniMap").onclick=()=>{Audio5.sfx.click();openMap();};
+
 $("dailyBack").onclick=()=>{Audio5.sfx.click();ov("ovDaily",false);};
 $("mapBack").onclick=()=>{Audio5.sfx.click();ov("ovMap",false);};
 
@@ -1777,6 +1803,7 @@ if($("mascotClock"))$("mascotClock").onclick=()=>{
 
 /* ── п.20: карти в розшуку (щодня нові, по одній на фракцію) ── */
 function loadWanted(){
+  /* розшук живе у вкладці «фракція» — на головному екрані його більше нема */
   socket.emit("wantedToday",w=>{
     const bar=$("wantedBar");
     if(!w||!w.kyts||!w.anti||!bar)return;
@@ -1923,16 +1950,18 @@ function renderMode(){
   /* збій артефакта у столі дня не діє — виклик має бути однаковий для всіх */
   $("pveGlitch").disabled=daily;
   if($("pveGlitch").parentElement)$("pveGlitch").parentElement.style.opacity=daily?".45":"";
-  $("modeHint").innerHTML=daily
-    ? `<b>${esc(DAILY.title)}</b> — ${esc(DAILY.desc)}<br>
+  /* кожен режим має власну підказку — жодна не «протікає» в інший */
+  const HINTS={
+    pvp: ()=>"рейтингова гра з живим суперником.",
+    pve: ()=>`твій суперник — амбасадор протилежної фракції. твоя фракція: ${mySide==="anti"?"анти-киці":"киці"}.`,
+    daily: ()=>`<b>${esc(DAILY.title)}</b> — ${esc(DAILY.desc)}<br>
        умови: одна спроба на добу · та сама роздача для всіх · без збою артефакта<br>
        нагорода: місце в денній дошці${dailyPlayed?`<br><span style="color:var(--kyts)">${esc(DAILY.doneMsg)}</span>`:""}
-       <br><span class="sub" id="dailyPeek" style="cursor:pointer;text-decoration:underline">дошка сьогодні ▾</span>`
-    : gameMode==="pve"
-      ? `твій суперник — амбасадор протилежної фракції. твоя фракція: ${mySide==="anti"?"анти-киці":"киці"}.`
-      : "рейтингова гра з живим суперником.";
+       <br><span class="sub" id="dailyPeek" style="cursor:pointer;text-decoration:underline">дошка сьогодні ▾</span>`,
+  };
+  $("modeHint").innerHTML=(HINTS[gameMode]||HINTS.pvp)();
   const peek=document.getElementById("dailyPeek");
-  if(peek)peek.onclick=()=>{Audio5.sfx.click();openDaily();};
+  if(peek)peek.onclick=()=>{Audio5.sfx.click();topLeague="daily";openTop();};
 }
 function refreshDaily(){
   socket.emit("dailyInfo",info=>{
@@ -2446,9 +2475,10 @@ function renderGame(){
       const dNew=!seenTable.has(p.d.uid);seenTable.add(p.d.uid);
       if(dNew)Audio5.sfx.slap();
       const d=cardEl(p.d,dNew?"anim-slap":"");
-      if(dNew){lastCardEl=d;setTimeout(()=>flyClone(a,d,"beat"),10);}
+      /* карта-переможниця лягає ЗВЕРХУ на побиту — жодних перельотів навпаки */
+      if(dNew)lastCardEl=d;
       a.style.zIndex="1";
-      d.style.position="absolute";d.style.zIndex="2";d.style.left="15px";d.style.top="13px";d.style.transform="rotate(7deg)";pr.appendChild(d);
+      d.style.position="absolute";d.style.zIndex="3";d.style.left="16px";d.style.top="14px";d.style.transform="rotate(7deg)";pr.appendChild(d);
     }
     tbl.appendChild(pr);
   });

@@ -201,6 +201,14 @@ const MISSIONS = [
   { id: "long",     who: "greg",  text: "дограй партію, довшу за 8 хвилин",          goal: 1, kind: "longGame" },
 ];
 
+/* спільний лічильник виконаних доручень по фракціях (за добу і за весь час) */
+let missionStats = { day: null, kyts: 0, anti: 0, allKyts: 0, allAnti: 0 };
+
+function factionMissionStats() {
+  if (missionStats.day !== todayKey()) missionStats = { day: todayKey(), kyts: 0, anti: 0, allKyts: missionStats.allKyts || 0, allAnti: missionStats.allAnti || 0 };
+  return { ...missionStats };
+}
+
 function missionToday(token) {
   const p = players[token];
   if (!p) return null;
@@ -225,6 +233,10 @@ function missionProgress(token, kind, value) {
   p.mission.prog = Math.max(p.mission.prog || 0, value || 1);
   if (p.mission.prog >= cur.goal) {
     p.mission.done = true;
+    /* внесок у спільну справу фракції */
+    factionMissionStats();
+    if ((p.side || "kyts") === "anti") { missionStats.anti++; missionStats.allAnti++; }
+    else { missionStats.kyts++; missionStats.allKyts++; }
     if (!p.tk) p.tk = { k: 0, a: 0 };
     p.tk.k += 8; p.tk.a += 8;
     save();
@@ -420,6 +432,6 @@ module.exports = {
   getOrCreate, get, byNick, applyMatch, award, top, topPve, positionPve, setProfile, pushHist, position, dirty: save,
   wantedToday, tradeCreate, tradeAccept, bumpQuirk,
   todayKey, dailyPlayedToday, recordDaily, dailyBoard,
-  seasonKey, rolloverSeason, missionToday, missionProgress,
+  seasonKey, rolloverSeason, missionToday, missionProgress, factionMissionStats,
   bumpFrontier, FRONTIER_N, FRONTIER_MAX,
 };

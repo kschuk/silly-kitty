@@ -111,28 +111,35 @@ async function testBet() {
 }
 
 async function testAmb() {
-  console.log("── тест F: амбасадори в ПвЕ ──");
+  console.log("── тест F: фракційне правило, чат і ПвЄ-ачівки ──");
   const seen = new Set();
   let sawChat = false, sawAch = false;
-  for (let i = 0; i < 8 && (seen.size < 2 || !sawChat); i++) {
-    const a = mkClient("amb-token-" + i + "-eeee", true);
+  for (const side of ["kyts", "anti"]) {
+    const a = mkClient("amb-token-" + side + "-eeee", true);
     await wait(150);
-    await new Promise((r) => a.s.emit("hello", { token: a.tok, nick: "амб" + i }, r));
+    await new Promise((r) => a.s.emit("hello", { token: a.tok, nick: "амб-" + side }, r));
+    await new Promise((r) => a.s.emit("setProfile", { side }, r));
     a.s.on("chat", (e) => { if (e.nick.includes("ґреґ") || e.nick.includes("жреґ")) sawChat = true; });
+    a.view = null;
     const res = await new Promise((r) => a.s.emit("playGreg", {}, r));
-    if (res?.amb) seen.add(res.amb);
-    await until(() => a.view?.started, 3000, "старт ПвЕ");
-    await until(() => a.view?.result, 30_000, "фінал ПвЕ");
+    /* амбасадор мусить бути протилежної фракції */
+    const expect = side === "anti" ? "greg" : "zhreg";
+    await until(() => a.view?.started && a.view.code === res.code, 4000, "старт ПвЄ");
+    const foeNick = a.view.others[0]?.nick || "";
+    const gotZhreg = foeNick.includes("жреґ");
+    if ((expect === "zhreg") !== gotZhreg) throw new Error(`за ${side} мав вийти ${expect}, а вийшов ${foeNick}`);
+    seen.add(expect);
+    await until(() => a.view?.result, 40_000, "фінал ПвЄ");
+    if (a.view.result.spDelta !== 0) throw new Error("ПвЄ вплинуло на рейтинг!");
     if (a.view.result.newAch?.length) sawAch = true;
-    if (a.view.result.spDelta !== 0) throw new Error("ПвЕ вплинуло на рейтинг!");
     a.s.emit("leaveRoom");
     a.s.close();
-    await wait(120);
+    await wait(150);
   }
-  if (seen.size < 2) throw new Error("за 8 партій не випали обидва амбасадори: " + [...seen]);
+  if (seen.size < 2) throw new Error("фракційне правило не дало обох амбасадорів");
   if (!sawChat) throw new Error("амбасадор жодного разу не написав у чат");
-  if (!sawAch) throw new Error("ПвЕ-досягнення жодного разу не видались");
-  console.log("обидва амбасадори (" + [...seen].join(", ") + "), чат і ПвЕ-ачівки працюють · тест F OK\n");
+  if (!sawAch) throw new Error("ПвЄ-досягнення жодного разу не видались");
+  console.log("киці → жреґ, анти-киці → ґреґ, чат і ачівки працюють · тест F OK\n");
 }
 
 async function testGlitchQueue() {
