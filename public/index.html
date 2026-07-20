@@ -40,6 +40,9 @@
 .anim-dissolve{animation:dissolve var(--tSlow) var(--eOut) both;will-change:opacity,transform}
 @keyframes takerIn{0%{opacity:0;transform:translateY(8px) scale(.9)}22%{opacity:1;transform:translateY(0) scale(1)}
   72%{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-10px) scale(.96)}}
+@keyframes tblHold{0%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}35%{box-shadow:inset 0 0 0 3px rgba(181,90,36,.45)}
+  100%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}}
+.tableZone.tblFreeze{animation:tblHold 1.45s ease-in-out}
 .takerLabel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:none;
   font-family:'Unbounded',monospace;font-weight:800;font-size:13px;letter-spacing:.03em;
   background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:5px 14px;
@@ -48,7 +51,8 @@ body.haunted #mhH{transform:rotate(213deg)!important}
 body.haunted #mhM{transform:rotate(97deg)!important;transition:transform .4s}
 body.haunted #mhS{animation:spinS 2.4s linear infinite}
 @keyframes spinS{to{transform:rotate(360deg)}}
-.missionBar{display:flex;align-items:center;justify-content:center;gap:7px;font-size:9.5px;border:2px solid var(--ink);
+.missionBar{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;text-align:center;
+  font-size:9.5px;line-height:1.5;border:2px solid var(--ink);
   border-radius:10px;padding:4px 9px;margin:2px auto;background:#f3e2c4;max-width:330px;cursor:default}
 .missionBar.done{opacity:.65;text-decoration:line-through}
 .wantedBar{display:flex;align-items:center;justify-content:center;gap:8px;font-size:9.5px;border:2px dashed rgba(39,32,25,.5);
@@ -121,7 +125,7 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .anim-out-take-up{animation:outTakeUp var(--tSlow) var(--eOut) forwards}
 @keyframes drawIn{from{transform:translate3d(46px,-10px,0) rotate(9deg) scale(.92);opacity:0}to{transform:translate3d(0,0,0) rotate(0) scale(1);opacity:1}}
 .anim-draw{animation:drawIn .45s ease-out}
-@keyframes slap{from{transform:rotate(28deg) scale(1.28);opacity:.35}to{transform:rotate(0) scale(1);opacity:1}}
+@keyframes slap{from{transform:rotate(19deg) scale(1.22);opacity:.35}to{transform:rotate(7deg) scale(1);opacity:1}}
 .anim-slap{animation:slap var(--tMed) var(--eIn);will-change:transform}
 @keyframes msgIn{from{opacity:0;transform:translateY(4px)}}
 .msg{min-height:16px;margin-top:8px;text-transform:lowercase;animation:msgIn .25s ease-out}
@@ -272,6 +276,9 @@ body{padding-bottom:54px}
 .arcRow .pos{width:26px;font-weight:600;color:var(--kyts)}
 .arcRow.top1{font-size:14px}.arcRow.top2{font-size:12.5px}.arcRow.top3{font-size:12px}
 .arcRow.me{background:rgba(181,90,36,.25);border-radius:4px;padding:0 4px}
+.medal{display:inline-block;border:1.5px solid currentColor;border-radius:4px;padding:0 3px;font-size:8px;opacity:.85;letter-spacing:.05em}
+.arcade #topMe,.arcade .arcCoin{color:var(--paper);background:transparent;text-shadow:0 1px 0 rgba(0,0,0,.55)}
+.arcade .dailyRow{color:var(--paper)}
 .arcCoin{font-size:9px;letter-spacing:.18em;opacity:.75;animation:blink 2.2s steps(1) infinite;margin-top:10px}
 .arcTools{display:flex;gap:6px;margin:8px 0}
 .arcTools input{background:rgba(246,239,220,.12);color:var(--paper);border-color:var(--paper)}
@@ -408,16 +415,16 @@ body.no-anim .mascot{animation:none}
       </div>
       <div class="modeRow">
         <button class="modeBtn sel" data-mode="pvp">ПвП</button>
-        <button class="modeBtn" data-mode="pve">🎭 амбасадори</button>
-        <button class="modeBtn" data-mode="daily">☀ стіл дня</button>
+        <button class="modeBtn" data-mode="pve">амбасадори</button>
+        <button class="modeBtn" data-mode="daily">стіл дня</button>
       </div>
       <input type="checkbox" id="pveSwitch" style="display:none">
-      <div class="optRow"><input type="checkbox" id="pveGlitch"><label for="pveGlitch">⚙ збій артефакта</label></div>
+      <div class="optRow"><input type="checkbox" id="pveGlitch"><label for="pveGlitch">збій артефакта</label></div>
       <div class="sub" id="modeHint" style="min-height:13px"></div>
       <div class="stack">
-        <button id="btnCoop" style="display:none">🤝 кооп: удвох проти обох</button>
+        <button id="btnCoop" style="display:none">кооп: удвох проти обох</button>
         <button class="accent" id="btnQuick">швидка гра (1 на 1)</button>
-        <button id="btnAmbBoth" style="display:none">за стіл з обома 🐈 + 🎭</button>
+        <button id="btnAmbBoth" style="display:none">за стіл з обома амбасадорами</button>
         <button id="btnCreate">створити стіл (2–5)</button>
         <div style="display:flex;gap:8px">
           <input id="joinCode" maxlength="4" placeholder="код" style="text-transform:uppercase">
@@ -437,9 +444,9 @@ body.no-anim .mascot{animation:none}
       <div class="sub" id="queueHint" style="display:none;color:var(--kyts);margin-top:6px"></div>
       <div class="sub" id="lobbyChatHint" style="display:none;margin-top:4px">поки шукаємо — можна писати. ґреґ і жреґ поруч.</div>
       <div class="optRow" id="hostOpts" style="display:none">
-        <input type="checkbox" id="roomGlitch"><label for="roomGlitch">⚙ збій</label>
+        <input type="checkbox" id="roomGlitch"><label for="roomGlitch">збій</label>
         <span style="width:8px"></span>
-        <input type="checkbox" id="roomBet"><label for="roomBet">🐾 ставка няву</label>
+        <input type="checkbox" id="roomBet"><label for="roomBet">ставка няву</label>
       </div>
       <div class="row">
         <button class="accent" id="btnStart" style="display:none">почати</button>
@@ -511,11 +518,12 @@ body.no-anim .mascot{animation:none}
   <div class="big">МЕНЮВ</div>
   <div class="menuList">
     <button id="mRules">посібник з правил</button>
-    <button id="mWanted">🔍 розшукувані карти</button>
+    <button id="mWanted">розшукувані карти</button>
     <button id="mLore">казка</button>
     <button id="mSettings">налаштування</button>
     <button id="mCredits">тітри</button>
     <button id="mLeave" style="display:none">вийти з матчу</button>
+    <button id="mPanic" style="border-color:#8c2f1b;color:#8c2f1b">вийти з усіх столів</button>
     <button id="mClose">закрити</button>
   </div>
 </div></div>
@@ -532,7 +540,7 @@ body.no-anim .mascot{animation:none}
   <div class="sub" style="color:var(--paper);opacity:.7">всесвітні рекорди</div>
   <div class="arcTools" style="margin-bottom:2px">
     <button data-league="pvp" class="sel lg">рейтингова ліга</button>
-    <button data-league="pve" class="lg">ліга ПвЄ</button><button data-league="daily" class="lg">☀ стіл дня</button>
+    <button data-league="pve" class="lg">ліга ПвЄ</button><button data-league="daily" class="lg">стіл дня</button>
   </div>
   <div class="arcTools" id="pvpTools">
     <input id="topSearch" maxlength="12" placeholder="пошук ніка">
@@ -563,9 +571,9 @@ body.no-anim .mascot{animation:none}
   <div class="divider">───── звання (приміряй) ─────</div>
   <div id="titleChips" style="text-align:left"></div>
   <div class="row" style="margin-top:10px">
-    <button class="small" id="btnCardShare">🔗 моя візитівка</button>
-    <button class="small" id="btnInventory">📦 інвентар</button>
-    <button class="small" id="btnFaction">⚑ фракція</button>
+    <button class="small" id="btnCardShare">моя візитівка</button>
+    <button class="small" id="btnInventory">інвентар</button>
+    <button class="small" id="btnFaction">фракція</button>
   </div>
   <div class="divider">───── історія матчів ─────</div>
   <div id="histList" style="max-height:180px;overflow-y:auto"></div>
@@ -583,6 +591,13 @@ body.no-anim .mascot{animation:none}
   </div>
   <div id="invBody" style="margin-top:8px"></div>
   <div class="row"><button id="invBack">назад</button></div>
+</div></div>
+
+<div class="overlay" id="ovWanted"><div class="panel panelScroll" style="max-width:440px">
+  <div class="big">У РОЗШУКУ</div>
+  <div class="sub">двоє щодня. хто зробить ними переможний хід — отримає премію.</div>
+  <div id="wantedBody" style="flex:1 1 auto;min-height:0;overflow-y:auto;margin-top:8px"></div>
+  <div class="row"><button id="wantedBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovFaction"><div class="panel" style="max-width:460px">
@@ -612,11 +627,11 @@ body.no-anim .mascot{animation:none}
     музика<br><input type="range" id="volMusic" min="0" max="100">
     <br>ефекти<br><input type="range" id="volSfx" min="0" max="100">
   </div>
-  <div class="sub" style="margin-top:8px">жанр музики — у плеєрі внизу екрана 🎵</div>
+  <div class="sub" style="margin-top:8px">жанр музики — у плеєрі внизу екрана</div>
   <span id="genreName" style="display:none"></span>
   <span id="genrePrev" style="display:none"></span><span id="genreNext" style="display:none"></span>
   <div class="row"><button id="animToggle"></button></div>
-  <div class="row"><button class="small" id="langBtn">🌐 мова</button></div>
+  <div class="row"><button class="small" id="langBtn">мова</button></div>
   <div id="langList" style="display:none;margin-top:8px"></div>
   <div class="row"><button id="setBack">назад</button></div>
 </div></div>
@@ -1006,6 +1021,8 @@ const GENRE_NAMES=(window.DK_TEXTS&&DK_TEXTS.GENRE_NAMES)||{};
 const FRONTIER=(window.DK_TEXTS&&DK_TEXTS.FRONTIER)||[];
 const DAILY=(window.DK_TEXTS&&DK_TEXTS.DAILY)||{title:"СТІЛ ДНЯ",desc:"",playBtn:"грати",doneMsg:"вже зіграно.",boardTitle:"дошка"};
 const BET=(window.DK_TEXTS&&DK_TEXTS.BET)||{title:"СТАВКА НЯВУ",prompt:"",pickSign:"обери знак",pickSide:"валюта",waitingOthers:"чекаємо…",skip:"без ставки"};
+const WANTED_STORIES=(window.DK_TEXTS&&DK_TEXTS.WANTED_STORIES)||{};
+const WANTED_FALLBACK=(window.DK_TEXTS&&DK_TEXTS.WANTED_FALLBACK)||"справу загубили.";
 const POSTCARD_LINES=(window.DK_TEXTS&&DK_TEXTS.POSTCARD_LINES)||["няв."];
 const TIPS=(window.DK_TEXTS&&DK_TEXTS.TIPS)||["тапни — наступна порада."];
 let whisperIdx=0;
@@ -1080,10 +1097,23 @@ function tagText(p){
 /* ── менюв ── */
 $("btnMenu").onclick=()=>{
   Audio5.sfx.click();
-  $("mLeave").style.display=(inRoom&&view&&view.started&&!view.result&&view.you.active)?"":"none";
+  $("mLeave").style.display=(inRoom&&view&&view.started&&!view.result)?"":"none";
   ov("ovMenu",true);
 };
 $("mClose").onclick=()=>ov("ovMenu",false);
+$("mPanic").onclick=()=>{
+  Audio5.sfx.click();
+  socket.emit("panicLeave",()=>{
+    inRoom=false;view=null;
+    ["ovMenu","ovRes","ovBet","ovNyav","ovPostcard","ovWanted"].forEach(id=>ov(id,false));
+    stopQueueWatch();
+    leaveUI();
+    show("scrLobby");
+    refreshProfile();refreshDaily();
+    $("errLobby").textContent="ти вийшов з усіх столів.";
+    setTimeout(()=>{$("errLobby").textContent="";},2500);
+  });
+};
 const backTo=(from)=>{Audio5.sfx.click();ov(from,false);ov("ovMenu",true);};
 $("mCredits").onclick=()=>{
   Audio5.sfx.click();
@@ -1114,7 +1144,23 @@ $("miniProfile").onclick=()=>{Audio5.sfx.click();openProfile();};
 $("miniShop").onclick=()=>{Audio5.sfx.click();openShop();};
 $("collectBack").onclick=()=>{Audio5.sfx.click();ov("ovCollect",false);};
 $("shopBack").onclick=()=>{Audio5.sfx.click();if(!shopBought)Quirk.bump("shopNoBuy");ov("ovShop",false);};
-$("mWanted").onclick=()=>{ov("ovMenu",false);openFaction();};
+$("mWanted").onclick=()=>{Audio5.sfx.click();ov("ovMenu",false);openWanted();};
+$("wantedBack").onclick=()=>{Audio5.sfx.click();ov("ovWanted",false);};
+function openWanted(){
+  ov("ovWanted",true);
+  $("wantedBody").innerHTML="<div class='sub'>піднімаємо справи…</div>";
+  socket.emit("wantedToday",w=>{
+    if(!w||!w.kyts||!w.anti){$("wantedBody").innerHTML="<div class='sub'>сьогодні нікого не розшукують. дивно.</div>";return;}
+    /* без технічних назв фракцій — лише ім'я карти і за що її шукають */
+    const poster=(x)=>`<div class="wantedCard">
+      <img src="/cards/${x.id}.jpg" alt="">
+      <b>${esc(x.name||x.id)}</b>
+      <div class="sub" style="margin-top:4px">розшукується за те, що</div>
+      <div style="margin-top:2px">${esc(WANTED_STORIES[x.id]||WANTED_FALLBACK)}</div>
+    </div>`;
+    $("wantedBody").innerHTML=`<div class="wantedGrid">${poster(w.kyts)}${poster(w.anti)}</div>`;
+  });
+}
 $("mLore").onclick=()=>{ov("ovMenu",false);$("loreText").innerHTML=linkify(LORE);ov("ovLore",true);};
 $("loreBack").onclick=()=>backTo("ovLore");
 $("mSettings").onclick=()=>{ov("ovMenu",false);openSettings();};
@@ -1186,7 +1232,7 @@ function renderDailyLeague(){
     const pos=i+1,cls=pos<=3?`top${pos}`:"",me=(e.nick===myNick)?" me":"";
     const mm=Math.floor(e.durMs/60000),ss=String(Math.floor(e.durMs/1000)%60).padStart(2,"0");
     return `<div class="arcRow ${cls}${me}"><span class="pos">${String(pos).padStart(2,"0")}</span>
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.won?"🏆 ":""}${esc(e.nick)}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.won?"":""}${esc(e.nick)}</span>
       <b>${mm}:${ss}</b></div>`;
   }).join(""):"<div class='arcRow'>сьогодні ще ніхто не грав. будь першим.</div>";
   $("topMe").textContent=dailyData.played?"сьогоднішню спробу вже використано":"твоя спроба на сьогодні ще жива";
@@ -1197,10 +1243,10 @@ function renderPve(){
   $("topList").innerHTML=pveData.list.length?pveData.list.map((p,i)=>{
     const pos=i+1, cls=pos<=3?`top${pos}`:"", me=(p.nick===myNick)?" me":"";
     const crown=pos===1?"♛ ":pos<=3?"★ ":"";
-    const medals=(p.beatGreg?"🐸":"")+(p.beatZhreg?"👺":"");
+    const medals=[p.beatGreg?"ґ":"",p.beatZhreg?"ж":""].filter(Boolean).join("");
     return `<div class="arcRow ${cls}${me}"><span class="pos">${String(pos).padStart(2,"0")}</span>
       <span style="width:20px">${avatarSvg(p.avatar,16)}</span><span style="width:15px">${coinSvg(p.side==="anti"?"a":"k",11)}</span>
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${crown}${esc(p.nick)} ${medals}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${crown}${esc(p.nick)}${medals?` <span class="medal">${medals}</span>`:""}</span>
       <b>${p.pveWins}</b></div>`;
   }).join(""):"<div class='arcRow'>ще ніхто не здолав амбасадорів. няв?</div>";
   $("topMe").textContent=pveData.mePos?`ти — #${pveData.mePos} серед переможців амбасадорів`:"перемож амбасадора — і ти на табло";
@@ -1400,26 +1446,22 @@ function openFaction(){
     const wins=fr>=0?(p.frontierWins?.kyts||0):(p.frontierWins?.anti||0);
     $("facProgBar").style.width=Math.min(100,(wins/5)*100)+"%";
     $("facProgText").textContent=`до наступного кроку: ${wins}/5 перемог над протилежним амбасадором`;
+    /* п.11: спільне / особисте через слеш; гаманця тут більше нема */
+    $("facStats").innerHTML=`<div id="facMissions" style="margin-bottom:8px"></div><div id="facWins"></div>`;
     socket.emit("factionStats",fs=>{
       if(!fs)return;
-      const mine=side==="anti"?"anti":"kyts";
-      const box=document.getElementById("facMissions");
-      if(box)box.innerHTML=`<b>доручень виконано фракцією</b><br>
-        сьогодні: ${coinSvg("k")} киці <b>${fs.today.kyts}</b> · ${coinSvg("a")} анти-киці <b>${fs.today.anti}</b><br>
-        <span class="sub">за весь час: ${fs.total.kyts} / ${fs.total.anti} · твій внесок іде до ${mine==="anti"?"анти-киць":"киць"}</span>`;
+      const mine=side==="anti"?"анти-киць":"киць";
+      const mb=document.getElementById("facMissions");
+      if(mb)mb.innerHTML=`<b>доручень виконано</b> <span class="sub">(усі / сьогодні)</span><br>
+        киці: <b>${fs.total.kyts}</b> / ${fs.today.kyts}<br>
+        анти-киці: <b>${fs.total.anti}</b> / ${fs.today.anti}<br>
+        <span class="sub">твій внесок іде до ${mine}</span>`;
+      const wb=document.getElementById("facWins");
+      if(wb)wb.innerHTML=`<b>перемоги фракцій</b> <span class="sub">(усі / твої)</span><br>
+        киці: <b>${(fs.wins&&fs.wins.kyts)||0}</b> / ${p.frontierWins?.kyts||0}<br>
+        анти-киці: <b>${(fs.wins&&fs.wins.anti)||0}</b> / ${p.frontierWins?.anti||0}<br>
+        <span class="sub">перемог над амбасадорами: ${p.pveWins||0}</span>`;
     });
-    $("facStats").innerHTML=`<div id="facMissions" style="margin-bottom:8px"></div>перемог кицями: <b>${p.frontierWins?.kyts||0}</b><br>
-      перемог анти-кицями: <b>${p.frontierWins?.anti||0}</b><br>
-      перемог над амбасадорами: <b>${p.pveWins||0}</b><br>
-      гаманець: ${coinSvg("k")} ${p.tk?.k||0} · ${coinSvg("a")} ${p.tk?.a||0}`;
-  });
-  socket.emit("wantedToday",w=>{
-    if(!w||!w.kyts||!w.anti)return;
-    const card=(x,cls,label)=>`<div class="wantedCard ${cls}">
-      <img src="/cards/${x.id}.jpg" alt="">
-      <b>${esc(x.name||x.id)}</b><br><span class="sub">${label}</span></div>`;
-    $("facWanted").innerHTML=`<div class="sub">переможний хід цією картою — премія жетонів</div>
-      <div class="wantedGrid">${card(w.kyts,"kyts","у розшуку в киць")}${card(w.anti,"anti","у розшуку в анти-киць")}</div>`;
   });
 }
 $("btnFaction").onclick=()=>{Audio5.sfx.click();ov("ovProfile",false);openFaction();};
@@ -1573,7 +1615,7 @@ function openDaily(){
     if(info.played)$("dailyErr").textContent=DAILY.doneMsg;
     $("dailyBoard").innerHTML=info.board.length?info.board.map((e,i)=>{
       const mm=Math.floor(e.durMs/60000),ss=String(Math.floor(e.durMs/1000)%60).padStart(2,"0");
-      return `<div class="dailyRow"><span>${i+1}. ${esc(e.nick)}</span><span>${e.won?"🏆 ":""}${mm}:${ss} · місце ${e.place}</span></div>`;
+      return `<div class="dailyRow"><span>${i+1}. ${esc(e.nick)}</span><span>${e.won?"":""}${mm}:${ss} · місце ${e.place}</span></div>`;
     }).join(""):"<div class='sub'>сьогодні поки тихо. будь першим.</div>";
   });
 }
@@ -1727,7 +1769,7 @@ renderGenre();
 
 /* поради головного екрана: тап — наступна */
 let tipIdx=(Math.random()*TIPS.length)|0;
-function renderTip(){const el=$("tipLine");if(el)el.textContent="☞ "+(TIPS[tipIdx%TIPS.length]||"");}
+function renderTip(){const el=$("tipLine");if(el)el.textContent="» "+(TIPS[tipIdx%TIPS.length]||"");}
 if($("tipLine")){$("tipLine").onclick=()=>{Audio5.sfx.click();tipIdx++;renderTip();};renderTip();}
 
 /* маскот-артефакт: стрілки за реальним часом + шепіт по кліку */
@@ -1809,7 +1851,7 @@ function loadWanted(){
     if(!w||!w.kyts||!w.anti||!bar)return;
     const face=(id)=>`<span class="wantedFace"><img src="/cards/${id}.jpg" alt=""></span>`;
     bar.style.display="";
-    bar.innerHTML=`<span>🔍 <b>у розшуку</b></span>${face(w.kyts.id)}${face(w.anti.id)}<span class="sub">переможний хід цією картою — премія</span>`;
+    bar.innerHTML=`<span><b>у розшуку</b></span>${face(w.kyts.id)}${face(w.anti.id)}<span class="sub">переможний хід цією картою — премія</span>`;
   });
 }
 socket.on("connect",()=>setTimeout(loadWanted,900));
@@ -1820,7 +1862,7 @@ function loadMission(){
     const bar=$("missionBar");if(!bar||!m)return;
     bar.style.display="";
     bar.classList.toggle("done",!!m.done);
-    bar.innerHTML=`<span>${m.who==="zhreg"?"👺":"🐸"} <b>доручення від ${esc(m.name)}</b></span>
+    bar.innerHTML=`<span><b>доручення від ${esc(m.name)}</b></span>
       <span>${esc(m.text)}</span>${m.goal>1?`<span class="sub">${m.prog}/${m.goal}</span>`:""}`;
   });
 }
@@ -1847,6 +1889,23 @@ const Quirk=(()=>{
   }
   return {bump(k,by=1){pend[k]=(pend[k]||0)+by;clearTimeout(flushT);flushT=setTimeout(send,4000);}};
 })();
+
+/* ── п.13: esc закриває верхній відкритий шар ── */
+const ESC_ORDER=["ovConfirm","ovPostcard","ovBet","ovNyav","ovInv","ovFaction","ovWanted","ovShop","ovTop","ovAch","ovProfile","ovRules","ovLore","ovSettings","ovCred","ovDaily","ovMap","ovMenu"];
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Escape")return;
+  const open=ESC_ORDER.find(id=>{const el=document.getElementById(id);return el&&el.classList.contains("on");});
+  if(open){
+    e.preventDefault();
+    Audio5.sfx.click();
+    /* повертаємось туди, звідки прийшли: інвентар і фракція — у профіль */
+    if(open==="ovInv"||open==="ovFaction"){ov(open,false);openProfile();return;}
+    ov(open,false);
+    return;
+  }
+  if($("gameChat")&&$("gameChat").classList.contains("on")){$("gameChat").classList.remove("on");return;}
+  if(view&&view.started&&!view.result){e.preventDefault();ov("ovMenu",true);}
+});
 
 /* ── лічильник онлайну ── */
 function pollOnline(){
@@ -1974,7 +2033,9 @@ document.querySelectorAll(".modeBtn").forEach(b=>b.onclick=()=>{
   if(b.disabled)return;
   Audio5.sfx.click();
   gameMode=b.dataset.mode;localStorage.setItem("dk_mode",gameMode);
+  /* опис мусить оновитись саме тут, інакше лишається текст попереднього режиму */
   renderMode();
+  if(gameMode==="daily")refreshDaily();
 });
 socket.on("connect",()=>setTimeout(refreshDaily,700));
 renderMode();
@@ -2353,6 +2414,9 @@ socket.on("state",v=>{
       }
     }
     const dest=bito?$("discMini"):(taker==="me"?$("hand"):taker?seatTarget(taker):null);
+    /* поки стіл лежить — легка підсвітка, щоб було видно весь набір карт */
+    const tz=$("tbl");
+    if(tz){tz.classList.add("tblFreeze");setTimeout(()=>tz.classList.remove("tblFreeze"),1450);}
     /* спершу даємо роздивитись фінальну комбінацію ~1с, і лише потім прибираємо */
     document.querySelectorAll("#tbl .card").forEach(el=>{
       if(el===lastCardEl)el.classList.add("anim-last");
@@ -2380,11 +2444,11 @@ socket.on("state",v=>{
         showTakerLabel(who?who.nick:"суперник");
       }
       if(bito)Audio5.sfx.bito(); else Audio5.sfx.take();
-    },1000);
+    },1450);
     clearTimeout(pendingClear);
     if(pendingClear)clearFlies();
     view=v;
-    pendingClear=setTimeout(applyView,1850);
+    pendingClear=setTimeout(applyView,2350);
     return;
   }
   view=v;
@@ -2438,7 +2502,7 @@ function renderGame(){
     const gtxt=v.glitch.kind==="prey_swap"?"ніпи плутають здобич"
       :v.glitch.kind==="value_flip"?"менша б'є більшу своєї масті"
       :"підкидати можна будь-що";
-    gb.textContent=`⚡ збій артефакта: ${gtxt} · один хід кожного`;
+    gb.textContent=`збій артефакта: ${gtxt} · один хід кожного`;
   } else gb.classList.remove("on");
   applyTableBg(v.you.frontier||0);
   /* п.41: артефакт втручається — стрілки годинника брешуть */
@@ -2478,7 +2542,7 @@ function renderGame(){
       /* карта-переможниця лягає ЗВЕРХУ на побиту — жодних перельотів навпаки */
       if(dNew)lastCardEl=d;
       a.style.zIndex="1";
-      d.style.position="absolute";d.style.zIndex="3";d.style.left="16px";d.style.top="14px";d.style.transform="rotate(7deg)";pr.appendChild(d);
+      d.style.position="absolute";d.style.zIndex="3";d.style.left="16px";d.style.top="14px";d.style.transform="rotate(7deg)";d.style.transform="rotate(7deg)";pr.appendChild(d);
     }
     tbl.appendChild(pr);
   });

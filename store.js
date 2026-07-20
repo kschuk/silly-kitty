@@ -191,18 +191,41 @@ function recordDaily(token, nick, entry) {
 }
 
 /* ── п.40: щоденне доручення. ґреґ дає добрі, жреґ — знущальні ── */
-const MISSIONS = [
-  { id: "nip3",     who: "greg",  text: "зіграй ніпом тричі за партію",              goal: 3, kind: "nips" },
-  { id: "dry",      who: "greg",  text: "виграй, не забравши жодної карти",          goal: 1, kind: "dryWin" },
-  { id: "fast",     who: "greg",  text: "виграй швидше ніж за 4 хвилини",            goal: 1, kind: "fastWin" },
-  { id: "wanted",   who: "zhreg", text: "переможи картою «у розшуку»",               goal: 1, kind: "wantedWin" },
-  { id: "amb",      who: "zhreg", text: "здолай амбасадора протилежної фракції",     goal: 1, kind: "ambWin" },
-  { id: "five",     who: "zhreg", text: "зіграй п'ять п'ятірок за партію",           goal: 5, kind: "fives" },
-  { id: "long",     who: "greg",  text: "дограй партію, довшу за 8 хвилин",          goal: 1, kind: "longGame" },
+/* ── доручення. киці отримують від ґреґа, анти-киці — від жреґа.
+   набори різні за характером: ґреґ просить майстерності, жреґ — жорстокості. ── */
+const MISSIONS_KYTS = [
+  { id: "k_nip3",   who: "greg", text: "зіграй ніпом тричі за одну партію",           goal: 3, kind: "nips" },
+  { id: "k_dry",    who: "greg", text: "виграй, не забравши зі столу жодної карти",   goal: 1, kind: "dryWin" },
+  { id: "k_fast",   who: "greg", text: "виграй швидше ніж за 4 хвилини",              goal: 1, kind: "fastWin" },
+  { id: "k_five",   who: "greg", text: "зіграй чотири пʼятірки за партію",            goal: 4, kind: "fives" },
+  { id: "k_amb",    who: "greg", text: "здолай амбасадора протилежної фракції",       goal: 1, kind: "ambWin" },
+  { id: "k_long",   who: "greg", text: "дограй партію, довшу за 8 хвилин",            goal: 1, kind: "longGame" },
+  { id: "k_wanted", who: "greg", text: "заверши перемогу карткою з розшуку",          goal: 1, kind: "wantedWin" },
 ];
+const MISSIONS_ANTI = [
+  { id: "a_wanted", who: "zhreg", text: "впіймай розшукувану карту переможним ходом", goal: 1, kind: "wantedWin" },
+  { id: "a_amb",    who: "zhreg", text: "принизь амбасадора протилежної фракції",     goal: 1, kind: "ambWin" },
+  { id: "a_nip4",   who: "zhreg", text: "витрать чотири ніпи за одну партію",         goal: 4, kind: "nips" },
+  { id: "a_five",   who: "zhreg", text: "зіграй пʼять пʼятірок за партію",            goal: 5, kind: "fives" },
+  { id: "a_dry",    who: "zhreg", text: "виграй усухо — жодного забору зі столу",     goal: 1, kind: "dryWin" },
+  { id: "a_fast",   who: "zhreg", text: "закінчи все швидше ніж за 3 хвилини",        goal: 1, kind: "fastWin" },
+  { id: "a_long",   who: "zhreg", text: "промуч суперника довше ніж 8 хвилин",        goal: 1, kind: "longGame" },
+];
+const missionPool = (side) => (side === "anti" ? MISSIONS_ANTI : MISSIONS_KYTS);
+
 
 /* спільний лічильник виконаних доручень по фракціях (за добу і за весь час) */
 let missionStats = { day: null, kyts: 0, anti: 0, allKyts: 0, allAnti: 0 };
+
+/* сумарні перемоги фракцій по всіх гравцях */
+function factionWins() {
+  let kyts = 0, anti = 0;
+  for (const p of Object.values(players)) {
+    kyts += (p.frontierWins && p.frontierWins.kyts) || 0;
+    anti += (p.frontierWins && p.frontierWins.anti) || 0;
+  }
+  return { kyts, anti };
+}
 
 function factionMissionStats() {
   if (missionStats.day !== todayKey()) missionStats = { day: todayKey(), kyts: 0, anti: 0, allKyts: missionStats.allKyts || 0, allAnti: missionStats.allAnti || 0 };
@@ -213,14 +236,21 @@ function missionToday(token) {
   const p = players[token];
   if (!p) return null;
   const day = todayKey();
-  if (!p.mission || p.mission.day !== day) {
-    /* доручення однакове для всіх на добу — сід від дати */
-    let h = 0; for (let i = 0; i < day.length; i++) h = (h * 31 + day.charCodeAt(i)) >>> 0;
-    const m = MISSIONS[h % MISSIONS.length];
-    p.mission = { day, id: m.id, prog: 0, done: false };
+  const pool = missionPool(p.side);
+  const sameSide = p.mission && p.mission.side === (p.side === "anti" ? "anti" : "kyts");
+  /* нове доручення: новий день, зміна фракції або попереднє вже виконано */
+  if (!p.mission || p.mission.day !== day || !sameSide || p.mission.done) {
+    const done = (p.mission && p.mission.day === day && sameSide) ? (p.mission.doneIds || []) : [];
+    const left = pool.filter((m) => !done.includes(m.id));
+    const bag = left.length ? left : pool;
+    /* поки не всі виконані — беремо детермінований за днем, далі просто наступне */
+    let h = 0; const key = day + (p.side || "kyts") + done.length;
+    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+    const m = bag[h % bag.length];
+    p.mission = { day, side: p.side === "anti" ? "anti" : "kyts", id: m.id, prog: 0, done: false, doneIds: done };
     save();
   }
-  const def = MISSIONS.find((m) => m.id === p.mission.id) || MISSIONS[0];
+  const def = pool.find((m) => m.id === p.mission.id) || pool[0];
   return { ...p.mission, ...def };
 }
 
@@ -233,6 +263,7 @@ function missionProgress(token, kind, value) {
   p.mission.prog = Math.max(p.mission.prog || 0, value || 1);
   if (p.mission.prog >= cur.goal) {
     p.mission.done = true;
+    p.mission.doneIds = [...(p.mission.doneIds || []), p.mission.id];
     /* внесок у спільну справу фракції */
     factionMissionStats();
     if ((p.side || "kyts") === "anti") { missionStats.anti++; missionStats.allAnti++; }
@@ -432,6 +463,6 @@ module.exports = {
   getOrCreate, get, byNick, applyMatch, award, top, topPve, positionPve, setProfile, pushHist, position, dirty: save,
   wantedToday, tradeCreate, tradeAccept, bumpQuirk,
   todayKey, dailyPlayedToday, recordDaily, dailyBoard,
-  seasonKey, rolloverSeason, missionToday, missionProgress, factionMissionStats,
+  seasonKey, rolloverSeason, missionToday, missionProgress, factionMissionStats, factionWins,
   bumpFrontier, FRONTIER_N, FRONTIER_MAX,
 };

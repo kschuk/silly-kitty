@@ -766,6 +766,7 @@ function consumeGlitch(game, seat) {
 /* один пік у няві — людини чи бота */
 function applyNyavPick(game, seat, sign) {
   const s = game.state;
+  if (s && s.phase === "nyav" && !s.nyavSet?.includes(seat)) return;
   if (!s || s.phase !== "nyav" || !s.nyavSet.includes(seat) || game.nyavPicks[seat]) return;
   game.nyavPicks[seat] = sign;
   game.players[seat].lastAct = Date.now();
@@ -1279,7 +1280,9 @@ io.on("connection", (socket) => {
     if (!token) return cb?.({ error: "спершу hello." });
     if (banGuard(cb)) return;
     if (byToken.has(token)) return cb?.({ error: "ти вже в кімнаті." });
-    coopQueue = coopQueue.filter((q) => q.token !== token && io.sockets.sockets.has(q.socketId));
+    /* чистимо чергу від мертвих сокетів і від тих, хто вже встиг сісти за інший стіл */
+    coopQueue = coopQueue.filter((q) =>
+      q.token !== token && io.sockets.sockets.has(q.socketId) && !byToken.has(q.token));
     const mate = coopQueue.find((q) => q.token !== token && banLeft(q.token) === 0);
     if (!mate) { coopQueue.push({ token, socketId: socket.id, since: Date.now() }); return cb?.({ queued: true }); }
     coopQueue = coopQueue.filter((q) => q !== mate);
@@ -1294,6 +1297,9 @@ io.on("connection", (socket) => {
     rooms.set(code, game);
     byToken.set(mate.token, code); byToken.set(token, code);
     cb?.({ code, coop: true });
+    /* напарник міг ще стояти в лобі — надсилаємо йому стан першим, до роздачі */
+    const mateSock = io.sockets.sockets.get(mate.socketId);
+    if (mateSock) mateSock.emit("state", viewFor(game, "A", "напарника знайдено. сідаємо."));
     startDeal(game);
     setTimeout(() => {
       ambSayAny(game, "greg", "greeting");
@@ -1303,6 +1309,39 @@ io.on("connection", (socket) => {
   });
 
   socket.on("coopLeave", () => { coopQueue = coopQueue.filter((q) => q.token !== token); });
+
+  /* ── п.6: аварійний вихід — прибирає гравця з усіх столів і черг ── */
+  socket.on("panicLeave", (cb) => {
+    if (!token) return cb?.({ ok: true });
+    queue = queue.filter((q) => q.token !== token);
+    coopQueue = coopQueue.filter((q) => q.token !== token);
+    for (const [code, g] of [...rooms]) {
+      const seat = Object.keys(g.players).find((x) => g.players[x]?.token === token);
+      if (!seat) continue;
+      if (g.state && !g.finished) {
+        const humans = g.order.filter((x) => !g.players[x]?.bot && x !== seat && g.players[x]?.connected);
+        if (g.isPve || !humans.length) {
+          clearTimeout(g.botTimer); clearTimeout(g.banterTimer);
+          g.finished = true; g.settled = true;
+          for (const s2 of Object.keys(g.players)) {
+            const t2 = g.players[s2]?.token;
+            if (t2 && byToken.get(t2) === code) byToken.delete(t2);
+          }
+          rooms.delete(code);
+          continue;
+        }
+        dropFromGame(g, seat, "drop");
+      } else if (!g.state) {
+        delete g.players[seat];
+        g.order = g.order.filter((x) => x !== seat);
+        if (!g.order.length) rooms.delete(code);
+        else pushState(g, () => "хтось передумав. чекаємо далі.");
+      }
+      if (byToken.get(token) === code) byToken.delete(token);
+    }
+    byToken.delete(token);
+    cb?.({ ok: true });
+  });
 
   socket.on("playGreg", ({ glitch } = {}, cb) => {
     if (!token) return cb?.({ error: "спершу hello." });
@@ -1465,15 +1504,27 @@ io.on("connection", (socket) => {
     }
     game.rematch[seat] = true;
     for (const x of game.order) if (game.players[x]?.bot) game.rematch[x] = true; // амбасадор завжди готовий
+    /* п.15: реванш більше не перекидає монетку й не перейменовує обох ботів в одне імʼя.
+       за столом з обома амбасадорами склад лишається; у дуелі суперник — за фракційним правилом. */
     if (game.isPve && !game.isDaily) {
-      game.amb = Math.random() < 0.5 ? "zhreg" : "greg";
       game.ambSaid = {};
-      for (const x of game.order) if (game.players[x]?.bot) game.players[x].nick = AMB[game.amb].name;
+      if (!game.ambBoth) {
+        game.amb = (store.get(token)?.side === "anti") ? "greg" : "zhreg";
+        for (const x of game.order) {
+          if (!game.players[x]?.bot) continue;
+          game.players[x].amb = game.amb;
+          game.players[x].nick = AMB[game.amb].name;
+        }
+      }
     }
     const everyone = game.order.filter((x) => game.players[x]?.connected);
     if (everyone.length >= 2 && everyone.every((x) => game.rematch[x])) {
       game.order = everyone;
       game.rematched = true;
+      clearTimeout(game.botTimer); game.botTimer = null;
+      clearTimeout(game.banterTimer);
+      game.rematch = {};
+      game.hauntDone = false; game.hauntEffect = null;
       startDeal(game);
       game.rematched = false;
     } else {
@@ -1485,6 +1536,34 @@ io.on("connection", (socket) => {
     const c = ctx();
     if (!c) return;
     const { game, seat } = c;
+    /* п.3: за столом з амбасадорами людина одна проти ботів —
+       її вихід не має лишати кімнату «догравати» саму із собою */
+    if (game.isPve && game.state && !game.finished) {
+      const humans = game.order.filter((x) => !game.players[x]?.bot && x !== seat && game.players[x]?.connected);
+      if (!humans.length) {
+        clearTimeout(game.botTimer); game.botTimer = null;
+        clearTimeout(game.banterTimer);
+        game.finished = true; game.settled = true;
+        for (const s2 of Object.keys(game.players)) {
+          const t2 = game.players[s2]?.token;
+          if (t2 && byToken.get(t2) === game.code) byToken.delete(t2);
+        }
+        rooms.delete(game.code);
+        return;
+      }
+    }
+    /* ПвЄ: за столом лишаються самі боти — партію просто закриваємо */
+    if (game.isPve && game.state && !game.finished) {
+      const humans = game.order.filter((x) => !game.players[x].bot && x !== seat && game.players[x].connected);
+      if (!humans.length) {
+        clearTimeout(game.botTimer); game.botTimer = null;
+        clearTimeout(game.banterTimer);
+        game.finished = true;
+        byToken.delete(token);
+        rooms.delete(game.code);
+        return;
+      }
+    }
     if (game.state && !game.finished) {
       const goneFirst = game.state.active.filter((x) => x !== seat && !game.players[x].connected);
       for (const g of goneFirst) dropFromGame(game, g, "dc");
@@ -1541,7 +1620,7 @@ io.on("connection", (socket) => {
 
   socket.on("factionStats", (cb) => {
     const m = store.factionMissionStats();
-    cb?.({ today: { kyts: m.kyts, anti: m.anti }, total: { kyts: m.allKyts, anti: m.allAnti } });
+    cb?.({ today: { kyts: m.kyts, anti: m.anti }, total: { kyts: m.allKyts, anti: m.allAnti }, wins: store.factionWins() });
   });
 
   socket.on("missionToday", (cb) => {
@@ -1703,6 +1782,11 @@ setInterval(() => {
   for (const game of rooms.values()) {
     if (game.finished || !game.state) continue;
     const st = game.state;
+    /* п.5: сторож проти «нявкають ґреґ і жреґ… і нічого не відбувається».
+       якщо ботам є чий хід, а таймер загубився — штовхаємо партію далі. */
+    if (!game.botTimer && !st.result) maybeBotMove(game);
+    /* сторож: черга бота могла загубитись (гонка станів) — штовхаємо його ще раз */
+    if (!game.botTimer && pendingBot(game)) maybeBotMove(game);
 
     if (st.phase === "nyav") {
       for (const seat of st.nyavSet || []) {
