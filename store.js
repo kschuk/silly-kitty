@@ -9,11 +9,14 @@ const path = require("path");
 const DIR = path.join(__dirname, "data");
 const FILE = path.join(DIR, "players.json");
 const DAILY_FILE = path.join(DIR, "daily.json");
+const TRADES_FILE = path.join(DIR, "trades.json");
 
 let players = {};
 let daily = { date: null, entries: [] };
 let saveTimer = null;
 let saveTimerD = null;
+let saveTimerT = null;
+const TRADE_TTL = 10 * 60_000;
 
 function load() {
   try {
@@ -39,6 +42,9 @@ function load() {
       if (p.side !== "kyts" && p.side !== "anti") p.side = "kyts";
       if (!p.dailyStreak) p.dailyStreak = 0;
       if (!p.pveWins) p.pveWins = 0;
+      if (typeof p.season !== "string") p.season = seasonKey();
+      if (!Array.isArray(p.seasonBanners)) p.seasonBanners = [];
+      if (!p.mission || typeof p.mission !== "object") p.mission = null;
       if (!Array.isArray(p.cards)) p.cards = [];
       if (!p.dupes || typeof p.dupes !== "object") p.dupes = {};   // id → скільки зайвих
       if (typeof p.banner !== "string") p.banner = "";              // активний банер профілю
@@ -70,6 +76,34 @@ function save() {
   }, 1500);
 }
 
+function saveTrades() {
+  clearTimeout(saveTimerT);
+  saveTimerT = setTimeout(() => {
+    try {
+      if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
+      const tmp = TRADES_FILE + ".tmp";
+      fs.writeFileSync(tmp, JSON.stringify([...trades.entries()]));
+      fs.renameSync(tmp, TRADES_FILE);
+    } catch (e) { console.error("обміни не записались:", e.message); }
+  }, 800);
+}
+
+/* підняти коди з диска й одразу викинути протухлі */
+function loadTrades() {
+  try {
+    if (!fs.existsSync(TRADES_FILE)) return;
+    const raw = JSON.parse(fs.readFileSync(TRADES_FILE, "utf8"));
+    const now = Date.now();
+    let dropped = 0;
+    for (const [code, t] of raw) {
+      if (t && t.token && now - (t.at || 0) < TRADE_TTL) trades.set(code, t);
+      else dropped++;
+    }
+    if (dropped) saveTrades();
+    console.log(`обміни: піднято ${trades.size}, прострочених викинуто ${dropped}`);
+  } catch (e) { console.error("обміни не прочитались:", e.message); }
+}
+
 function saveDaily() {
   clearTimeout(saveTimerD);
   saveTimerD = setTimeout(() => {
@@ -80,6 +114,29 @@ function saveDaily() {
       fs.renameSync(tmp, DAILY_FILE);
     } catch (e) { console.error("щоденник не записався:", e.message); }
   }, 1200);
+}
+
+/* ── п.38: сезони артефакта. ключ сезону — рік-місяць UTC ── */
+function seasonKey(d) { const x = d || new Date(); return `${x.getUTCFullYear()}-${String(x.getUTCMonth() + 1).padStart(2, "0")}`; }
+const SEASON_SOFT = 0.75;   /* м'яке стискання: 75% рейтингу переходить у новий сезон */
+
+/* якщо гравець заходить у новому сезоні — підбиваємо старий і видаємо банер */
+function rolloverSeason(token) {
+  const p = players[token];
+  if (!p) return null;
+  const now = seasonKey();
+  if (!p.season) { p.season = now; save(); return null; }
+  if (p.season === now) return null;
+  const prev = p.season, prevSp = p.sp;
+  p.sp = Math.round(p.sp * SEASON_SOFT * 10) / 10;
+  p.season = now;
+  if (!Array.isArray(p.seasonBanners)) p.seasonBanners = [];
+  /* нагорода за участь у сезоні, що минув: банер, який не купиш */
+  const reward = `season_${prev}`;
+  let got = null;
+  if ((p.games || 0) > 0 && !p.seasonBanners.includes(reward)) { p.seasonBanners.push(reward); got = reward; }
+  save();
+  return { prev, now, from: prevSp, to: p.sp, banner: got };
 }
 
 /* «стіл дня»: сьогоднішня дата UTC як ключ дня */
@@ -133,6 +190,50 @@ function recordDaily(token, nick, entry) {
   return streak;
 }
 
+/* ── п.40: щоденне доручення. ґреґ дає добрі, жреґ — знущальні ── */
+const MISSIONS = [
+  { id: "nip3",     who: "greg",  text: "зіграй ніпом тричі за партію",              goal: 3, kind: "nips" },
+  { id: "dry",      who: "greg",  text: "виграй, не забравши жодної карти",          goal: 1, kind: "dryWin" },
+  { id: "fast",     who: "greg",  text: "виграй швидше ніж за 4 хвилини",            goal: 1, kind: "fastWin" },
+  { id: "wanted",   who: "zhreg", text: "переможи картою «у розшуку»",               goal: 1, kind: "wantedWin" },
+  { id: "amb",      who: "zhreg", text: "здолай амбасадора протилежної фракції",     goal: 1, kind: "ambWin" },
+  { id: "five",     who: "zhreg", text: "зіграй п'ять п'ятірок за партію",           goal: 5, kind: "fives" },
+  { id: "long",     who: "greg",  text: "дограй партію, довшу за 8 хвилин",          goal: 1, kind: "longGame" },
+];
+
+function missionToday(token) {
+  const p = players[token];
+  if (!p) return null;
+  const day = todayKey();
+  if (!p.mission || p.mission.day !== day) {
+    /* доручення однакове для всіх на добу — сід від дати */
+    let h = 0; for (let i = 0; i < day.length; i++) h = (h * 31 + day.charCodeAt(i)) >>> 0;
+    const m = MISSIONS[h % MISSIONS.length];
+    p.mission = { day, id: m.id, prog: 0, done: false };
+    save();
+  }
+  const def = MISSIONS.find((m) => m.id === p.mission.id) || MISSIONS[0];
+  return { ...p.mission, ...def };
+}
+
+/* повертає {justDone, reward} якщо доручення щойно виконано */
+function missionProgress(token, kind, value) {
+  const p = players[token];
+  if (!p) return null;
+  const cur = missionToday(token);
+  if (!cur || cur.done || cur.kind !== kind) return null;
+  p.mission.prog = Math.max(p.mission.prog || 0, value || 1);
+  if (p.mission.prog >= cur.goal) {
+    p.mission.done = true;
+    if (!p.tk) p.tk = { k: 0, a: 0 };
+    p.tk.k += 8; p.tk.a += 8;
+    save();
+    return { justDone: true, text: cur.text, who: cur.who, reward: "+8 ж.к і +8 ж.а" };
+  }
+  save();
+  return null;
+}
+
 function dailyBoard() {
   if (daily.date !== todayKey()) return { date: todayKey(), entries: [] };
   return daily;
@@ -140,7 +241,7 @@ function dailyBoard() {
 
 function getOrCreate(token, nick) {
   if (!players[token]) {
-    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, seenTitry: false, frontier: 0, frontierWins: { kyts: 0, anti: 0 }, dailyDate: null, dailyStreak: 0, cards: [], dupes: {}, banner: "", quirks: {}, quirkSeen: 0, pveWins: 0, beatGreg: false, beatZhreg: false, side: "kyts", migr2: true, seen: Date.now() };
+    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, seenTitry: false, frontier: 0, frontierWins: { kyts: 0, anti: 0 }, dailyDate: null, dailyStreak: 0, season: seasonKey(), seasonBanners: [], mission: null, cards: [], dupes: {}, banner: "", quirks: {}, quirkSeen: 0, pveWins: 0, beatGreg: false, beatZhreg: false, side: "kyts", migr2: true, seen: Date.now() };
   } else {
     players[token].nick = nick || players[token].nick;
     players[token].seen = Date.now();
@@ -220,6 +321,7 @@ function tradeCreate(token, giveId) {
   do { code = Array.from({ length: 5 }, () => TRADE_ABC[(Math.random() * TRADE_ABC.length) | 0]).join(""); }
   while (trades.has(code));
   trades.set(code, { token, giveId, at: Date.now() });
+  saveTrades();
   return { code, giveId };
 }
 
@@ -243,6 +345,7 @@ function tradeAccept(token, code, giveId) {
   grant(a, giveId);
   grant(b, t.giveId);
   trades.delete(code);
+  saveTrades();
   save();
   return { ok: true, got: t.giveId, gave: giveId, cards: b.cards, dupes: b.dupes };
 }
@@ -254,6 +357,13 @@ function bumpQuirk(token, key, by = 1) {
   if (!p.quirks) p.quirks = {};
   p.quirks[key] = (p.quirks[key] || 0) + by;
   save();
+}
+
+/* пошук за ніком для публічної візитівки (без урахування регістру) */
+function byNick(nick) {
+  const q = String(nick || "").trim().toLowerCase();
+  if (!q) return null;
+  return Object.values(players).find((p) => String(p.nick || "").toLowerCase() === q) || null;
 }
 
 function position(token) {
@@ -303,9 +413,13 @@ function top(n = 50) {
 
 load();
 
+loadTrades();
+
 module.exports = {
-  getOrCreate, get, applyMatch, award, top, topPve, positionPve, setProfile, pushHist, position, dirty: save,
+  loadTrades,
+  getOrCreate, get, byNick, applyMatch, award, top, topPve, positionPve, setProfile, pushHist, position, dirty: save,
   wantedToday, tradeCreate, tradeAccept, bumpQuirk,
   todayKey, dailyPlayedToday, recordDaily, dailyBoard,
+  seasonKey, rolloverSeason, missionToday, missionProgress,
   bumpFrontier, FRONTIER_N, FRONTIER_MAX,
 };

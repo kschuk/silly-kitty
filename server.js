@@ -89,12 +89,82 @@ app.get("/top", (_q, r) =>
   r.json(store.top(50).map((p) => ({ ...p, rank: core.rankOf(p.sp) })))
 );
 
+/* ── п.42: публічна візитівка гравця ── */
+const escHtml = (x) => String(x ?? "").replace(/[<>&"]/g, (m) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[m]));
+
+app.get("/api/p/:nick", (req, res) => {
+  const p = store.byNick(String(req.params.nick || ""));
+  if (!p) return res.status(404).json({ error: "такого гравця нема." });
+  res.json({
+    nick: p.nick, sp: p.sp, rank: core.rankOf(p.sp), games: p.games,
+    w: p.w, l: p.l, d: p.d, streak: p.streak,
+    side: p.side || "kyts", avatar: p.avatar, banner: p.banner || "",
+    title: p.title && ACH[p.title] ? ACH[p.title].name : "",
+    ach: (p.ach || []).map((id) => ACH[id]?.name).filter(Boolean),
+    cards: (p.cards || []).filter((c) => String(c).startsWith("nip_")),
+    seasonBanners: p.seasonBanners || [],
+    frontier: p.frontier ?? 0, pveWins: p.pveWins || 0,
+  });
+});
+
+app.get("/p/:nick", (req, res) => {
+  const p = store.byNick(String(req.params.nick || ""));
+  if (!p) return res.status(404).send("<meta charset='utf-8'><body style='font-family:monospace;padding:40px;text-align:center'>такого гравця нема. няв.</body>");
+  const nick = escHtml(p.nick);
+  const sideUa = (p.side === "anti") ? "анти-киці" : "киці";
+  const nips = (p.cards || []).filter((c) => String(c).startsWith("nip_"));
+  const titles = (p.ach || []).map((id) => ACH[id]?.name).filter(Boolean);
+  res.type("html").send(`<!doctype html><html lang="uk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${nick} · дур-киць</title>
+<meta property="og:title" content="${nick} — дур-киць">
+<meta property="og:description" content="${p.sp} очок · ${core.rankOf(p.sp)} · ${sideUa} · банерів: ${nips.length}/6">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Unbounded:wght@800&display=swap');
+body{margin:0;background:#ece3cc;color:#272019;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.wrap{max-width:520px;margin:0 auto;padding:20px}
+h1{font-family:'Unbounded',monospace;font-size:22px;margin:0 0 2px}
+.card{border:2px solid #272019;border-radius:12px;background:#f6efdc;padding:14px;box-shadow:3px 4px 0 rgba(39,32,25,.35);margin-bottom:12px}
+.ban{height:110px;border:2px solid #272019;border-radius:10px;overflow:hidden;margin-bottom:10px}
+.ban img{width:100%;height:100%;object-fit:cover}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.slot{border:2px solid #272019;border-radius:9px;overflow:hidden;aspect-ratio:6/7;background:#ece3cc}
+.slot.empty{border-style:dashed;opacity:.45;display:flex;align-items:center;justify-content:center;font-family:'Unbounded';font-size:20px}
+.slot img{width:100%;height:100%;object-fit:cover;display:block}
+.t{display:inline-block;border:2px solid #272019;border-radius:14px;padding:2px 9px;margin:3px 3px 0 0;font-size:11px;background:#f3e2c4}
+.sub{opacity:.7;font-size:11px}
+a{color:#b55a24;font-weight:600}
+</style></head><body><div class="wrap">
+${p.banner ? `<div class="ban"><img src="/cards/${escHtml(p.banner)}.jpg" alt=""></div>` : ""}
+<div class="card">
+  <h1>${nick}</h1>
+  <div class="sub">${escHtml(core.rankOf(p.sp))}${p.title && ACH[p.title] ? ` · «${escHtml(ACH[p.title].name)}»` : ""} · фракція: ${sideUa}</div>
+  <div style="margin-top:8px">${p.sp} очок · ${p.games} ігор · п ${p.w} / н ${p.d} / пр ${p.l}${p.streak >= 2 ? ` · серія ${p.streak}` : ""}</div>
+  <div class="sub">перемог над амбасадорами: ${p.pveWins || 0}</div>
+</div>
+<div class="card">
+  <b>альбом банерів — ${nips.length}/6</b>
+  <div class="grid">
+    ${["nip_rudy","nip_white","nip_black","nip_green","nip_violet","nip_blue"].map((id) =>
+      nips.includes(id) ? `<div class="slot"><img src="/cards/${id}.jpg" alt=""></div>` : `<div class="slot empty">?</div>`).join("")}
+  </div>
+  ${(p.seasonBanners || []).length ? `<div class="sub" style="margin-top:8px">сезонних нагород: ${p.seasonBanners.length}</div>` : ""}
+</div>
+${titles.length ? `<div class="card"><b>звання</b><div style="margin-top:4px">${titles.map((t) => `<span class="t">${escHtml(t)}</span>`).join("")}</div></div>` : ""}
+<div class="card" style="text-align:center">
+  <a href="/">грати в дур-киць</a>
+  <div class="sub" style="margin-top:4px">няв.</div>
+</div>
+</div></body></html>`);
+});
+
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 const rooms = new Map();
 const byToken = new Map();
 let queue = [];
+let coopQueue = [];
 
 const CODE_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 function newCode() {
@@ -180,6 +250,8 @@ function settle(game) {
         tryA("pve_sukho", !(game.takes[hSeat] > 0));
         tryA("pve_shvydko", dur < 120_000);
         tryA("pve_desyat", p.pveWins >= 10);
+        const mr = store.missionProgress(hTok, "ambWin", 1);
+        if (mr) notes.push(`доручення виконано: ${mr.text} — ${mr.reward}`);
       tryA("amb_obydva", !!game.ambBoth);
       tryA("amb_ostanni", !!game.ambBoth && st.places[hSeat] === 1);
         /* амбасадорство: перемога над ПРОТИЛЕЖНИМ амбасадором рухає мапу */
@@ -203,6 +275,19 @@ function settle(game) {
       store.dirty();
       ambSay(game, won ? "playerWon" : "botWon", true);
     }
+    /* п.26: ніпи — окрема нагорода. у ПвЄ вдвічі менша, щоб не обганяти рейтингову гру */
+    for (const seat of seats) {
+      const tok2 = game.players[seat].token;
+      if (!tok2) continue;
+      const p2 = store.get(tok2);
+      const nips = game.nipsPlayed[seat] || 0;
+      if (!p2 || !p2.tk || !nips) continue;
+      const per = 1;                       /* ПвЄ: половина від рейтингової ставки */
+      const gain = nips * per;
+      p2.tk[(p2.side === "anti") ? "a" : "k"] += gain;
+      (game.coinNotes[seat] = game.coinNotes[seat] || []).push(`+${gain} ${p2.side === "anti" ? "ж.а" : "ж.к"} — битви з ніпами (${nips})`);
+    }
+    store.dirty();
     if (game.isDaily) {
       const humanSeat = seats.find((x) => !game.players[x].bot);
       const tok = humanSeat && game.players[humanSeat].token;
@@ -335,6 +420,30 @@ function settle(game) {
       p.tk[serve] += 2;
       notes.push(`+2 ${sideUa(serve)} — ніп-вихід`);
     }
+    /* п.40: рух за щоденним дорученням */
+    const missionHits = [];
+    const mp = (kind, val) => { const r = store.missionProgress(tok, kind, val); if (r) missionHits.push(r); };
+    mp("nips", game.nipsPlayed[seat] || 0);
+    mp("fives", game.fivesPlayed[seat] || 0);
+    if (won) {
+      if (!(game.takes[seat] > 0)) mp("dryWin", 1);
+      if (dur < 240_000) mp("fastWin", 1);
+      if (game.wantedHit && game.wantedHit.seat === seat) mp("wantedWin", 1);
+    }
+    if (dur >= 480_000) mp("longGame", 1);
+    if (missionHits.length) {
+      const h = missionHits[0];
+      notes.push(`доручення виконано: ${h.text} — ${h.reward}`);
+      (game.missionDone = game.missionDone || {})[seat] = h;
+    }
+
+    /* п.26: битви з ніпами — у рейтинговій грі ставка вдвічі більша, ніж у ПвЄ */
+    const nipsHere = game.nipsPlayed[seat] || 0;
+    if (nipsHere) {
+      const gain = nipsHere * 2;
+      p.tk[sideKey(p.side === "anti" ? "anti" : "kyts")] += gain;
+      notes.push(`+${gain} ${sideUa(p.side === "anti" ? "anti" : "kyts")} — битви з ніпами (${nipsHere})`);
+    }
     if (got.length) {
       p.tk.k += 5 * got.length; p.tk.a += 5 * got.length;
       notes.push(`+${5 * got.length} ж.к і +${5 * got.length} ж.а — нові звання`);
@@ -439,6 +548,7 @@ function viewFor(game, seat, msg = "") {
     limit: st ? st.limit : 6,
     nipUsed: st ? st.nipUsed : false,
     isPve: !!game.isPve, isDaily: !!game.isDaily, amb: game.amb || null,
+    haunt: game.hauntEffect || null,
     glitch: st?.glitch ? { enabled: true, active: st.glitch.active, kind: st.glitch.active ? st.glitch.kind : null } : null,
     bet: game.bet ? betView(game, seat) : null,
     nyav: st?.phase === "nyav"
@@ -480,6 +590,7 @@ function startDeal(game, seed) {
   game.lastSide = {}; game.coinNotes = {}; game.lastCardPlayed = null;
   game.throwsBy = {}; game.nipsPlayed = {}; game.fivesPlayed = {}; game.glitchMoved = {}; game.glitchPending = null;
   game.ambUsed = new Set(); game.ambCount = 0; game.ambLast = 0;
+  game.ambSaid = {}; game.ambLastKey = null; game.ambLastWho = null; game.ambLastText = null;
   game.clockClicks = {}; game.wasLoneCard = {};
   game.glitchDone = false;
   for (const s of Object.keys(game.players)) game.players[s].lastAct = Date.now();
@@ -552,6 +663,7 @@ function performMove(game, seat, type, uid) {
   const me = nickOf(game, seat);
   const ev = r.ev;
   /* амбасадор реагує на ПОДІЇ, а не на кожен хід */
+  if (game.isPve && !game.players[seat].bot) artifactHaunt(game, seat);
   if (game.isPve && !game.players[seat].bot && ev) {
     const myHand = s.hands[seat]?.length ?? 6;
     const botSeat = s.seats.find((x) => game.players[x]?.bot);
@@ -682,25 +794,73 @@ function applyNyavPick(game, seat, sign) {
   maybeBotMove(game);
 }
 
+/* ── п.41: артефакт пам'ятає — рівень II.
+   дуже рідко (5% на партію) він не просто згадує статистику, а втручається:
+   збиває стрілки, кепкує з магазину, вгадує кількість повідомлень у порожній чат. */
+function artifactHaunt(game, seat) {
+  if (!game.isPve || game.hauntDone || Math.random() > 0.05) return;
+  const tok = game.players[seat]?.token;
+  const p = tok && store.get(tok);
+  const q = p && p.quirks;
+  if (!q) return;
+  const picks = [];
+  if ((q.clock || 0) >= 25) picks.push({
+    text: `ти натиснув на годинник ${q.clock} разів. я рахував.`,
+    effect: "clockLie",
+  });
+  if ((q.voidChat || 0) >= 8) picks.push({
+    text: `у порожній чат ти написав ${q.voidChat} разів. деякі люди друзям пишуть менше.`,
+  });
+  if ((q.shopNoBuy || 0) >= 10) picks.push({
+    text: `${q.shopNoBuy} разів заходив у крамницю й нічого не купив. я теж так дивлюся на вітрини.`,
+  });
+  if (!picks.length) return;
+  const pick = picks[(Math.random() * picks.length) | 0];
+  game.hauntDone = true;
+  const who = game.amb === "zhreg" ? "zhreg" : "greg";
+  const entry = { nick: AMB[who].name, text: pick.text, ts: Date.now() };
+  game.chat.push(entry);
+  for (const s2 of Object.keys(game.players)) {
+    const pp = game.players[s2];
+    if (pp?.socketId) io.to(pp.socketId).emit("chat", entry);
+  }
+  if (pick.effect) {
+    game.hauntEffect = pick.effect;   /* клієнт побачить це у стані й підіграє */
+    pushState(game);
+    setTimeout(() => { game.hauntEffect = null; if (!game.finished) pushState(game); }, 12_000);
+  }
+}
+
 /* амбасадор кидає репліку в чат ПвЄ-матчу (не частіше, ніж раз на 6с) */
 function ambSay(game, key, force, who) {
   if (!game.isPve || game.finished) return;
   const speaker = who || game.amb;
   if (!speaker || !AMB[speaker]) return;
   const now = Date.now();
-  /* рідше: не частіше разу на 25с і не більше 6 реплік за партію (фінал і вітання — поза лімітом) */
+  /* п.32: кожна репліка — маленька подія, тож рідко й ніколи двічі поспіль.
+     кулдаун 40с (у режимі на двох амбасадорів 22с), максимум 4 репліки за партію,
+     і одна тема не повторюється, доки не мине окремий кулдаун теми. */
+  if (!game.ambSaid) game.ambSaid = {};
   if (!force) {
-    if (game.ambLast && now - game.ambLast < 25_000) return;
-    if ((game.ambCount || 0) >= 6) return;
+    const gap = game.ambBoth ? 22_000 : 40_000;
+    if (game.ambLast && now - game.ambLast < gap) return;
+    if ((game.ambCount || 0) >= (game.ambBoth ? 7 : 4)) return;
+    if (game.ambSaid[key] && now - game.ambSaid[key] < 90_000) return;   /* кулдаун теми */
+    if (game.ambLastKey === key) return;                                  /* не два рази поспіль про те саме */
+    if (game.ambBoth && game.ambLastWho === speaker && Math.random() < 0.7) return; /* хай говорять по черзі */
   }
   /* унікальність: кожна репліка звучить за партію лише раз */
   if (!game.ambUsed) game.ambUsed = new Set();
-  const pool = ((AMB[speaker] && AMB[speaker][key]) || []).filter((x) => !game.ambUsed.has(x));
+  const pool = ((AMB[speaker] && AMB[speaker][key]) || []).filter((x) => !game.ambUsed.has(speaker + "|" + x) && x !== game.ambLastText);
   if (!pool.length) return;
   const text = pool[(Math.random() * pool.length) | 0];
-  game.ambUsed.add(text);
+  game.ambUsed.add(speaker + "|" + text);
   if (!force) game.ambCount = (game.ambCount || 0) + 1;
   game.ambLast = now;
+  game.ambLastKey = key;
+  game.ambLastWho = speaker;
+  game.ambLastText = text;
+  game.ambSaid[key] = now;
   const entry = { nick: AMB[speaker].name, text, ts: now };
   game.chat.push(entry);
   if (game.chat.length > 40) game.chat.shift();
@@ -747,7 +907,7 @@ function banterStep(game) {
       }
     }, i * 1900);
   });
-  game.banterTimer = setTimeout(() => banterStep(game), 26_000 + Math.random() * 22_000);
+  game.banterTimer = setTimeout(() => banterStep(game), 45_000 + Math.random() * 35_000);
 }
 
 /* чи хтось із ботів має ходити — і якщо так, з невеликою людською затримкою */
@@ -791,7 +951,44 @@ function maybeBotMove(game) {
 /* людський темп у проді; прискорено лише для автотестів (BOT_FAST=1) */
 function botDelay() { return process.env.BOT_FAST ? 60 + Math.random() * 90 : 650 + Math.random() * 700; }
 
+/* ── п.35: обмеження частоти подій на сокет ──
+   загальний ліміт ~20 подій/с; для «дорогих» подій, що пишуть на диск, — суворіший */
+const RL_WINDOW = 1000, RL_MAX = 60;
+/* ходи навмисно щедрі: вони й так перевіряються ядром і нічого не пишуть на диск.
+   суворо обмежені лише події, що торкаються диска, чату чи економіки. */
+const RL_STRICT = { bannerBuy: 3, shopBuy: 3, shopBuyCard: 3, tradeCreate: 3, tradeAccept: 3,
+                    lobbyChat: 4, chat: 4, quirk: 6, setProfile: 4, bannerSet: 5,
+                    playAmbassadors: 6, playGreg: 6, playDaily: 4, coopQueue: 4,
+                    quickMatch: 6, createRoom: 5, joinRoom: 6 };
+
+/* ігрові події не рахуємо в загальний ліміт: вони дешеві, перевіряються ядром
+   і йдуть лавиною самі по собі (один хід → оновлення стану всім за столом → відповіді).
+   різати їх означало б ламати гру, а не захищати сервер. */
+const RL_FREE = new Set(["move", "nyav", "rematch", "leaveRoom", "leaveQueue", "queueInfo", "onlineInfo", "state"]);
+
+function rateGuard(socket) {
+  const hits = new Map();
+  socket.use(([ev], next) => {
+    if (RL_FREE.has(ev)) return next();
+    const now = Date.now();
+    const rec = hits.get("*") || { t: now, n: 0 };
+    if (now - rec.t > RL_WINDOW) { rec.t = now; rec.n = 0; }
+    rec.n++; hits.set("*", rec);
+    if (rec.n > RL_MAX) return next(new Error("занадто швидко"));
+    const lim = RL_STRICT[ev];
+    if (lim) {
+      const r2 = hits.get(ev) || { t: now, n: 0 };
+      if (now - r2.t > RL_WINDOW) { r2.t = now; r2.n = 0; }
+      r2.n++; hits.set(ev, r2);
+      if (r2.n > lim) return next(new Error("занадто швидко"));
+    }
+    next();
+  });
+  socket.on("error", () => {});
+}
+
 io.on("connection", (socket) => {
+  rateGuard(socket);
   let token = null;
 
   socket.on("hello", ({ token: t, nick }, cb) => {
@@ -800,6 +997,7 @@ io.on("connection", (socket) => {
     if (nick.length < 2) return cb?.({ error: "нік закороткий." });
     token = t;
     const p = store.getOrCreate(token, nick);
+    const roll = store.rolloverSeason(token);   /* п.38: новий місяць — новий сезон */
     socket.data.token = token;
     const code = byToken.get(token);
     const game = code ? rooms.get(code) : null;
@@ -809,6 +1007,8 @@ io.on("connection", (socket) => {
       tk: p.tk || { k: 100, a: 100 },
       frontier: p.frontier ?? 0, frontierWins: p.frontierWins || { kyts: 0, anti: 0 },
       side: p.side || "kyts",
+      cards: Array.isArray(p.cards) ? p.cards : [],
+      season: p.season, seasonBanners: p.seasonBanners || [], seasonRoll: roll,
     };
     if (game && !game.finished) {
       const seat = seatOf(game, token);
@@ -1067,11 +1267,42 @@ io.on("connection", (socket) => {
     if (both) {
       setTimeout(() => ambSayAny(game, "greg", "greeting"), 800);
       setTimeout(() => ambSayAny(game, "zhreg", "greeting"), 2200);
-      game.banterTimer = setTimeout(() => banterStep(game), 5000);
+      game.banterTimer = setTimeout(() => banterStep(game), 14_000);
     } else {
       setTimeout(() => ambSay(game, "greeting", true), 800);
     }
   });
+
+  /* ── п.39: кооператив. черга на двох, потім стіл на чотирьох:
+     двоє людей + обидва амбасадори (боти сидять через одного, щоб не ходити поспіль) ── */
+  socket.on("coopQueue", (cb) => {
+    if (!token) return cb?.({ error: "спершу hello." });
+    if (banGuard(cb)) return;
+    if (byToken.has(token)) return cb?.({ error: "ти вже в кімнаті." });
+    coopQueue = coopQueue.filter((q) => q.token !== token && io.sockets.sockets.has(q.socketId));
+    const mate = coopQueue.find((q) => q.token !== token && banLeft(q.token) === 0);
+    if (!mate) { coopQueue.push({ token, socketId: socket.id, since: Date.now() }); return cb?.({ queued: true }); }
+    coopQueue = coopQueue.filter((q) => q !== mate);
+    const code = newCode();
+    const game = newGame(code);
+    game.isPve = true; game.isCoop = true; game.ambBoth = true; game.amb = "greg";
+    game.players.A = { token: mate.token, nick: store.get(mate.token).nick, socketId: mate.socketId, connected: true, lastAct: Date.now() };
+    game.players.B = { bot: true, amb: "greg", nick: AMB.greg.name, connected: true, lastAct: Date.now() };
+    game.players.C = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
+    game.players.D = { bot: true, amb: "zhreg", nick: AMB.zhreg.name, connected: true, lastAct: Date.now() };
+    game.order = ["A", "B", "C", "D"];
+    rooms.set(code, game);
+    byToken.set(mate.token, code); byToken.set(token, code);
+    cb?.({ code, coop: true });
+    startDeal(game);
+    setTimeout(() => {
+      ambSayAny(game, "greg", "greeting");
+      setTimeout(() => ambSayAny(game, "zhreg", "greeting"), 1600);
+      game.banterTimer = setTimeout(() => banterStep(game), 14_000);
+    }, 900);
+  });
+
+  socket.on("coopLeave", () => { coopQueue = coopQueue.filter((q) => q.token !== token); });
 
   socket.on("playGreg", ({ glitch } = {}, cb) => {
     if (!token) return cb?.({ error: "спершу hello." });
@@ -1306,6 +1537,13 @@ io.on("connection", (socket) => {
   });
 
   socket.on("wantedToday", (cb) => cb?.(store.wantedToday()));
+
+  socket.on("missionToday", (cb) => {
+    if (!token) return cb?.(null);
+    const m = store.missionToday(token);
+    if (!m) return cb?.(null);
+    cb?.({ id: m.id, text: m.text, who: m.who, goal: m.goal, prog: m.prog || 0, done: !!m.done, name: AMB[m.who]?.name || m.who });
+  });
 
   socket.on("quirk", ({ key, by }) => {
     if (!token) return;

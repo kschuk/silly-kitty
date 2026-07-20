@@ -255,6 +255,36 @@ async function testBanners() {
   a.s.close(); b.s.close();
 }
 
+async function testSeasonMissionCard() {
+  console.log("── тест L: сезони, доручення, візитівка ──");
+  const http = require("http");
+  const a = mkClient("season-token-mmmm", false);
+  await wait(200);
+  await new Promise((r) => a.s.emit("hello", { token: a.tok, nick: "сезонник" }, r));
+  /* доручення дня — однакове для всіх, з автором і ціллю */
+  const m = await new Promise((r) => a.s.emit("missionToday", r));
+  if (!m || !m.text || !m.name) throw new Error("доручення дня не видалось: " + JSON.stringify(m));
+  if (!(m.goal >= 1)) throw new Error("у доручення нема цілі");
+  /* публічна візитівка */
+  const port = process.env.PORT || 3111;
+  const html = await new Promise((res, rej) => {
+    http.get(`http://localhost:${port}/p/` + encodeURIComponent("сезонник"), (r) => {
+      let b = ""; r.on("data", (d) => (b += d)); r.on("end", () => res({ code: r.statusCode, b }));
+    }).on("error", rej);
+  });
+  if (html.code !== 200) throw new Error("візитівка віддала " + html.code);
+  if (!html.b.includes("альбом банерів")) throw new Error("на візитівці нема альбому");
+  if (!html.b.includes("og:title")) throw new Error("на візитівці нема og-міток для шерингу");
+  const missing = await new Promise((res, rej) => {
+    http.get(`http://localhost:${port}/p/` + encodeURIComponent("такого-нема"), (r) => {
+      let b = ""; r.on("data", (d) => (b += d)); r.on("end", () => res(r.statusCode));
+    }).on("error", rej);
+  });
+  if (missing !== 404) throw new Error("неіснуючий гравець мав дати 404, а дав " + missing);
+  console.log(`доручення «${m.text}» від ${m.name}, візитівка й 404 працюють · тест L OK\n`);
+  a.s.close();
+}
+
 (async () => {
   await testPve();
   await testDaily();
@@ -265,6 +295,7 @@ async function testBanners() {
   await testAmbTable();
   await testPostcards();
   await testBanners();
+  await testSeasonMissionCard();
   console.log("УСІ ТЕСТИ v8+v11 OK. няв.");
   process.exit(0);
 })().catch((e) => { console.error("ТЕСТ ВПАВ:", e.message); process.exit(1); });
