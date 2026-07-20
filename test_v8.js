@@ -212,23 +212,47 @@ async function testAmbTable() {
 }
 
 async function testPostcards() {
-  console.log("── тест J: колекційні листівки ──");
+  console.log("── тест J: у крамниці лише ніпи ──");
   const a = mkClient("pc-token-jjjj", false);
   await wait(200);
   await new Promise((r) => a.s.emit("hello", { token: a.tok, nick: "збирач" }, r));
-  const p0 = await new Promise((r) => a.s.emit("profileInfo", r));
-  const before = p0.tk.k;
-  const buy = await new Promise((r) => a.s.emit("shopBuyCard", { id: "avan_5", side: "k", price: 8 }, r));
-  if (!buy?.ok) throw new Error("купівля не пройшла: " + JSON.stringify(buy));
-  if (buy.tk.k !== before - 8) throw new Error("жетони списались неправильно: " + before + " → " + buy.tk.k);
-  if (!buy.cards.includes("avan_5")) throw new Error("листівка не потрапила в колекцію");
-  const again = await new Promise((r) => a.s.emit("shopBuyCard", { id: "avan_5", side: "k", price: 8 }, r));
-  if (!again?.error) throw new Error("дозволило купити ту саму листівку двічі!");
-  await new Promise((r) => a.s.emit("shopBuyCard", { id: "char_5", side: "k", price: 8 }, r));
-  const third = await new Promise((r) => a.s.emit("shopBuyCard", { id: "krad_5", side: "a", price: 8 }, r));
-  if (!third?.newAch?.length) throw new Error("за три листівки не видалось секретне звання");
-  console.log(`куплено 3 листівки, дублікат заблоковано, звання «${third.newAch[0]}» · тест J OK\n`);
+  /* карти мастей більше не продаються — лишились тільки ніпи-банери */
+  const nope = await new Promise((r) => a.s.emit("shopBuyCard", { id: "avan_5", side: "k", price: 8 }, r));
+  if (!nope?.error) throw new Error("масть усе ще продається, хоча мали лишитись самі ніпи");
+  const p = await new Promise((r) => a.s.emit("profileInfo", r));
+  if (p.tk.k !== 100) throw new Error("жетони списались за відхилену покупку: " + p.tk.k);
+  console.log("масті з крамниці прибрано, жетони не списуються · тест J OK\n");
   a.s.close();
+}
+
+async function testBanners() {
+  console.log("── тест K: банери, дублікати та обмін ──");
+  const a = mkClient("bn-token-kkkk", false);
+  const b = mkClient("bn-token-llll", false);
+  await wait(200);
+  await new Promise((r) => a.s.emit("hello", { token: a.tok, nick: "колекціонер" }, r));
+  await new Promise((r) => b.s.emit("hello", { token: b.tok, nick: "мінянин" }, r));
+  const info = await new Promise((r) => a.s.emit("bannerInfo", r));
+  if (info.catalog.length !== 6) throw new Error("у каталозі мають бути рівно 6 ніпів, а є " + info.catalog.length);
+  if (info.catalog.some((c) => !c.id.startsWith("nip_"))) throw new Error("у каталозі є не-ніпи!");
+  const buy1 = await new Promise((r) => a.s.emit("bannerBuy", { id: "nip_rudy" }, r));
+  if (!buy1?.ok || buy1.tk.k !== 60) throw new Error("ціна банера має бути 40 ж.к, лишилось " + buy1?.tk?.k);
+  const buy2 = await new Promise((r) => a.s.emit("bannerBuy", { id: "nip_rudy" }, r));
+  if (!buy2.dup || !(buy2.dupes.nip_rudy > 0)) throw new Error("повторна покупка не стала дублікатом");
+  const set = await new Promise((r) => a.s.emit("bannerSet", { id: "nip_rudy" }, r));
+  if (set.active !== "nip_rudy") throw new Error("банер не вдягнувся");
+  const bad = await new Promise((r) => a.s.emit("bannerSet", { id: "nip_blue" }, r));
+  if (!bad?.error) throw new Error("дозволило вдягнути чужий банер!");
+  await new Promise((r) => b.s.emit("bannerBuy", { id: "nip_green" }, r));
+  await new Promise((r) => b.s.emit("bannerBuy", { id: "nip_green" }, r));
+  const tr = await new Promise((r) => a.s.emit("tradeCreate", { giveId: "nip_rudy" }, r));
+  if (!tr?.code) throw new Error("код обміну не створився: " + JSON.stringify(tr));
+  const acc = await new Promise((r) => b.s.emit("tradeAccept", { code: tr.code, giveId: "nip_green" }, r));
+  if (acc?.error) throw new Error("обмін не пройшов: " + acc.error);
+  const twice = await new Promise((r) => b.s.emit("tradeAccept", { code: tr.code, giveId: "nip_green" }, r));
+  if (!twice?.error) throw new Error("код обміну спрацював двічі!");
+  console.log("каталог лише з ніпів, ціна 40, дублікати й обмін працюють · тест K OK\n");
+  a.s.close(); b.s.close();
 }
 
 (async () => {
@@ -240,6 +264,7 @@ async function testPostcards() {
   await testLeagueOnline();
   await testAmbTable();
   await testPostcards();
+  await testBanners();
   console.log("УСІ ТЕСТИ v8+v11 OK. няв.");
   process.exit(0);
 })().catch((e) => { console.error("ТЕСТ ВПАВ:", e.message); process.exit(1); });

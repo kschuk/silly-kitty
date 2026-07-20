@@ -72,6 +72,11 @@ const ACH = {
   sec_balakun: { name: "балакун у пустці",desc: "написати п'ять повідомлень, чекаючи суперника", secret: true },
   sec_nichnyi: { name: "нічний киць",    desc: "зіграти партію між 3 і 5 ранку", secret: true },
   sec_hodynnyk:{ name: "не чіпай стрілки",desc: "клікнути по артефакту 15 разів за партію", secret: true },
+  sec_lovets: { name: "ловець", desc: "секрет: завершити партію карткою, що була в розшуку", secret: true },
+  sec_obminyaka: { name: "обміняка", desc: "секрет: обмінятись дублікатом з іншим гравцем", secret: true },
+  sec_povna_kolekciya: { name: "повний набір", desc: "секрет: зібрати всі шість банерів-ніпів", secret: true },
+  amb_albom:   { name: "повний альбом", desc: "зібрати всі шість банерів-ніпів" },
+  sec_kupets:  { name: "купець",        desc: "секрет: обмінятися дублікатом з іншим гравцем", secret: true },
   sec_kolekcioner_pc: { name: "філателіст", desc: "секрет: зібрати три листівки в колекцію", secret: true },
   sec_odna:    { name: "одна-єдина",     desc: "перемогти, маючи в руці лише одну карту весь останній бій", secret: true },
 };
@@ -292,6 +297,20 @@ function settle(game) {
     const notes = [];
     const sideUa = (x) => (x === "kyts" || x === "k" ? "ж.к" : "ж.а");
     const sideKey = (x) => (x === "kyts" || x === "k" ? "k" : "a");
+    /* «розшукується»: переможний хід карткою дня — премія і галас у чаті */
+    if (won && game.lastCardPlayed && !core.isNip(game.lastCardPlayed)) {
+      const w = store.wantedToday();
+      const lc = game.lastCardPlayed;
+      const lcId = `${lc.suit}_${lc.value}`;
+      const hit = (lcId === w.kyts.id) ? "kyts" : (lcId === w.anti.id ? "anti" : null);
+      if (hit) {
+        const bonus = 10;
+        p.tk[hit === "kyts" ? "k" : "a"] += bonus;
+        notes.push(`+${bonus} ${hit === "kyts" ? "ж.к" : "ж.а"} — упіймано карту в розшуку!`);
+        game.wantedHit = { seat, id: lcId, side: hit };
+        if (store.award(tok, "sec_lovets")) got.push(ACH.sec_lovets.name);
+      }
+    }
     if (won) {
       const side = game.lastSide[seat] || "kyts";
       p.tk[sideKey(side)] += 3;
@@ -1082,7 +1101,7 @@ io.on("connection", (socket) => {
     const code = newCode();
     const game = newGame(code);
     game.isPve = true; game.isDaily = true;
-    game.glitchWanted = !!glitch;
+    game.glitchWanted = false; /* стіл дня — чистий виклик, без збоїв */
     game.amb = "greg";
     game.players.A = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
     game.players.B = { bot: true, nick: AMB.greg.name, connected: true, lastAct: Date.now() };
@@ -1260,20 +1279,111 @@ io.on("connection", (socket) => {
     cb?.({ ok: true, tk: p.tk });
   });
 
+  socket.on("setBanner", ({ id }, cb) => {
+    const p = token && store.get(token);
+    if (!p) return cb?.({ error: "нема профілю." });
+    if (id && !(p.cards || []).includes(id)) return cb?.({ error: "цього банера ще нема в колекції." });
+    p.banner = id || "";
+    store.dirty();
+    cb?.({ ok: true, banner: p.banner });
+  });
+
+  socket.on("collection", (cb) => {
+    const p = token && store.get(token);
+    cb?.({ cards: (p && p.cards) || [], dupes: (p && p.dupes) || {}, banner: (p && p.banner) || "" });
+  });
+
+  socket.on("tradeCreate", ({ giveId }, cb) => {
+    if (!token) return cb?.({ error: "спершу hello." });
+    cb?.(store.tradeCreate(token, giveId));
+  });
+
+  socket.on("tradeAccept", ({ code, giveId }, cb) => {
+    if (!token) return cb?.({ error: "спершу hello." });
+    const r = store.tradeAccept(token, code, giveId);
+    if (r.ok && store.award(token, "sec_obminyaka")) r.newAch = [ACH.sec_obminyaka.name];
+    cb?.(r);
+  });
+
+  socket.on("wantedToday", (cb) => cb?.(store.wantedToday()));
+
+  socket.on("quirk", ({ key, by }) => {
+    if (!token) return;
+    const OK = ["clock", "voidChat", "shopNoBuy", "stare", "rematch", "menu"];
+    if (!OK.includes(key)) return;
+    store.bumpQuirk(token, key, Math.max(1, Math.min(30, parseInt(by, 10) || 1)));
+  });
+
+  /* ── банери-ніпи: єдине сховище з колекцією (p.cards + p.dupes) ── */
+  const BANNERS = {
+    nip_rudy:   { side: "k", name: "рудик" },
+    nip_white:  { side: "k", name: "біляш" },
+    nip_black:  { side: "k", name: "вуглик" },
+    nip_green:  { side: "a", name: "зеленка" },
+    nip_violet: { side: "a", name: "філя" },
+    nip_blue:   { side: "a", name: "синька" },
+  };
+  const BANNER_PRICE = 40;
+  const cardsOf = (p) => { if (!Array.isArray(p.cards)) p.cards = []; return p.cards; };
+  const dupesOf = (p) => { if (!p.dupes || typeof p.dupes !== "object") p.dupes = {}; return p.dupes; };
+
+  socket.on("bannerInfo", (cb) => {
+    const p = token && store.get(token);
+    if (!p) return cb?.({ error: "нема профілю." });
+    cb?.({
+      catalog: Object.entries(BANNERS).map(([id, b]) => ({ id, ...b, price: BANNER_PRICE })),
+      owned: cardsOf(p).filter((x) => BANNERS[x]),
+      dupes: dupesOf(p), active: p.banner || "", tk: p.tk,
+    });
+  });
+
+  socket.on("bannerBuy", ({ id }, cb) => {
+    const p = token && store.get(token);
+    if (!p || !BANNERS[id]) return cb?.({ error: "невідомий банер." });
+    const k = BANNERS[id].side;
+    if (!p.tk || p.tk[k] < BANNER_PRICE)
+      return cb?.({ error: `треба ${BANNER_PRICE} ${k === "k" ? "ж.к" : "ж.а"}.` });
+    p.tk[k] -= BANNER_PRICE;
+    const owned = cardsOf(p), dupes = dupesOf(p);
+    let dup = false;
+    if (owned.includes(id)) { dupes[id] = (dupes[id] || 0) + 1; dup = true; }
+    else owned.push(id);
+    const mine = owned.filter((x) => BANNERS[x]);
+    const got = [];
+    if (mine.length >= 3 && store.award(token, "sec_kolekcioner_pc")) got.push(ACH.sec_kolekcioner_pc.name);
+    if (mine.length >= 6 && store.award(token, "amb_albom")) got.push(ACH.amb_albom.name);
+    store.dirty();
+    cb?.({ ok: true, tk: p.tk, owned: mine, dupes, dup, newAch: got });
+  });
+
+  socket.on("bannerSet", ({ id }, cb) => {
+    const p = token && store.get(token);
+    if (!p) return cb?.({ error: "нема профілю." });
+    if (id && !cardsOf(p).includes(id)) return cb?.({ error: "цього банера ще нема." });
+    p.banner = id || "";
+    store.dirty();
+    cb?.({ ok: true, active: p.banner });
+  });
+
   socket.on("shopBuyCard", ({ id, side, price }, cb) => {
     const p = token && store.get(token);
     if (!p) return cb?.({ error: "нема профілю." });
     const k = side === "a" ? "a" : "k";
-    const cost = Math.max(1, Math.min(50, parseInt(price, 10) || 8));
+    const NIP_IDS = ["nip_green","nip_violet","nip_blue","nip_black","nip_white","nip_rudy"];
+    if (!NIP_IDS.includes(id)) return cb?.({ error: "у крамниці лишились самі ніпи." });
+    const cost = 40;
     p.cards = Array.isArray(p.cards) ? p.cards : [];
-    if (id && p.cards.includes(id)) return cb?.({ error: "така листівка вже в колекції." });
-    if (!p.tk || p.tk[k] < cost) return cb?.({ error: "не вистачає жетонів цієї фракції." });
+    if (!p.dupes) p.dupes = {};
+    if (!p.tk || p.tk[k] < cost) return cb?.({ error: `треба ${cost} жетонів цієї фракції.` });
     p.tk[k] -= cost;
-    if (id) p.cards.push(id);
+    let dupe = false;
+    if (p.cards.includes(id)) { p.dupes[id] = (p.dupes[id] || 0) + 1; dupe = true; }
+    else p.cards.push(id);
     const got = [];
     if (p.cards.length >= 3 && store.award(token, "sec_kolekcioner_pc")) got.push(ACH.sec_kolekcioner_pc.name);
+    if (p.cards.length >= 6 && store.award(token, "sec_povna_kolekciya")) got.push(ACH.sec_povna_kolekciya.name);
     store.dirty();
-    cb?.({ ok: true, tk: p.tk, cards: p.cards, newAch: got });
+    cb?.({ ok: true, tk: p.tk, cards: p.cards, dupes: p.dupes, dupe, newAch: got });
   });
 
   socket.on("shopBuy", ({ pay }, cb) => {

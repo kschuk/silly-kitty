@@ -40,6 +40,10 @@ function load() {
       if (!p.dailyStreak) p.dailyStreak = 0;
       if (!p.pveWins) p.pveWins = 0;
       if (!Array.isArray(p.cards)) p.cards = [];
+      if (!p.dupes || typeof p.dupes !== "object") p.dupes = {};   // id → скільки зайвих
+      if (typeof p.banner !== "string") p.banner = "";              // активний банер профілю
+      if (!p.quirks || typeof p.quirks !== "object") p.quirks = {}; // «артефакт памʼятає»
+      if (typeof p.quirkSeen !== "number") p.quirkSeen = 0;
       if (p.beatGreg == null) p.beatGreg = false;
       if (p.beatZhreg == null) p.beatZhreg = false;  // сторона мапи             // «стіл дня»: дата останньої спроби
     }
@@ -80,6 +84,26 @@ function saveDaily() {
 
 /* «стіл дня»: сьогоднішня дата UTC як ключ дня */
 function todayKey() { return new Date().toISOString().slice(0, 10); }
+
+/* «розшукується»: детермінований вибір по даті — однаковий для всіх гравців світу */
+const KYTS_SUITS = ["avan", "char", "vata"];
+const ANTI_SUITS = ["krad", "mani", "shef"];
+function wantedToday() {
+  const key = todayKey();
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  h = h >>> 0;
+  const pick = (arr, salt) => {
+    const x = (h ^ Math.imul(salt, 2654435761)) >>> 0;
+    return { suit: arr[x % arr.length], value: ((x >>> 4) % 5) + 1 };
+  };
+  const k = pick(KYTS_SUITS, 1), a = pick(ANTI_SUITS, 2);
+  return {
+    date: key,
+    kyts: { id: `${k.suit}_${k.value}`, suit: k.suit, value: k.value },
+    anti: { id: `${a.suit}_${a.value}`, suit: a.suit, value: a.value },
+  };
+}
 function yesterdayKey() { return new Date(Date.now() - 86_400_000).toISOString().slice(0, 10); }
 
 /* чи вже грав сьогодні (одна спроба на добу — вордл-стиль) */
@@ -116,7 +140,7 @@ function dailyBoard() {
 
 function getOrCreate(token, nick) {
   if (!players[token]) {
-    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, seenTitry: false, frontier: 0, frontierWins: { kyts: 0, anti: 0 }, dailyDate: null, dailyStreak: 0, cards: [], pveWins: 0, beatGreg: false, beatZhreg: false, side: "kyts", migr2: true, seen: Date.now() };
+    players[token] = { nick, sp: 0, games: 0, w: 0, l: 0, d: 0, streak: 0, ach: [], hist: [], avatar: "cat_black", title: "", fastWins: 0, banUntil: 0, tk: { k: 100, a: 100 }, seenTitry: false, frontier: 0, frontierWins: { kyts: 0, anti: 0 }, dailyDate: null, dailyStreak: 0, cards: [], dupes: {}, banner: "", quirks: {}, quirkSeen: 0, pveWins: 0, beatGreg: false, beatZhreg: false, side: "kyts", migr2: true, seen: Date.now() };
   } else {
     players[token].nick = nick || players[token].nick;
     players[token].seen = Date.now();
@@ -183,6 +207,55 @@ function positionPve(token) {
   return all.findIndex((p) => p === me) + 1;
 }
 
+/* ── обмін дублікатами: код живе 10 хвилин ── */
+const trades = new Map();
+const TRADE_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function tradeCreate(token, giveId) {
+  const p = players[token];
+  if (!p) return { error: "нема профілю." };
+  if (!p.dupes || !(p.dupes[giveId] > 0)) return { error: "такого дубліката нема." };
+  for (const [c, t] of trades) if (t.token === token) trades.delete(c);
+  let code;
+  do { code = Array.from({ length: 5 }, () => TRADE_ABC[(Math.random() * TRADE_ABC.length) | 0]).join(""); }
+  while (trades.has(code));
+  trades.set(code, { token, giveId, at: Date.now() });
+  return { code, giveId };
+}
+
+function tradeAccept(token, code, giveId) {
+  code = String(code || "").toUpperCase().trim();
+  const t = trades.get(code);
+  if (!t) return { error: "код не знайдено або він застарів." };
+  if (Date.now() - t.at > 10 * 60_000) { trades.delete(code); return { error: "код застарів." }; }
+  if (t.token === token) return { error: "сам із собою мінятись не вийде." };
+  const a = players[t.token], b = players[token];
+  if (!a || !b) return { error: "гравця не знайдено." };
+  if (!(a.dupes[t.giveId] > 0)) { trades.delete(code); return { error: "у власника коду вже нема цього дубліката." };}
+  if (!giveId || !(b.dupes[giveId] > 0)) return { error: "у тебе нема такого дубліката для обміну." };
+  /* міняємось: кожен віддає один дублікат і отримує предмет (у колекцію або в дублікати) */
+  a.dupes[t.giveId]--; if (!a.dupes[t.giveId]) delete a.dupes[t.giveId];
+  b.dupes[giveId]--;   if (!b.dupes[giveId]) delete b.dupes[giveId];
+  const grant = (pl, id) => {
+    if (!pl.cards.includes(id)) pl.cards.push(id);
+    else pl.dupes[id] = (pl.dupes[id] || 0) + 1;
+  };
+  grant(a, giveId);
+  grant(b, t.giveId);
+  trades.delete(code);
+  save();
+  return { ok: true, got: t.giveId, gave: giveId, cards: b.cards, dupes: b.dupes };
+}
+
+/* приховані звички: тихо рахуємо, зрідка згадуємо */
+function bumpQuirk(token, key, by = 1) {
+  const p = players[token];
+  if (!p) return;
+  if (!p.quirks) p.quirks = {};
+  p.quirks[key] = (p.quirks[key] || 0) + by;
+  save();
+}
+
 function position(token) {
   const me = players[token];
   if (!me || !me.games) return null;
@@ -232,6 +305,7 @@ load();
 
 module.exports = {
   getOrCreate, get, applyMatch, award, top, topPve, positionPve, setProfile, pushHist, position, dirty: save,
+  wantedToday, tradeCreate, tradeAccept, bumpQuirk,
   todayKey, dailyPlayedToday, recordDaily, dailyBoard,
   bumpFrontier, FRONTIER_N, FRONTIER_MAX,
 };
