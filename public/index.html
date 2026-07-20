@@ -126,13 +126,10 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 /* забір: напрямок залежить від того, ХТО забирає — вниз до мене, вгору до суперника */
 @keyframes outTakeDown{0%{opacity:1;transform:translate3d(0,0,0)}to{transform:translate3d(0,90px,0) rotate(-8deg) scale(.62);opacity:0}}
 @keyframes outTakeUp{0%{opacity:1;transform:translate3d(0,0,0)}to{transform:translate3d(0,-96px,0) rotate(8deg) scale(.62);opacity:0}}
-.anim-out-take,.anim-out-take-up{will-change:transform,opacity}
 .anim-out-take{animation:outTakeDown var(--tSlow) var(--eOut) forwards}
-.anim-out-take-up{animation:outTakeUp var(--tSlow) var(--eOut) forwards}
 @keyframes drawIn{from{transform:translate3d(46px,-10px,0) rotate(9deg) scale(.92);opacity:0}to{transform:translate3d(0,0,0) rotate(0) scale(1);opacity:1}}
 .anim-draw{animation:drawIn .45s ease-out}
 @keyframes slap{from{transform:rotate(19deg) scale(1.22);opacity:.35}to{transform:rotate(7deg) scale(1);opacity:1}}
-.anim-slap{animation:slap var(--tMed) var(--eIn);will-change:transform}
 @keyframes msgIn{from{opacity:0;transform:translateY(4px)}}
 .msg{min-height:16px;margin-top:8px;text-transform:lowercase;animation:msgIn .25s ease-out}
 @keyframes pulse{0%,100%{box-shadow:2px 2px 0 rgba(39,32,25,.35)}50%{box-shadow:2px 2px 0 rgba(181,90,36,.7)}}
@@ -173,6 +170,47 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .panelScroll>.big,.panelScroll>.sub,.panelScroll>.row{flex:0 0 auto}
 .achWrap{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-right:4px}
 #achList{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+/* ── бойові анімації v2 ── */
+/* приземлення карти: замах згори, перельот і пружна посадка (balatro-відчуття) */
+
+/* кільце-удар у місці биття (hearthstone-«вага») */
+@keyframes ringOut{
+  0%{transform:translate(-50%,-50%) scale(.25);opacity:.85;border-width:6px}
+  100%{transform:translate(-50%,-50%) scale(2.1);opacity:0;border-width:1px}
+}
+.impactRing{position:fixed;width:74px;height:74px;border-radius:50%;border:5px solid var(--kyts);
+  pointer-events:none;animation:ringOut 600ms cubic-bezier(.2,.7,.3,1) forwards;mix-blend-mode:multiply}
+
+/* тремтіння столу під удар */
+@keyframes shakeS{0%,100%{transform:translate3d(0,0,0)}25%{transform:translate3d(-2px,1px,0)}60%{transform:translate3d(2px,-1px,0)}}
+@keyframes shakeM{0%,100%{transform:translate3d(0,0,0)}20%{transform:translate3d(-4px,2px,0)}45%{transform:translate3d(4px,-2px,0)}70%{transform:translate3d(-2px,1px,0)}}
+.tableZone.shakeS{animation:shakeS 260ms ease-out}
+.tableZone.shakeM{animation:shakeM 420ms ease-out}
+
+/* поки стіл лежить — тепле світло по рамці (gwent-спокій) */
+  30%{box-shadow:inset 0 0 0 3px rgba(181,90,36,.5)}
+  100%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}
+}
+.tableZone.tblFreeze{animation:tblHold 1.25s ease-in-out}
+
+/* відліт у відбій: спершу коротка «зарядка», потім різкий змах */
+  18%{transform:translate3d(0,6px,0) scale(.96) rotate(var(--rest,0deg))}
+  100%{transform:translate3d(120px,-58px,0) rotate(26deg) scale(.45);opacity:0}
+}
+.anim-out-bito{animation:outBito 700ms cubic-bezier(.45,0,.55,1) both;will-change:transform,opacity}
+
+/* політ до себе: карти «всмоктуються» вниз */
+  20%{transform:translate3d(0,-7px,0) scale(1.03)}
+  100%{transform:translate3d(0,110px,0) rotate(-10deg) scale(.5);opacity:0}
+}
+.anim-out-take{animation:outTakeDown 700ms cubic-bezier(.45,0,.55,1) both;will-change:transform,opacity}
+
+/* до суперника: розчинення з підйомом */
+  40%{opacity:.6;transform:translate3d(0,-10px,0) scale(.98)}
+  100%{opacity:0;transform:translate3d(0,-42px,0) scale(.86)}
+}
+.anim-dissolve{animation:dissolve 700ms cubic-bezier(.4,0,.5,1) both;will-change:opacity,transform}
+
 /* рідкість: колір рамки й підпису, як у класичних rpg-логах */
 .achCard{--rar:#7a6f5c}
 .achCard.r-common{--rar:#8d8577}
@@ -220,30 +258,40 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .pMore input{width:100%}
 .wrap{padding-bottom:74px !important}
 @media(min-width:1000px){.player{max-width:900px}}
-.musicBar{position:fixed;left:50%;transform:translateX(-50%);bottom:8px;z-index:45;display:flex;align-items:center;gap:6px;
-  background:var(--panel);border:2px solid var(--ink);border-radius:22px;padding:5px 8px;box-shadow:2px 3px 0 rgba(39,32,25,.4);
-  max-width:min(420px,94vw);font-size:10px}
-.musicBar.mini .mbBody,.musicBar.mini #mbPrev,.musicBar.mini #mbNext,.musicBar.mini #mbVol,.musicBar.mini #mbMute{display:none}
-/* повністю згорнутий плеєр — лише одна кнопка */
-.musicBar.folded{padding:4px;gap:0}
-.musicBar.folded>*{display:none!important}
-.musicBar.folded #mbFold{display:inline-flex!important;transform:rotate(180deg)}
-.musicBar.needsTouch{border-color:var(--kyts);box-shadow:2px 3px 0 rgba(181,90,36,.5)}
-.musicBar.needsTouch .mbName{color:var(--kyts);font-weight:600}
-@keyframes nagPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.04)}}
-.musicBar.needsTouch{animation:nagPulse 2.2s ease-in-out infinite}
-.mbBtn{padding:3px 8px;font-size:11px;box-shadow:none;border-radius:14px;min-width:30px}
-.mbBody{display:flex;align-items:center;gap:6px;cursor:pointer;min-width:96px}
-.mbName{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
-.mbEq{display:flex;align-items:flex-end;gap:2px;height:12px;flex-shrink:0}
-.mbEq i{width:3px;background:var(--kyts);height:20%;border-radius:1px}
-.musicBar.playing .mbEq i{animation:eq .9s ease-in-out infinite}
-.musicBar.playing .mbEq i:nth-child(2){animation-delay:.15s}
-.musicBar.playing .mbEq i:nth-child(3){animation-delay:.3s}
-.musicBar.playing .mbEq i:nth-child(4){animation-delay:.45s}
-@keyframes eq{0%,100%{height:20%}50%{height:100%}}
-.musicBar.off .mbEq i{background:rgba(39,32,25,.3)}
-#mbVol{width:64px;height:14px}
+/* ══ єдиний музичний плеєр ══ */
+.player{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:46;
+  display:flex;align-items:center;gap:7px;max-width:min(440px,94vw);
+  background:linear-gradient(180deg,var(--panel),#efe6cf);
+  border:2px solid var(--ink);border-radius:24px;padding:6px 9px;
+  box-shadow:2px 4px 0 rgba(39,32,25,.42);font-size:10px;
+  transition:padding .18s ease,gap .18s ease}
+.plBtn{font-family:inherit;font-weight:600;font-size:11px;line-height:1;
+  border:2px solid var(--ink);border-radius:50%;background:var(--paper);color:var(--ink);
+  width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;padding:0;flex:0 0 auto;box-shadow:none}
+.plBtn:active{transform:translateY(1px)}
+.plPlay{background:var(--kyts);color:var(--panel);border-color:var(--ink);width:32px;height:32px;font-size:13px}
+.plMid{display:flex;align-items:center;gap:7px;min-width:0;cursor:pointer;padding:0 2px}
+.plText{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.plTrack{font-weight:700;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:104px}
+.plSub{font-size:8px;letter-spacing:.1em;opacity:.6;text-transform:uppercase}
+.plEq{display:flex;align-items:flex-end;gap:2px;height:15px;flex:0 0 auto}
+.plEq i{width:2.5px;border-radius:1px;background:rgba(39,32,25,.28);height:22%}
+.player.playing .plEq i{background:var(--kyts);animation:eqBar .95s ease-in-out infinite}
+.player.playing .plEq i:nth-child(2){animation-delay:.11s}
+.player.playing .plEq i:nth-child(3){animation-delay:.22s}
+.player.playing .plEq i:nth-child(4){animation-delay:.33s}
+.player.playing .plEq i:nth-child(5){animation-delay:.44s}
+@keyframes eqBar{0%,100%{height:22%}50%{height:100%}}
+#plVol{width:58px;height:14px;padding:0;border:none;background:transparent;box-shadow:none;accent-color:var(--kyts);flex:0 0 auto}
+/* згорнутий — лише одна кругла кнопка */
+.player.folded{padding:5px;gap:0;border-radius:50%}
+.player.folded>*{display:none!important}
+.player.folded .plToggle{display:inline-flex!important;transform:rotate(180deg)}
+/* звук ще не дозволено браузером — плеєр сам про це каже */
+.player.needsTouch{border-color:var(--kyts);box-shadow:2px 4px 0 rgba(181,90,36,.5)}
+.player.needsTouch .plTrack{color:var(--kyts)}
+@media(max-width:420px){.plTrack{max-width:78px}#plVol{width:44px}}
 body{padding-bottom:54px}
 .titleBanner{display:flex;justify-content:space-between;align-items:center;gap:8px;border:2px solid var(--ink);border-radius:8px;background:#f3e2c4;padding:7px 10px;cursor:pointer;font-size:11px}
 .titleBanner:active{transform:translateY(1px)}
@@ -378,33 +426,20 @@ body.no-anim .mascot{animation:none}
 </style>
 </head>
 <body>
-<div class="musicBar" id="musicBar">
-  <button class="mbBtn mbHide" id="mbFold" title="згорнути плеєр">‹</button>
-  <button class="mbBtn" id="mbPlay" title="грати / пауза">▶</button>
-  <div class="mbBody" id="mbBody">
-    <div class="mbEq" id="mbEq"><i></i><i></i><i></i><i></i></div>
-    <span class="mbName" id="mbName">…</span>
-  </div>
-  <button class="mbBtn" id="mbMute" title="звук увімк/вимк">🔊</button>
-  <button class="mbBtn" id="mbPrev" title="попередній">◀</button>
-  <button class="mbBtn" id="mbNext" title="наступний">▶|</button>
-  <input type="range" id="mbVol" min="0" max="100" title="гучність">
-</div>
 <div class="player" id="player">
-  <div class="pRow">
-    <button class="pBtn" id="pPlay" title="грати/пауза">▶</button>
-    <div class="pEq" id="pEq"><i></i><i></i><i></i><i></i></div>
-    <div class="pName" id="pName">—</div>
-    <button class="pBtn" id="pPrev" title="попередній">◀</button>
-    <button class="pBtn" id="pNext" title="наступний">▶|</button>
-    <button class="pBtn" id="pMore" title="більше">⋯</button>
+  <button class="plBtn plToggle" id="plToggle" title="згорнути">‹</button>
+  <button class="plBtn plPlay" id="plPlay" title="грати / пауза">▶</button>
+  <div class="plMid" id="plMid">
+    <div class="plEq" id="plEq"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="plText">
+      <span class="plTrack" id="plTrack">тиша</span>
+      <span class="plSub" id="plSub">плеєр</span>
+    </div>
   </div>
-  <div class="pMore" id="pMoreBox">
-    <span class="sub">гучність музики</span>
-    <input type="range" id="pVol" min="0" max="100">
-    <span class="sub">ефекти</span>
-    <input type="range" id="pVolSfx" min="0" max="100">
-  </div>
+  <button class="plBtn" id="plPrev" title="попередній жанр">‹‹</button>
+  <button class="plBtn" id="plNext" title="наступний жанр">››</button>
+  <button class="plBtn" id="plMute" title="звук">🔊</button>
+  <input type="range" id="plVol" min="0" max="100" title="гучність">
 </div>
 <div class="wrap">
   <div class="topBar">
@@ -1847,116 +1882,48 @@ if($("mascotClock"))$("mascotClock").onclick=()=>{
 };
 
 /* ── постійний музичний плеєр унизу екрана ── */
-(function musicBar(){
-  const bar=$("musicBar");if(!bar)return;
-  if(localStorage.getItem("dk_mbmini")==="1")bar.classList.add("mini");
-  const label=()=>{const g=Audio5.getGenre?Audio5.getGenre():"";return (GENRE_NAMES&&GENRE_NAMES[g])||g||"тиша";};
+/* ══ логіка єдиного плеєра ══
+   пауза справжня (позиція зберігається), жанри перемикаються незалежно,
+   гучність і стан згортання памʼятаються, музика стартує лише з ▶. */
+(function player(){
+  const el=$("player");if(!el)return;
+  if(localStorage.getItem("dk_plfold")==="1")el.classList.add("folded");
+
+  function label(){
+    const g=Audio5.getGenre?Audio5.getGenre():"";
+    return (GENRE_NAMES&&GENRE_NAMES[g])||g||"тиша";
+  }
   function refresh(){
     const paused=Audio5.isPaused(), muted=Audio5.isMuted(), live=Audio5.isRunning();
     const on=live&&!paused&&!muted&&Audio5.vols.music>0;
-    bar.classList.toggle("playing",on);
-    bar.classList.toggle("off",!on);
-    $("mbPlay").textContent=paused?"▶":"❚❚";
-    $("mbMute").textContent=muted?"🔇":"🔊";
-    /* п.2: замість окремої плашки внизу — сам плеєр підказує, що звук ще не дозволено */
-    bar.classList.toggle("needsTouch",!live);
-    $("mbName").textContent=!live?"торкнись, щоб увімкнути звук":muted?"звук вимкнено":paused?"пауза · "+label():label();
-    $("mbVol").value=Audio5.vols.music;
+    el.classList.toggle("playing",on);
+    el.classList.toggle("needsTouch",!live);
+    $("plPlay").textContent=paused?"▶":"❚❚";
+    $("plMute").textContent=muted?"🔇":"🔊";
+    $("plTrack").textContent=!live?"увімкнути звук":label();
+    $("plSub").textContent=!live?"торкнись" :muted?"без звуку":paused?"пауза":"грає";
+    $("plVol").value=Audio5.vols.music;
   }
-  $("mbPlay").onclick=()=>{
+  $("plPlay").onclick=()=>{
     Audio5.unlock(true);
     const nowPaused=Audio5.togglePause();
     if(!nowPaused)Audio5.sfx.click();
     refresh();
   };
-  $("mbMute").onclick=()=>{
-    Audio5.unlock();
-    const m=Audio5.toggleMute();
-    if(!m)Audio5.sfx.coin();
-    refresh();
-  };
-  $("mbPrev").onclick=()=>{Audio5.unlock();shiftGenre(-1);refresh();};
-  $("mbNext").onclick=()=>{Audio5.unlock();shiftGenre(1);refresh();};
-  $("mbVol").oninput=e=>{Audio5.setVol("music",+e.target.value);refresh();};
-  $("mbBody").onclick=()=>{
-    bar.classList.toggle("mini");
-    localStorage.setItem("dk_mbmini",bar.classList.contains("mini")?"1":"0");
-    Audio5.sfx.click();
-  };
-  if(localStorage.getItem("dk_mbfold")==="1")bar.classList.add("folded");
-  $("mbFold").onclick=(e)=>{
+  $("plMute").onclick=()=>{Audio5.unlock();const m=Audio5.toggleMute();if(!m)Audio5.sfx.coin();refresh();};
+  $("plPrev").onclick=()=>{Audio5.unlock();shiftGenre(-1);refresh();};
+  $("plNext").onclick=()=>{Audio5.unlock();shiftGenre(1);refresh();};
+  $("plVol").oninput=e=>{Audio5.setVol("music",+e.target.value);refresh();};
+  $("plMid").onclick=()=>{Audio5.unlock();shiftGenre(1);Audio5.sfx.click();refresh();};
+  $("plToggle").onclick=e=>{
     e.stopPropagation();
-    const folded=bar.classList.toggle("folded");
-    localStorage.setItem("dk_mbfold",folded?"1":"0");
+    const folded=el.classList.toggle("folded");
+    localStorage.setItem("dk_plfold",folded?"1":"0");
     if(!folded)Audio5.sfx.click();
   };
-  setInterval(refresh,1200);
+  setInterval(refresh,1000);
   refresh();
 })();
-
-/* ── п.20: карти в розшуку (щодня нові, по одній на фракцію) ── */
-function loadWanted(){
-  /* розшук живе у вкладці «фракція» — на головному екрані його більше нема */
-  socket.emit("wantedToday",w=>{
-    const bar=$("wantedBar");
-    if(!w||!w.kyts||!w.anti||!bar)return;
-    const face=(id)=>`<span class="wantedFace"><img src="/cards/${id}.jpg" alt=""></span>`;
-    bar.style.display="";
-    bar.innerHTML=`<span><b>у розшуку</b></span>${face(w.kyts.id)}${face(w.anti.id)}<span class="sub">переможний хід цією картою — премія</span>`;
-  });
-}
-socket.on("connect",()=>setTimeout(loadWanted,900));
-
-/* ── п.40: доручення дня ── */
-function loadMission(){
-  socket.emit("missionToday",m=>{
-    const bar=$("missionBar");if(!bar||!m)return;
-    bar.style.display="";
-    bar.classList.toggle("done",!!m.done);
-    bar.innerHTML=`<span><b>доручення від ${esc(m.name)}</b></span>
-      <span>${esc(m.text)}</span>${m.goal>1?`<span class="sub">${m.prog}/${m.goal}</span>`:""}`;
-  });
-}
-socket.on("connect",()=>setTimeout(loadMission,1100));
-
-/* ── п.38: якщо почався новий сезон — розповідаємо про це ── */
-function showSeasonRoll(roll){
-  if(!roll)return;
-  $("confirmText").innerHTML=`<b>сезон ${esc(roll.prev)} завершено</b><br><br>
-    рейтинг мʼяко стиснуто: ${fmtSp(roll.from)} → ${fmtSp(roll.to)}<br>
-    ${roll.banner?`<span style="color:var(--kyts)">нагорода: сезонний банер, якого не купиш</span>`:"цього разу без нагороди — грай більше в новому сезоні"}`;
-  const p=$("confirmPanel");p.className="panel popFlip";
-  $("confYes").style.display="none";$("confNo").textContent="няв";
-  ov("ovConfirm",true);
-  $("confNo").onclick=()=>{ov("ovConfirm",false);$("confYes").style.display="";$("confNo").textContent="ні";bindConfNo();};
-}
-
-/* ── п.21: артефакт тихо рахує дивацтва (гравцю про це не кажемо) ── */
-const Quirk=(()=>{
-  let pend={},flushT=null;
-  function send(){
-    flushT=null;
-    for(const k of Object.keys(pend)){const by=pend[k];delete pend[k];if(by>0)socket.emit("quirk",{key:k,by});}
-  }
-  return {bump(k,by=1){pend[k]=(pend[k]||0)+by;clearTimeout(flushT);flushT=setTimeout(send,4000);}};
-})();
-
-/* ── п.13: esc закриває верхній відкритий шар ── */
-const ESC_ORDER=["ovConfirm","ovPostcard","ovBet","ovNyav","ovInv","ovFaction","ovWanted","ovShop","ovTop","ovAch","ovProfile","ovRules","ovLore","ovSettings","ovCred","ovDaily","ovMap","ovMenu"];
-document.addEventListener("keydown",e=>{
-  if(e.key!=="Escape")return;
-  const open=ESC_ORDER.find(id=>{const el=document.getElementById(id);return el&&el.classList.contains("on");});
-  if(open){
-    e.preventDefault();
-    Audio5.sfx.click();
-    /* повертаємось туди, звідки прийшли: інвентар і фракція — у профіль */
-    if(open==="ovInv"||open==="ovFaction"){ov(open,false);openProfile();return;}
-    ov(open,false);
-    return;
-  }
-  if($("gameChat")&&$("gameChat").classList.contains("on")){$("gameChat").classList.remove("on");return;}
-  if(view&&view.started&&!view.result){e.preventDefault();ov("ovMenu",true);}
-});
 
 /* ── лічильник онлайну ── */
 function pollOnline(){
@@ -2448,79 +2415,142 @@ $("btnShare").onclick=()=>{
   names.forEach(nm=>{const im=new Image();im.src="/cards/"+nm+".jpg";});
 })();
 
-/* ── п.4: черга бойових анімацій ──
-   стани приходять швидше, ніж рухаються карти. тримаємо їх у черзі й
-   застосовуємо по одному, доки не догра*є попередня бойова анімація.
-   не бойові оновлення (лобі, чат, результат) проходять одразу. */
+/* ══════════════════════════════════════════════════
+   БОЙОВА АНІМАЦІЯ · v2
+   натхнення: hearthstone (вага удару), gwent (спокійні
+   переходи ряду), balatro (пружні приземлення).
+   принципи:
+     • один стан за раз, черга дренується повністю;
+     • будь-яка помилка не має «замикати» чергу назавжди;
+     • фінальна комбінація завжди показується, навіть якщо
+       сервер прибрав стіл тим самим ходом (boutTable).
+   ══════════════════════════════════════════════════ */
+const T_HOLD = 1250;   /* скільки стіл лежить, щоб його прочитали */
+const T_SWEEP = 700;   /* політ карт у відбій / до гравця */
+
 const AnimQueue=(()=>{
-  let busy=false, pend=[];
+  let busy=false, pend=[], guard=null;
   function isBattle(prev,next){
     if(!prev||!next||!prev.started||!next.started)return false;
     if(prev.startedAt!==next.startedAt)return false;
     if(next.result)return false;
-    return prev.table.length>0&&next.table.length===0;   /* стіл поїхав — довга сцена */
+    /* стіл поїхав: або ми його бачили, або сервер надіслав знімок */
+    return (prev.table.length>0||(next.boutTable&&next.boutTable.length))&&next.table.length===0;
   }
-  function run(fn,ms){
+  function done(){
+    clearTimeout(guard); guard=null; busy=false;
+    /* дренуємо чергу повністю — саме тут раніше застрягали стани */
+    while(pend.length&&!busy){
+      const nx=pend.shift();
+      apply(nx.v,nx.prev,true);
+    }
+  }
+  function apply(v,prev,fromQueue){
+    if(busy&&!v.result&&!fromQueue){pend.push({v,prev});return;}
+    if(v.result){pend.length=0;clearTimeout(guard);busy=false;view=v;applyView();return;}
+    if(!isBattle(prev,v)){view=v;applyView();return;}
     busy=true;
-    fn();
-    setTimeout(()=>{
-      busy=false;
-      if(pend.length){const nx=pend.shift();apply(nx.v,nx.prev);}
-    },ms);
+    /* сторож: навіть якщо сцена впаде з помилкою, черга оживе */
+    guard=setTimeout(done,T_HOLD+T_SWEEP+600);
+    try{ battleScene(v,prev,done); }
+    catch(e){ console.warn("сцена бою впала:",e); view=v; applyView(); done(); }
   }
-  function apply(v,prev){
-    if(busy&&!v.result){pend.push({v,prev});return;}
-    if(isBattle(prev,v)){run(()=>battleClear(v,prev),BATTLE_MS);return;}
-    view=v;applyView();
-  }
-  return {apply,get busy(){return busy;},reset(){busy=false;pend=[];}};
+  return {apply,reset(){clearTimeout(guard);guard=null;busy=false;pend.length=0;}};
 })();
-const BATTLE_MS=2350;
 
-/* ── стан ── */
-/* сцену прибирання столу винесено в окрему функцію — її запускає черга */
-function battleClear(v,prev){
-  const bito=v.discard>prev.discard;
-  let taker=null;
-  if(!bito){
-    if(v.you.hand.length>prev.you.hand.length)taker="me";
-    else{
-      const grew=(v.others||[]).find(o=>{
-        const before=(prev.others||[]).find(p2=>p2.seat===o.seat);
-        return before&&o.handCount>before.handCount;
-      });
-      if(grew)taker=grew.seat;
-    }
-  }
-  const dest=bito?$("discMini"):(taker==="me"?$("hand"):taker?seatTarget(taker):null);
-  /* поки стіл лежить — підсвітка, щоб усі побачили, які карти йдуть у відбій */
+/* коротке тремтіння столу — «вага» удару, як у hearthstone */
+function tableShake(power){
   const tz=$("tbl");
-  if(tz){tz.classList.add("tblFreeze");setTimeout(()=>tz.classList.remove("tblFreeze"),1450);}
+  if(!tz||document.body.classList.contains("no-anim"))return;
+  tz.classList.remove("shakeS","shakeM");
+  void tz.offsetWidth;
+  tz.classList.add(power>=2?"shakeM":"shakeS");
+  setTimeout(()=>tz.classList.remove("shakeS","shakeM"),420);
+}
+
+/* спалах-кільце в місці удару */
+function impactRing(el){
+  if(!el||document.body.classList.contains("no-anim"))return;
+  const r=el.getBoundingClientRect();
+  const ring=document.createElement("div");
+  ring.className="impactRing";
+  ring.style.left=(r.left+r.width/2)+"px";
+  ring.style.top=(r.top+r.height/2)+"px";
+  flyRoot().appendChild(ring);
+  setTimeout(()=>ring.remove(),620);
+}
+
+/* хто забрав карти цього бою */
+function boutTaker(v,prev){
+  if(v.discard>prev.discard)return null;                 /* бито — у відбій */
+  if(v.you.hand.length>prev.you.hand.length)return "me";
+  const grew=(v.others||[]).find(o=>{
+    const before=(prev.others||[]).find(p2=>p2.seat===o.seat);
+    return before&&o.handCount>before.handCount;
+  });
+  return grew?grew.seat:null;
+}
+
+/* повна сцена завершення бою: показати → затримати → змести */
+function battleScene(v,prev,onDone){
+  const bito=v.discard>prev.discard;
+  const taker=boutTaker(v,prev);
+  const tz=$("tbl");
+
+  /* якщо останню карту сервер прибрав тим самим ходом — домальовуємо знімок */
+  if(v.boutTable&&v.boutTable.length&&tz)renderBoutSnapshot(v.boutTable);
+
+  if(tz){tz.classList.add("tblFreeze");setTimeout(()=>tz.classList.remove("tblFreeze"),T_HOLD);}
+  tableShake(1);
+
   setTimeout(()=>{
+    const cards=[...document.querySelectorAll("#tbl .card")];
     const mine=taker==="me";
-    if(bito){
-      document.querySelectorAll("#tbl .card").forEach((el,i)=>{
-        flyClone(el,$("discMini"),"discard",Math.min(i*40,240));
-        el.classList.add("anim-out-bito");
-      });
-    } else if(mine){
-      document.querySelectorAll("#tbl .card").forEach((el,i)=>{
-        flyClone(el,$("hand"),"toHand",Math.min(i*40,240));
-        el.classList.add("anim-out-take");
-      });
-    } else {
-      document.querySelectorAll("#tbl .card").forEach((el,i)=>{
-        el.style.animationDelay=Math.min(i*35,200)+"ms";
-        el.classList.add("anim-dissolve");
-      });
-      const who=(v.others||[]).find(o=>o.seat===taker);
-      showTakerLabel(who?who.nick:"суперник");
+    const dest=bito?$("discMini"):(mine?$("hand"):taker?seatTarget(taker):null);
+    cards.forEach((el,i)=>{
+      const delay=Math.min(i*45,260);
+      if(dest)flyClone(el,dest,bito?"discard":(mine?"toHand":"toFoe"),delay);
+      el.style.animationDelay=delay+"ms";
+      el.classList.add(bito?"anim-out-bito":(mine?"anim-out-take":"anim-dissolve"));
+    });
+    if(bito){Audio5.sfx.bito();tableShake(2);}
+    else{
+      Audio5.sfx.take();
+      if(!mine){
+        const who=(v.others||[]).find(o=>o.seat===taker);
+        showTakerLabel(who?who.nick:"суперник");
+      }
     }
-    if(bito)Audio5.sfx.bito(); else Audio5.sfx.take();
-  },1450);
-  clearFlies();
-  view=v;
-  setTimeout(applyView,2300);
+    setTimeout(()=>{
+      clearFlies();
+      view=v;
+      applyView();
+      onDone();
+    },T_SWEEP);
+  },T_HOLD);
+}
+
+/* домальовуємо фінальну комбінацію зі знімка сервера */
+function renderBoutSnapshot(snap){
+  const tbl=$("tbl");
+  if(!tbl)return;
+  tbl.innerHTML="";
+  snap.forEach((p,i)=>{
+    const pr=document.createElement("div");pr.className="pair";
+    const a=cardEl(p.a,"");
+    a.style.setProperty("--rest","-2deg");
+    a.style.transform="rotate(-2deg)";a.style.zIndex="1";
+    pr.appendChild(a);
+    if(p.d){
+      const d=cardEl(p.d,seenTable.has(p.d.uid)?"":"lay");
+      seenTable.add(p.d.uid);
+      d.style.position="absolute";d.style.zIndex="3";d.style.left="16px";d.style.top="14px";
+      d.style.setProperty("--rest","7deg");
+      pr.appendChild(d);
+      if(i===snap.length-1){impactRing(d);Audio5.sfx.slap();}
+    }
+    tbl.appendChild(pr);
+  });
 }
 
 socket.on("state",v=>{

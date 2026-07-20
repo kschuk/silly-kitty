@@ -549,6 +549,7 @@ function viewFor(game, seat, msg = "") {
     nipUsed: st ? st.nipUsed : false,
     isPve: !!game.isPve, isDaily: !!game.isDaily, amb: game.amb || null,
     haunt: game.hauntEffect || null,
+    boutTable: game.boutTable || null,
     glitch: st?.glitch ? { enabled: true, active: st.glitch.active, kind: st.glitch.active ? st.glitch.kind : null } : null,
     bet: game.bet ? betView(game, seat) : null,
     nyav: st?.phase === "nyav"
@@ -589,7 +590,7 @@ function startDeal(game, seed) {
   game.startedAt = Date.now();
   game.lastSide = {}; game.coinNotes = {}; game.lastCardPlayed = null;
   game.throwsBy = {}; game.nipsPlayed = {}; game.fivesPlayed = {}; game.glitchMoved = {}; game.glitchPending = null;
-  game.ambUsed = new Set(); game.ambCount = 0; game.ambLast = 0;
+  game.ambUsed = new Set(); game.ambCount = 0; game.ambLast = 0; game.boutTable = null;
   game.ambSaid = {}; game.ambLastKey = null; game.ambLastWho = null; game.ambLastText = null;
   game.clockClicks = {}; game.wasLoneCard = {};
   game.glitchDone = false;
@@ -662,6 +663,10 @@ function performMove(game, seat, type, uid) {
   game.players[seat].lastAct = Date.now();
   const me = nickOf(game, seat);
   const ev = r.ev;
+  /* п.1: коли бій завершується тим самим ходом, ядро вже очистило стіл —
+     тож клієнт ніколи не побачив би останню карту. надсилаємо знімок. */
+  if (ev && ev.type === "bout" && ev.table) game.boutTable = ev.table;
+  else game.boutTable = null;
   /* амбасадор реагує на ПОДІЇ, а не на кожен хід */
   if (game.isPve && !game.players[seat].bot) artifactHaunt(game, seat);
   if (game.isPve && !game.players[seat].bot && ev) {

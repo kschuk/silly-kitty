@@ -218,6 +218,8 @@ function finishBout(s, defended) {
   const cards = s.table.flatMap((p) => (p.d ? [p.a, p.d] : [p.a]));
   const ev = {
     type: "bout", defended, count: cards.length,
+    /* знімок столу до прибирання — щоб інтерфейс показав фінальну комбінацію */
+    table: s.table.map((p) => ({ a: p.a, d: p.d })),
     nipOnly: cards.length === 1 && isNip(cards[0]),
     taker: defended ? null : oldDef,
   };
