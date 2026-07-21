@@ -6,7 +6,7 @@
 <title>дур-киць · онлайн</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Unbounded:wght@500;800&display=swap');
-:root{--cardW:64px;--cardH:75px;--cardR:14px;--ink:#272019;--paper:#ece3cc;--panel:#f6efdc;--kyts:#b55a24;--anti:#4a5680;--tFast:170ms;--tMed:320ms;--tSlow:560ms;--eOut:cubic-bezier(.4,0,.5,1);--eIn:cubic-bezier(.2,.85,.3,1.02);--eSoft:cubic-bezier(.35,0,.25,1);--cardR:17px;--cardW:64px;--cardH:75px}
+:root{--ink:#272019;--paper:#ece3cc;--panel:#f6efdc;--kyts:#b55a24;--anti:#4a5680;--tFast:170ms;--tMed:320ms;--tSlow:560ms;--eOut:cubic-bezier(.4,0,.5,1);--eIn:cubic-bezier(.2,.85,.3,1.02);--eSoft:cubic-bezier(.35,0,.25,1);--cardR:17px;--cardW:64px;--cardH:75px}
 @media(min-width:700px){
   :root{--cardW:84px;--cardH:98px;--cardR:20px}
   body{font-size:13px}
@@ -25,9 +25,28 @@
   .tableZone{min-height:280px}
   .mascot{width:190px !important;height:190px !important}
   .panel{max-width:520px}
-  .achGrid{grid-template-columns:1fr 1fr 1fr}
-  /* мініатюра банера в магазині й альбомі */
+  .achGrid,.pcThumb{width:100%;aspect-ratio:6/7;max-height:80px;border-radius:10px;border:2px solid var(--ink);overflow:hidden;display:flex;align-items:center;justify-content:center;margin-bottom:5px}
+.pcThumb img{width:100%;height:100%;object-fit:cover;display:block}
+.pcLock{font-family:'Unbounded',monospace;font-weight:800;font-size:22px;opacity:.35}
+.pcItem{cursor:pointer;transition:transform var(--tFast) var(--eOut)}
+.pcItem:active{transform:translateY(1px)}
+.pcItem.empty{opacity:.65;border-style:dashed}
+.pcItem.activeBanner{box-shadow:0 0 0 3px var(--kyts) inset}
+.pcHave{font-weight:600;color:var(--kyts);font-size:9.5px}
+.pcPrice{font-weight:600;font-size:10px}
 .selBox{font-family:inherit;font-size:10px;border:2px solid var(--ink);border-radius:6px;background:var(--paper);padding:4px 6px}
+.dupBadge{display:inline-block;margin-left:5px;border:1.5px solid var(--ink);border-radius:10px;padding:0 5px;font-size:8.5px;background:var(--panel)}
+@keyframes dissolve{0%{opacity:1;transform:scale(1)}55%{opacity:.35;transform:scale(.97)}to{opacity:0;transform:scale(.9)}}
+.anim-dissolve{animation:dissolve var(--tSlow) var(--eOut) both;will-change:opacity,transform}
+@keyframes takerIn{0%{opacity:0;transform:translateY(8px) scale(.9)}22%{opacity:1;transform:translateY(0) scale(1)}
+  72%{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-10px) scale(.96)}}
+@keyframes tblHold{0%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}35%{box-shadow:inset 0 0 0 3px rgba(181,90,36,.45)}
+  100%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}}
+.tableZone.tblFreeze{animation:tblHold 1.45s ease-in-out}
+.takerLabel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:none;
+  font-family:'Unbounded',monospace;font-weight:800;font-size:13px;letter-spacing:.03em;
+  background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:5px 14px;
+  box-shadow:2px 3px 0 rgba(39,32,25,.4);animation:takerIn 1.5s var(--eOut) both;white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis}
 body.haunted #mhH{transform:rotate(213deg)!important}
 body.haunted #mhM{transform:rotate(97deg)!important;transition:transform .4s}
 body.haunted #mhS{animation:spinS 2.4s linear infinite}
@@ -43,6 +62,7 @@ body.haunted #mhS{animation:spinS 2.4s linear infinite}
 .profBanner{width:100%;height:74px;border-radius:10px;border:2px solid var(--ink);overflow:hidden;margin-bottom:8px;position:relative;background:var(--paper)}
 .profBanner img{width:100%;height:100%;object-fit:cover;filter:saturate(1.05)}
 .profBanner .pbName{position:absolute;left:8px;bottom:5px;font-size:10px;font-weight:600;background:rgba(246,239,220,.85);border:1.5px solid var(--ink);border-radius:8px;padding:1px 7px}
+.shopGrid{grid-template-columns:repeat(4,1fr)}
   .gameChat{width:340px}
 }
 @media(hover:hover){
@@ -91,8 +111,25 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .card.dim{opacity:.4}
 .card.target{outline:3px solid var(--kyts)}
 @keyframes bob{0%,100%{transform:translateY(-6px)}50%{transform:translateY(-10px)}}
+@keyframes cardIn{from{transform:translate3d(0,22px,0) scale(.62) rotate(-7deg);opacity:0}to{transform:translate3d(0,0,0) scale(1) rotate(0);opacity:1}}
 /* п.4: і атака, і биття лягають однаково — різниться лише кінцевий нахил (--rest) */
+.card.lay{transform:rotate(var(--rest,0deg));animation:layIn var(--tMed) var(--eIn) both;will-change:transform,opacity}
+@keyframes layIn{
+  from{transform:translate3d(0,24px,0) scale(.84) rotate(calc(var(--rest,0deg) - 15deg));opacity:.25}
+  to{transform:translate3d(0,0,0) scale(1) rotate(var(--rest,0deg));opacity:1}
+}
+.anim-in{animation:cardIn var(--tMed) var(--eIn);will-change:transform,opacity}
+@keyframes outBito{0%{opacity:1;transform:translate3d(0,0,0)}22%{opacity:.95;transform:translate3d(0,-5px,0) rotate(3deg)}to{transform:translate3d(110px,-46px,0) rotate(18deg) scale(.5);opacity:0}}
+.anim-out-bito{animation:outBito .7s cubic-bezier(.4,0,.5,1) forwards}
+@keyframes lastGlow{0%,72%{box-shadow:0 0 0 3px var(--kyts),1.5px 2px 0 rgba(39,32,25,.35)}to{box-shadow:1.5px 2px 0 rgba(39,32,25,.35)}}
+.anim-last{animation:lastGlow 1.7s ease-out forwards}
 /* забір: напрямок залежить від того, ХТО забирає — вниз до мене, вгору до суперника */
+@keyframes outTakeDown{0%{opacity:1;transform:translate3d(0,0,0)}to{transform:translate3d(0,90px,0) rotate(-8deg) scale(.62);opacity:0}}
+@keyframes outTakeUp{0%{opacity:1;transform:translate3d(0,0,0)}to{transform:translate3d(0,-96px,0) rotate(8deg) scale(.62);opacity:0}}
+.anim-out-take{animation:outTakeDown var(--tSlow) var(--eOut) forwards}
+@keyframes drawIn{from{transform:translate3d(46px,-10px,0) rotate(9deg) scale(.92);opacity:0}to{transform:translate3d(0,0,0) rotate(0) scale(1);opacity:1}}
+.anim-draw{animation:drawIn .45s ease-out}
+@keyframes slap{from{transform:rotate(19deg) scale(1.22);opacity:.35}to{transform:rotate(7deg) scale(1);opacity:1}}
 @keyframes msgIn{from{opacity:0;transform:translateY(4px)}}
 .msg{min-height:16px;margin-top:8px;text-transform:lowercase;animation:msgIn .25s ease-out}
 @keyframes pulse{0%,100%{box-shadow:2px 2px 0 rgba(39,32,25,.35)}50%{box-shadow:2px 2px 0 rgba(181,90,36,.7)}}
@@ -100,8 +137,17 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .hand{margin-top:8px;padding-top:12px}
 .hand .fanIn{position:relative;margin:0 auto}
 .hand .slot{position:absolute;top:0}
-.slot.card img.art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--cardR) - 3px)}
+.slot.anim-draw{animation:drawIn var(--tMed) var(--eSoft) both;will-change:transform,opacity}
+.card img.art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--cardR) - 3px)}
 .iconBtn{background:var(--ink);color:var(--paper);border-color:var(--ink);padding:5px 9px;font-size:10px;display:inline-flex;align-items:center;gap:5px}
+.shopHead{height:14px;border-radius:6px 6px 0 0;margin:-18px -18px 10px;background:repeating-linear-gradient(90deg,var(--kyts) 0 16px,var(--panel) 16px 32px);border-bottom:2px solid var(--ink)}
+.shopGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.pcItem{cursor:pointer}
+.pcItem.have{background:#f3e2c4}
+.pcThumb{border-radius:8px;padding:4px;margin-bottom:5px;display:flex;justify-content:center}
+.pcThumb img{width:100%;max-width:76px;border-radius:6px;border:2px solid var(--ink);display:block}
+.pcPrice{display:inline-block;margin-top:4px;font-weight:600}
+.pcHave{display:inline-block;margin-top:4px;font-size:9px;color:var(--kyts);font-weight:600}
 .pcBig{border:6px solid var(--frame);border-radius:14px;background:var(--paper);padding:10px;text-align:center;box-shadow:3px 4px 0 rgba(39,32,25,.4)}
 .pcBigInner{border:2px solid var(--ink);border-radius:10px;overflow:hidden;background:var(--frame);padding:6px}
 .pcBigInner img{width:100%;display:block;border-radius:8px;border:2px solid var(--ink)}
@@ -109,6 +155,9 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .pcSub{font-size:10px;opacity:.8;margin-top:2px}
 .pcQuote{font-size:10.5px;font-style:italic;margin-top:8px;color:var(--kyts)}
 .pcBrand{font-size:8px;letter-spacing:.2em;opacity:.6;margin-top:8px}
+.shopItem{border:2px solid var(--ink);border-radius:8px;padding:6px;font-size:9px;position:relative;background:var(--paper);font-size:10px;line-height:1.4;text-align:left}
+.sold{position:absolute;right:5px;top:5px;transform:rotate(10deg);border:2px solid #8c2f1b;color:#8c2f1b;font-size:7px;padding:1px 4px;border-radius:4px;letter-spacing:.06em}
+.featured{border:3px solid var(--kyts);border-radius:10px;background:#f3e2c4;padding:10px;margin-top:8px}
 .invTabs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px}
 .invTabs button{font-size:10px;padding:5px 10px;box-shadow:none}
 .invTabs button.sel{background:var(--kyts);color:var(--panel);border-color:var(--kyts)}
@@ -117,138 +166,100 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .wantedCard img{width:100%;max-width:130px;aspect-ratio:6/7;object-fit:cover;border:2px solid var(--ink);border-radius:10px;display:block;margin:0 auto 6px}
 .wantedCard.kyts{border-color:#e0a33a}.wantedCard.anti{border-color:#5c9a4e}
 @media(min-width:700px){.wantedCard img{max-width:170px}}
-.panelScroll{display:flex;flex-direction:column;max-height:86vh;overflow:hidden}
+.panelScroll{display:flex;flex-direction:column;max-height:88vh}
 .panelScroll>.big,.panelScroll>.sub,.panelScroll>.row{flex:0 0 auto}
-.panelScroll>#achList,.panelScroll>#wantedBody{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
 .achWrap{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-right:4px}
-/* ══ БОЙОВІ АНІМАЦІЇ v3 ══ */
-/* приземлення карти: замах згори, перельот, пружна посадка */
+#achList{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+/* ── бойові анімації v2 ── */
+/* приземлення карти: замах згори, перельот і пружна посадка (balatro-відчуття) */
 
-/* кільце-удар у місці биття */
+/* кільце-удар у місці биття (hearthstone-«вага») */
+@keyframes ringOut{
+  0%{transform:translate(-50%,-50%) scale(.25);opacity:.85;border-width:6px}
+  100%{transform:translate(-50%,-50%) scale(2.1);opacity:0;border-width:1px}
+}
+.impactRing{position:fixed;width:74px;height:74px;border-radius:50%;border:5px solid var(--kyts);
+  pointer-events:none;animation:ringOut 600ms cubic-bezier(.2,.7,.3,1) forwards;mix-blend-mode:multiply}
 
 /* тремтіння столу під удар */
+@keyframes shakeS{0%,100%{transform:translate3d(0,0,0)}25%{transform:translate3d(-2px,1px,0)}60%{transform:translate3d(2px,-1px,0)}}
+@keyframes shakeM{0%,100%{transform:translate3d(0,0,0)}20%{transform:translate3d(-4px,2px,0)}45%{transform:translate3d(4px,-2px,0)}70%{transform:translate3d(-2px,1px,0)}}
+.tableZone.shakeS{animation:shakeS 260ms ease-out}
+.tableZone.shakeM{animation:shakeM 420ms ease-out}
 
-/* поки стіл лежить — тепле світло по рамці */
+/* поки стіл лежить — тепле світло по рамці (gwent-спокій) */
+  30%{box-shadow:inset 0 0 0 3px rgba(181,90,36,.5)}
+  100%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}
+}
+.tableZone.tblFreeze{animation:tblHold 1.25s ease-in-out}
 
-/* відліт у відбій */
+/* відліт у відбій: спершу коротка «зарядка», потім різкий змах */
+  18%{transform:translate3d(0,6px,0) scale(.96) rotate(var(--rest,0deg))}
+  100%{transform:translate3d(120px,-58px,0) rotate(26deg) scale(.45);opacity:0}
+}
+.anim-out-bito{animation:outBito 700ms cubic-bezier(.45,0,.55,1) both;will-change:transform,opacity}
 
-/* політ до себе */
+/* політ до себе: карти «всмоктуються» вниз */
+  20%{transform:translate3d(0,-7px,0) scale(1.03)}
+  100%{transform:translate3d(0,110px,0) rotate(-10deg) scale(.5);opacity:0}
+}
+.anim-out-take{animation:outTakeDown 700ms cubic-bezier(.45,0,.55,1) both;will-change:transform,opacity}
 
 /* до суперника: розчинення з підйомом */
+  40%{opacity:.6;transform:translate3d(0,-10px,0) scale(.98)}
+  100%{opacity:0;transform:translate3d(0,-42px,0) scale(.86)}
+}
+.anim-dissolve{animation:dissolve 700ms cubic-bezier(.4,0,.5,1) both;will-change:opacity,transform}
 
-/* тривожний вихід — маленька іконка внизу менюв */
-.menuFoot{display:flex;justify-content:center;margin-top:14px;padding-top:11px;border-top:1.5px dashed rgba(39,32,25,.25)}
-.dangerDot{width:36px;height:36px;padding:0;border-radius:50%;font-size:15px;line-height:1;
-  background:#8c2f1b;color:#f6efdc;border:2px solid #5e1f12;box-shadow:2px 2px 0 rgba(94,31,18,.45);
-  display:flex;align-items:center;justify-content:center;cursor:pointer}
-.dangerDot:active{transform:translateY(1px)}
-@keyframes dotPulse{0%,100%{box-shadow:2px 2px 0 rgba(94,31,18,.45)}50%{box-shadow:2px 2px 0 rgba(94,31,18,.45),0 0 0 4px rgba(140,47,27,.18)}}
-.dangerDot{animation:dotPulse 2.6s ease-in-out infinite}
-
-/* ══ КРАМНИЦЯ · інді-вітрина ══ */
-.shopPanel{max-width:540px;display:flex;flex-direction:column;max-height:88vh;padding:0;overflow:hidden;
-  background:linear-gradient(180deg,#f7f0dd,#efe4c8)}
-.shopAwning{height:16px;flex:0 0 auto;
-  background:repeating-linear-gradient(90deg,var(--kyts) 0 18px,#f6efdc 18px 36px);
-  border-bottom:2px solid var(--ink)}
-.shopHead{flex:0 0 auto;padding:12px 16px 10px;text-align:center;border-bottom:2px dashed rgba(39,32,25,.25)}
-.shopSign{font-family:'Unbounded',monospace;font-weight:800;font-size:20px;letter-spacing:.06em}
-.shopMotto{font-size:9px;letter-spacing:.14em;opacity:.6;margin-top:2px}
-.shopPurse{display:inline-flex;gap:10px;align-items:center;margin-top:8px;font-size:11px;font-weight:600;
-  border:2px solid var(--ink);border-radius:20px;padding:4px 12px;background:var(--paper)}
-.shopScroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
-  overscroll-behavior:contain;padding:12px 14px}
-.shopFoot{flex:0 0 auto;padding:10px 14px 12px;border-top:2px solid var(--ink);background:var(--panel)}
-.shopErr{min-height:14px;margin-bottom:6px}
-.shelf{margin-bottom:16px}
-.shelfTitle{display:flex;align-items:center;gap:8px;font-size:9px;letter-spacing:.18em;opacity:.7;margin-bottom:8px}
-.shelfTitle::after{content:"";flex:1;height:2px;background:repeating-linear-gradient(90deg,rgba(39,32,25,.35) 0 5px,transparent 5px 9px)}
-.goods{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px}
-.good{position:relative;border:2px solid var(--ink);border-radius:12px;background:var(--paper);
-  padding:8px 8px 9px;text-align:center;cursor:pointer;
-  box-shadow:1.5px 2px 0 rgba(39,32,25,.28);transition:transform var(--tQuick) var(--easeSnap)}
-.good:active{transform:translateY(2px);box-shadow:1px 1px 0 rgba(39,32,25,.28)}
-.good.owned{border-color:var(--kyts);background:linear-gradient(180deg,#f8f1dd,#f2e3bf)}
-.good.locked{opacity:.9}
-.good.gone{opacity:.5;cursor:default;border-style:dashed;box-shadow:none}
-.goodArt{width:100%;aspect-ratio:6/7;border-radius:9px;border:2px solid var(--ink);overflow:hidden;
-  background:rgba(39,32,25,.06);display:flex;align-items:center;justify-content:center;margin-bottom:6px}
-.goodArt img{width:100%;height:100%;object-fit:cover;display:block}
-.goodArt .q{font-family:'Unbounded',monospace;font-weight:800;font-size:22px;opacity:.3}
-.goodName{font-size:9.5px;font-weight:700;line-height:1.25;min-height:24px}
-.goodTag{display:inline-flex;align-items:center;gap:3px;margin-top:5px;font-size:9px;font-weight:700;
-  border:1.5px solid var(--ink);border-radius:10px;padding:1px 7px;background:var(--panel)}
-.good.owned .goodTag{border-color:var(--kyts);color:var(--kyts)}
-.goodDupe{position:absolute;top:5px;right:5px;font-size:8px;font-weight:700;
-  border:1.5px solid var(--ink);border-radius:9px;padding:0 5px;background:var(--panel)}
-.goodStamp{position:absolute;top:8px;left:50%;transform:translateX(-50%) rotate(-7deg);
-  font-size:8px;letter-spacing:.1em;color:#8c2f1b;border:2px solid #8c2f1b;border-radius:5px;
-  padding:1px 6px;background:rgba(246,239,220,.9)}
-.deal{border:2.5px solid var(--kyts);border-radius:12px;padding:11px;background:#f3e2c4;
-  display:flex;gap:10px;align-items:center;text-align:left}
-.dealIcon{width:42px;height:42px;flex:0 0 auto;border-radius:10px;border:2px solid var(--ink);
-  background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:18px}
-.dealBody{flex:1 1 auto;min-width:0}
-.dealName{font-weight:700;font-size:11px}
-.dealDesc{font-size:9.5px;opacity:.8;margin-top:2px}
-.dealBuy{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
-.dealBuy button{font-size:9.5px;padding:3px 9px;box-shadow:none}
-
-/* ══ АНІМАЦІЇ · мінімум ══
-   лише два делікатні ефекти, жодних довгих сцен:
-   поява карти й тихе зникання столу. решта — миттєво. */
-@keyframes dkIn{from{opacity:0;transform:translate3d(0,-8px,0)}to{opacity:1;transform:none}}
-.card.dkLay{animation:dkIn 160ms ease-out both}
-.slot.anim-draw{animation:dkIn 160ms ease-out both}
-@keyframes dkOut{to{opacity:0}}
-.anim-sweep,.anim-pull,.anim-fade{animation:dkOut 200ms ease-in both}
-.takerLabel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:none;
-  font-family:'Unbounded',monospace;font-weight:800;font-size:13px;
-  background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:5px 14px;
-  box-shadow:2px 3px 0 rgba(39,32,25,.4);white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis}
-
-/* ══ ДОСЯГНЕННЯ · трофейна вітрина ══ */
-.achPanel{max-width:520px;display:flex;flex-direction:column;max-height:86vh;padding:14px 14px 12px;overflow:hidden}
-.achHead{flex:0 0 auto}
-.achScoreLine{font-family:'Unbounded',monospace;font-weight:800;font-size:20px;line-height:1;margin-top:6px}
-.achScoreLine .sub{font-family:'IBM Plex Mono',monospace;font-weight:400;font-size:10px}
-.achBar{height:8px;border:2px solid var(--ink);border-radius:5px;background:rgba(39,32,25,.1);margin:8px 0 2px;overflow:hidden}
-.achBar>div{height:100%;width:0;background:linear-gradient(90deg,var(--kyts),#d98b3f);transition:width .5s ease}
-.achTabs{display:flex;gap:6px;justify-content:center;margin:9px 0 4px}
-.achTabs button{font-size:10px;padding:4px 12px;box-shadow:none}
-.achTabs button.sel{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-.achScroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
-  overscroll-behavior:contain;padding:6px 6px 6px 0;margin-top:4px;text-align:left}
-.achFoot{flex:0 0 auto;padding-top:10px}
-.achSect{display:flex;align-items:center;gap:8px;font-size:9px;letter-spacing:.18em;opacity:.7;margin:12px 2px 8px}
-.achSect:first-child{margin-top:2px}
-.achSect::after{content:"";flex:1;height:1.5px;background:rgba(39,32,25,.2)}
-.achRow{display:flex;gap:11px;align-items:center;padding:9px 11px;margin-bottom:7px;
-  border:2px solid rgba(39,32,25,.22);border-left:5px solid var(--rar,#8d8577);border-radius:10px;
-  background:rgba(246,239,220,.55)}
-.achRow.got{background:linear-gradient(90deg,rgba(246,239,220,.95),rgba(243,226,196,.75));
-  border-color:rgba(39,32,25,.4);box-shadow:1.5px 2px 0 rgba(39,32,25,.18)}
-.achRow.locked{opacity:.62}
-.achRow.r-common{--rar:#8d8577}
-.achRow.r-uncommon{--rar:#3f7a34}
-.achRow.r-rare{--rar:#2f5fa8}
-.achRow.r-epic{--rar:#7a3fa8}
-.achRow.r-legendary{--rar:#c07a12}
-.achIcon{width:40px;height:40px;flex:0 0 auto;border-radius:50%;border:2.5px solid var(--rar,#8d8577);
-  display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--paper);
-  box-shadow:inset 0 0 0 2px rgba(246,239,220,.9)}
-.achRow.locked .achIcon{filter:grayscale(1) opacity(.65)}
-.achRow.got .achIcon{background:linear-gradient(150deg,#fff8e2,#f0dcae)}
-.achInfo{min-width:0;flex:1 1 auto}
-.achTitle{font-weight:700;font-size:11.5px;line-height:1.3}
-.achWhat{font-size:10px;line-height:1.4;opacity:.8;margin-top:2px}
-.achSide{flex:0 0 auto;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
-.achVal{font-family:'Unbounded',monospace;font-weight:800;font-size:13px;color:var(--rar,#8d8577)}
-.achRank{font-size:8px;letter-spacing:.08em;opacity:.6}
-.achTick{font-size:11px;color:var(--kyts)}
-
+/* рідкість: колір рамки й підпису, як у класичних rpg-логах */
+.achCard{--rar:#7a6f5c}
+.achCard.r-common{--rar:#8d8577}
+.achCard.r-uncommon{--rar:#3f7a34}
+.achCard.r-rare{--rar:#2f5fa8}
+.achCard.r-epic{--rar:#7a3fa8}
+.achCard.r-legendary{--rar:#b56a10}
+.achMedal{width:44px;height:44px;flex:0 0 auto;border-radius:9px;border:2.5px solid var(--rar);
+  background:linear-gradient(155deg,rgba(255,255,255,.55),rgba(39,32,25,.12));
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  box-shadow:inset 0 0 0 1.5px rgba(246,239,220,.75),1.5px 2px 0 rgba(39,32,25,.3)}
+.achCard.locked .achMedal{filter:grayscale(1);opacity:.5}
+.achCard{display:flex;gap:9px;align-items:flex-start;border-width:2.5px;border-color:var(--rar);
+  background:linear-gradient(180deg,rgba(246,239,220,.9),rgba(236,227,204,.6))}
+.achCard.locked{background:rgba(236,227,204,.4)}
+.achName{font-weight:700;font-size:11px;color:var(--rar);line-height:1.25}
+.achDesc{font-size:9.5px;line-height:1.4;opacity:.85;margin-top:2px}
+.achMeta{display:flex;gap:6px;align-items:center;margin-top:3px;font-size:8.5px;letter-spacing:.05em;opacity:.8}
+.achPts{border:1.5px solid var(--rar);color:var(--rar);border-radius:9px;padding:0 5px;font-weight:700}
+.achScore{display:flex;justify-content:space-between;align-items:center;border:2px solid var(--ink);
+  border-radius:10px;background:#f3e2c4;padding:7px 10px;font-size:11px;margin-top:8px}
+.achScore b{font-family:'Unbounded',monospace;font-size:15px}
+.achBar{height:6px;border-radius:3px;background:rgba(39,32,25,.15);margin-top:6px;overflow:hidden}
+.achBar>div{height:100%;background:var(--kyts)}
+.achGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.achCard{border:2px solid var(--ink);border-radius:10px;padding:9px 8px 8px;background:var(--paper);text-align:left;font-size:10px;line-height:1.45;position:relative;min-height:70px}
+.achCard .ai{font-size:16px;line-height:1}
+.achCard.got{background:#f3e2c4;border-color:var(--kyts);border-width:2.5px}
+.achCard.locked{opacity:.5;border-style:dashed}
+.player{position:fixed;left:50%;transform:translateX(-50%);bottom:0;z-index:45;width:100%;max-width:460px;
+  background:var(--panel);border-top:2px solid var(--ink);border-radius:12px 12px 0 0;
+  padding:6px 10px 8px;box-shadow:0 -2px 0 rgba(39,32,25,.25)}
+.pRow{display:flex;align-items:center;gap:7px}
+.pBtn{padding:5px 9px;font-size:11px;box-shadow:none;border-width:2px;flex-shrink:0}
+.pName{flex:1;font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.pEq{display:flex;align-items:flex-end;gap:2px;height:14px;width:16px;flex-shrink:0}
+.pEq i{display:block;width:3px;background:var(--kyts);height:20%;border-radius:1px}
+.player.on .pEq i{animation:eq .9s ease-in-out infinite}
+.player.on .pEq i:nth-child(2){animation-delay:.15s}
+.player.on .pEq i:nth-child(3){animation-delay:.3s}
+.player.on .pEq i:nth-child(4){animation-delay:.45s}
+@keyframes eq{0%,100%{height:20%}50%{height:100%}}
+.pMore{display:none;margin-top:6px}
+.pMore.on{display:block}
+.pMore input{width:100%}
+.wrap{padding-bottom:74px !important}
+@media(min-width:1000px){.player{max-width:900px}}
 /* ══ єдиний музичний плеєр ══ */
-.player{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:12;
+.player{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:46;
   display:flex;align-items:center;gap:7px;max-width:min(440px,94vw);
   background:linear-gradient(180deg,var(--panel),#efe6cf);
   border:2px solid var(--ink);border-radius:24px;padding:6px 9px;
@@ -304,7 +315,6 @@ body{padding-bottom:54px}
 .clock .t{font-size:10px;font-weight:600;letter-spacing:.06em}
 .overlay{position:fixed;inset:0;background:rgba(39,32,25,.72);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
 .overlay.on{display:flex}
-body.modal .player{display:none}
 .panel{background:var(--panel);border:2px solid var(--ink);border-radius:10px;padding:18px;max-width:360px;width:100%;text-align:center;max-height:88vh;overflow-y:auto}
 .big{font-family:'Unbounded',monospace;font-weight:800;font-size:17px}
 .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
@@ -404,31 +414,6 @@ body.no-anim .mascot{animation:none}
 .optRow input{width:14px;height:14px}
 .glitchBanner{background:var(--kyts);color:var(--panel);text-align:center;font-size:10px;padding:4px;border-radius:6px;margin-bottom:6px;display:none;animation:pulse 1s ease-in-out infinite}
 .glitchBanner.on{display:block}
-/* ══ МАПА · шлях завоювань ══ */
-.mapBoard{position:relative;margin-top:10px;padding:14px 10px 10px;border:2px solid var(--ink);border-radius:14px;
-  background:
-    radial-gradient(circle at 18% 12%,rgba(181,90,36,.10),transparent 55%),
-    radial-gradient(circle at 82% 88%,rgba(74,86,128,.10),transparent 55%),
-    repeating-linear-gradient(0deg,rgba(39,32,25,.045) 0 1px,transparent 1px 5px),
-    #efe5cb;
-  box-shadow:inset 0 0 22px rgba(39,32,25,.14)}
-.mapSides{display:flex;justify-content:space-between;font-size:8.5px;letter-spacing:.14em;opacity:.65;margin-bottom:8px}
-.mapPath{position:relative;display:flex;flex-direction:column;gap:0}
-.mapPath::before{content:"";position:absolute;left:21px;top:14px;bottom:14px;width:3px;
-  background:repeating-linear-gradient(180deg,rgba(39,32,25,.45) 0 7px,transparent 7px 13px);border-radius:2px}
-.mapNode{position:relative;display:flex;align-items:center;gap:11px;padding:7px 4px;z-index:1}
-.mapDot{width:44px;height:44px;flex:0 0 auto;border-radius:12px;border:2.5px solid var(--ink);
-  box-shadow:1.5px 2px 0 rgba(39,32,25,.35);position:relative;overflow:hidden}
-.mapDot::after{content:"";position:absolute;inset:0;background:rgba(39,32,25,.45)}
-.mapNode.taken .mapDot::after{background:transparent}
-.mapNode.here .mapDot{border-color:var(--kyts);box-shadow:0 0 0 3px rgba(181,90,36,.35),1.5px 2px 0 rgba(39,32,25,.35)}
-.mapFlag{position:absolute;right:-4px;top:-4px;width:17px;height:17px;border-radius:50%;
-  border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:8px;z-index:2}
-.mapInfo{min-width:0}
-.mapName{font-weight:700;font-size:11px;line-height:1.25}
-.mapFlavor{font-size:9.5px;opacity:.75;line-height:1.35;margin-top:1px}
-.mapHere{display:inline-block;margin-top:3px;font-size:8px;letter-spacing:.1em;border:1.5px solid var(--kyts);
-  color:var(--kyts);border-radius:8px;padding:0 6px}
 .mapTrack{display:flex;flex-direction:column;gap:4px;margin-top:10px;text-align:left}
 .mapStep{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;border:1.5px solid transparent;font-size:10.5px}
 .mapStep.here{border-color:var(--kyts);background:#f3e2c4}
@@ -607,9 +592,9 @@ body.no-anim .mascot{animation:none}
     <button id="mSettings">налаштування</button>
     <button id="mCredits">тітри</button>
     <button id="mLeave" style="display:none">вийти з матчу</button>
+    <button id="mPanic" style="border-color:#8c2f1b;color:#8c2f1b">вийти з усіх столів</button>
     <button id="mClose">закрити</button>
   </div>
-  <div class="menuFoot"><button id="mPanic" class="dangerDot" title="вийти з усіх столів">⏻</button></div>
 </div></div>
 
 <div class="overlay" id="ovRules"><div class="panel">
@@ -636,19 +621,11 @@ body.no-anim .mascot{animation:none}
   <div class="row"><button id="topBack" style="background:transparent;color:var(--paper);border-color:var(--paper);box-shadow:none">назад</button></div>
 </div></div>
 
-<div class="overlay" id="ovAch"><div class="panel achPanel">
-  <div class="achHead">
-    <div class="big">ДОСЯГНЕННЯ</div>
-    <div class="achScoreLine"><span id="achPts">0</span> <span class="sub">очок з</span> <span id="achMax">0</span></div>
-    <div class="achBar"><div id="achBarFill"></div></div>
-    <div class="achTabs" id="achTabs">
-      <button class="small sel" data-tab="all">усі</button>
-      <button class="small" data-tab="got">здобуті</button>
-      <button class="small" data-tab="left">лишились</button>
-    </div>
-  </div>
-  <div class="achScroll" id="achList"></div>
-  <div class="achFoot"><button id="achBack">назад</button></div>
+<div class="overlay" id="ovAch"><div class="panel panelScroll">
+  <div class="big">ДОСЯГНЕННЯ</div>
+  <div class="sub">челенжі → унікальні звання. іконки — потім.</div>
+  <div id="achList"></div>
+  <div class="row"><button id="achBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovProfile"><div class="panel">
@@ -658,7 +635,6 @@ body.no-anim .mascot{animation:none}
   <div class="avGrid" id="avGrid"></div>
   <div class="divider">───── сторона мапи ─────</div>
   <div class="row"><button class="small" id="sideK"></button><button class="small" id="sideA"></button></div>
-  <div class="row" style="margin-top:6px"><button class="small" id="btnFaction">фракції</button></div>
   <div class="divider">───── ім'я ─────</div>
   <div style="display:flex;gap:6px"><input id="profNick" maxlength="12"><button class="small" id="profNickSave" style="box-shadow:2px 2px 0 rgba(39,32,25,.35)">зберегти</button></div>
   <div class="divider">───── звання (приміряй) ─────</div>
@@ -666,6 +642,7 @@ body.no-anim .mascot{animation:none}
   <div class="row" style="margin-top:10px">
     <button class="small" id="btnCardShare">моя візитівка</button>
     <button class="small" id="btnInventory">інвентар</button>
+    <button class="small" id="btnFaction">фракція</button>
   </div>
   <div class="divider">───── історія матчів ─────</div>
   <div id="histList" style="max-height:180px;overflow-y:auto"></div>
@@ -715,8 +692,13 @@ body.no-anim .mascot{animation:none}
 
 <div class="overlay" id="ovSettings"><div class="panel">
   <div class="big">НАЛАШТУВАННЯ</div>
-  <div class="sub" style="margin-top:10px">музика, гучність і жанри — у плеєрі внизу екрана</div>
+  <div class="lb" style="margin-top:10px">
+    музика<br><input type="range" id="volMusic" min="0" max="100">
+    <br>ефекти<br><input type="range" id="volSfx" min="0" max="100">
+  </div>
+  <div class="sub" style="margin-top:8px">жанр музики — у плеєрі внизу екрана</div>
   <span id="genreName" style="display:none"></span>
+  <span id="genrePrev" style="display:none"></span><span id="genreNext" style="display:none"></span>
   <div class="row"><button id="animToggle"></button></div>
   <div class="row"><button class="small" id="langBtn">мова</button></div>
   <div id="langList" style="display:none;margin-top:8px"></div>
@@ -728,18 +710,22 @@ body.no-anim .mascot{animation:none}
   <div class="row"><button class="accent" id="confYes">так</button><button id="confNo">ні</button></div>
 </div></div>
 
-<div class="overlay" id="ovShop"><div class="panel shopPanel">
-  <div class="shopAwning"></div>
-  <div class="shopHead">
-    <div class="shopSign">КРАМНИЦЯ</div>
-    <div class="shopMotto">на краю всесвітів · відчинено завжди</div>
-    <div class="shopPurse" id="shopWallet"></div>
+<div class="overlay" id="ovShop"><div class="panel" style="max-width:420px">
+  <div class="shopHead"></div>
+  <div class="big">МАГАЗИН</div>
+  <div class="sub">крамничка на краю всесвітів</div>
+  <div id="shopWallet" style="margin-top:8px;font-size:12px;font-weight:600"></div>
+  <div class="featured"><b>+0.1 до рейтингу</b> — 1 жетон. єдине, що є в наявності.<br>
+    <button class="small" id="buyK" style="margin-top:6px"></button>
+    <button class="small" id="buyA"></button>
+    <div class="err" id="shopErr"></div>
   </div>
-  <div class="shopScroll" id="shopBody"></div>
-  <div class="shopFoot">
-    <div class="shopErr err" id="shopErr"></div>
-    <button id="shopBack">вийти з крамниці</button>
-  </div>
+  <div class="divider">───── листівки · колекція ─────</div>
+  <div class="sub">велика карта в рамці фракції, назва, опис і фірмова цитата.</div>
+  <div class="shopGrid" id="shopCards"></div>
+  <div class="divider">───── дивні товари ─────</div>
+  <div class="shopGrid" id="shopItems"></div>
+  <div class="row"><button id="shopBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovCollect" style="z-index:36"><div class="panel" style="max-width:340px">
@@ -765,22 +751,13 @@ body.no-anim .mascot{animation:none}
   <div class="row"><button id="dailyBack">назад</button></div>
 </div></div>
 
-<div class="overlay" id="ovMap"><div class="panel achPanel">
-  <div class="achHead">
-    <div class="big">МАПА ЗАВОЙОВУВАНЬ</div>
-    <div class="sub">дев'ять усесвітів між киць і анти-киць. перемоги над протилежним амбасадором рухають межу.</div>
-    <div class="divider">───── твоя фракція ─────</div>
-    <div class="row"><button class="small" id="mapSideK"></button><button class="small" id="mapSideA"></button></div>
-    <div class="mapProg" style="margin-top:8px"><div id="mapProgBar" style="width:0%"></div></div>
-    <div class="sub" id="mapProgText" style="margin-top:4px"></div>
-  </div>
-  <div class="achScroll">
-    <div class="mapBoard">
-      <div class="mapSides"><span>◀ анти-киці</span><span>киці ▶</span></div>
-      <div class="mapPath" id="mapTrack"></div>
-    </div>
-  </div>
-  <div class="achFoot"><button id="mapBack">назад</button></div>
+<div class="overlay" id="ovMap"><div class="panel">
+  <div class="big">МАПА ЗАВОЙОВУВАНЬ</div>
+  <div class="sub">амбасадорство: перемагай ПРОТИЛЕЖНОГО амбасадора в ПвЄ — і мапа рухається в бік твоєї сторони.</div>
+  <div class="mapTrack" id="mapTrack"></div>
+  <div class="mapProg"><div id="mapProgBar" style="width:0%"></div></div>
+  <div class="sub" id="mapProgText" style="margin-top:4px"></div>
+  <div class="row"><button id="mapBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovBet"><div class="panel">
@@ -1048,20 +1025,6 @@ const Audio5=(()=>{
     win(){ensure();if(ctx)[523,659,784,1046].forEach((f,i)=>tone(f,ctx.currentTime+i*0.09,0.32,"triangle",sg,0.11));},
     coin(){ensure();if(!ctx)return;tone(988,ctx.currentTime,0.06,"square",sg,0.09);tone(1568,ctx.currentTime+0.055,0.16,"square",sg,0.08);},
   };
-  function play(){
-    paused=false;localStorage.setItem("dk_mpause","0");
-    if(muted){muted=false;localStorage.setItem("dk_mute","0");}
-    unlock();          /* готуємо контекст (може створитись саме зараз, у жесті) */
-    apply();
-    if(ctx)start(want,true);   /* продовжуємо з тієї ж позиції */
-    return false;
-  }
-  function pause(){
-    paused=true;localStorage.setItem("dk_mpause","1");
-    clearInterval(timer);timer=null;enoStop();
-    if(mg&&ctx){try{mg.gain.cancelScheduledValues(ctx.currentTime);mg.gain.setTargetAtTime(0,ctx.currentTime,0.05);}catch(e){}}
-    return true;
-  }
   function togglePause(){
     paused=!paused;
     localStorage.setItem("dk_mpause",paused?"1":"0");
@@ -1087,7 +1050,7 @@ const Audio5=(()=>{
   let slept=false;
   function sleep(){if(slept)return;slept=true;clearInterval(timer);timer=null;enoStop();}
   function wake(){if(!slept)return;slept=false;if(ctx&&!paused&&want)start(want,true);}
-  return {setScene,sfx,vols,ensure,unlock,play,pause,togglePause,toggleMute,sleep,wake,isPaused:()=>paused,isMuted:()=>muted,
+  return {setScene,sfx,vols,ensure,unlock,togglePause,toggleMute,sleep,wake,isPaused:()=>paused,isMuted:()=>muted,
     isRunning:()=>!!ctx&&ctx.state==="running",setMenuGenre,genreKeys:Object.keys(MENU_GENRES),getGenre:()=>curGenre,setVol(k,v){vols[k]=v;localStorage.setItem(k==="music"?"dk_vm":"dk_vs",v);apply();}};
 })();
 /* хапаємо будь-який тип першого жесту — різні мобільні браузери шлють різні події */
@@ -1128,22 +1091,10 @@ let whisperIdx=0;
 let token=localStorage.getItem("dk_token");
 if(!token){token=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now());localStorage.setItem("dk_token",token);}
 
-/* $() ніколи не повертає null: якщо елемента нема — віддаємо «пустушку»,
-   на якій безпечно писати .onclick чи .textContent. один прибраний елемент
-   більше не має права зупинити весь скрипт і забрати з собою всі кнопки. */
-const NOOP_EL=(()=>{
-  const stub=document.createElement("div");
-  stub.classList.add("dk-missing");
-  return stub;
-})();
-const $=id=>document.getElementById(id)||NOOP_EL;
+const $=id=>document.getElementById(id);
 const screens=["scrNick","scrLobby","scrWait","scrGame"];
 function show(id){screens.forEach(s=>$(s).classList.toggle("on",s===id));if(id!=="scrGame"&&document.getElementById("gameChat")){$("gameChat").classList.remove("on");}syncScene();}
-function ov(id,on){
-  $(id).classList.toggle("on",on);
-  /* поки відкрите будь-яке вікно — плеєр ховається, щоб не ловити кліки */
-  document.body.classList.toggle("modal",!!document.querySelector(".overlay.on"));
-}
+function ov(id,on){$(id).classList.toggle("on",on);}
 function esc(s){return String(s??"").replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]));}
 function linkify(raw){
   return String(raw??"").split(/(\[\[LINK:[^|]+\|[^\]]+\]\])/g).map(part=>{
@@ -1212,21 +1163,17 @@ $("btnMenu").onclick=()=>{
 $("mClose").onclick=()=>ov("ovMenu",false);
 $("mPanic").onclick=()=>{
   Audio5.sfx.click();
-  $("confirmText").innerHTML=`<b>вийти з усіх столів?</b><br><br>
-    поточні партії буде покинуто: за живі столи зарахується останнє місце,
-    столи з амбасадорами просто закриються.`;
-  const p=$("confirmPanel");p.className="panel popBounce";
-  $("confYes").style.display="";$("confYes").textContent="так, вийти";$("confNo").textContent="скасувати";
-  ov("ovConfirm",true);
-  $("confNo").onclick=()=>{Audio5.sfx.click();ov("ovConfirm",false);$("confYes").textContent="так";$("confNo").textContent="ні";bindConfNo();};
-  $("confYes").onclick=()=>{
-    Audio5.sfx.click();
-    ov("ovConfirm",false);
-    $("confYes").textContent="так";
-    panicLeave();
-  };
+  socket.emit("panicLeave",()=>{
+    inRoom=false;view=null;
+    ["ovMenu","ovRes","ovBet","ovNyav","ovPostcard","ovWanted"].forEach(id=>ov(id,false));
+    stopQueueWatch();
+    leaveUI();
+    show("scrLobby");
+    refreshProfile();refreshDaily();
+    $("errLobby").textContent="ти вийшов з усіх столів.";
+    setTimeout(()=>{$("errLobby").textContent="";},2500);
+  });
 };
-
 const backTo=(from)=>{Audio5.sfx.click();ov(from,false);ov("ovMenu",true);};
 $("mCredits").onclick=()=>{
   Audio5.sfx.click();
@@ -1258,7 +1205,7 @@ $("miniShop").onclick=()=>{Audio5.sfx.click();openShop();};
 $("collectBack").onclick=()=>{Audio5.sfx.click();ov("ovCollect",false);};
 $("shopBack").onclick=()=>{Audio5.sfx.click();if(!shopBought)Quirk.bump("shopNoBuy");ov("ovShop",false);};
 $("mWanted").onclick=()=>{Audio5.sfx.click();ov("ovMenu",false);openWanted();};
-$("wantedBack").onclick=()=>{Audio5.sfx.click();ov("ovWanted",false);ov("ovMenu",true);};
+$("wantedBack").onclick=()=>{Audio5.sfx.click();ov("ovWanted",false);};
 function openWanted(){
   ov("ovWanted",true);
   $("wantedBody").innerHTML="<div class='sub'>піднімаємо справи…</div>";
@@ -1267,8 +1214,9 @@ function openWanted(){
     /* без технічних назв фракцій — лише ім'я карти і за що її шукають */
     const poster=(x)=>`<div class="wantedCard">
       <img src="/cards/${x.id}.jpg" alt="">
-      <div class="sub" style="margin-top:6px">розшукується за те, що</div>
-      <div style="margin-top:3px">${esc(WANTED_STORIES[x.id]||WANTED_FALLBACK)}</div>
+      <b>${esc(x.name||x.id)}</b>
+      <div class="sub" style="margin-top:4px">розшукується за те, що</div>
+      <div style="margin-top:2px">${esc(WANTED_STORIES[x.id]||WANTED_FALLBACK)}</div>
     </div>`;
     $("wantedBody").innerHTML=`<div class="wantedGrid">${poster(w.kyts)}${poster(w.anti)}</div>`;
   });
@@ -1378,64 +1326,43 @@ document.querySelectorAll(".lg").forEach(b=>b.onclick=()=>{
 });
 
 let achDefs=null;
-let achTab="all";
 function openAch(){
   ov("ovAch",true);
-  const draw=()=>renderAch();
-  if(achDefs)draw();
-  else socket.emit("achList",list=>{achDefs=list;draw();});
-}
-const ACH_ICONS={
-  blyskavka:"⚡",nipdyp:"🐾",sukha:"🌵",pyatykut:"⬠",seriya:"🌊",maraton:"🕰",kolektsioner:"🃏",
-  nyavmaster:"😼",feniks:"🔥",nyavkosmos:"🚀",movchvoda:"💧",zhabhor:"🐸",pyatipyat:"✋",
-  glitchsurf:"🌀",zhetonoyid:"🪙",tyzhnevyk:"📅",
-  pve_znaiomstvo:"🤝",pve_greg:"🐸",pve_zhreg:"👺",pve_obydva:"🕊",pve_sukho:"🏜",pve_shvydko:"💨",pve_desyat:"🎖",
-  amb_stil:"🎭",amb_obydva:"⚔",amb_ostanni:"🏁",amb_albom:"🖼",
-};
-const ACH_RANK_UA={common:"звичайне",uncommon:"незвичайне",rare:"рідкісне",epic:"епічне",legendary:"легендарне"};
-
-function renderAch(){
-  if(!achDefs)return;
   const mine=(view?.you?.achIds)||(profile?.achIds)||[];
-  const total=achDefs.reduce((n,a)=>n+(a.points||5),0);
-  const my=achDefs.filter(a=>mine.includes(a.id)).reduce((n,a)=>n+(a.points||5),0);
-  $("achPts").textContent=my;
-  $("achMax").textContent=total;
-  $("achBarFill").style.width=(total?Math.round(my/total*100):0)+"%";
-  document.querySelectorAll("#achTabs button").forEach(b=>b.classList.toggle("sel",b.dataset.tab===achTab));
-
-  const row=a=>{
+  const ICONS={pve_znaiomstvo:"🤝",pve_greg:"🐸",pve_zhreg:"👺",pve_obydva:"🕊",pve_sukho:"🏜",pve_shvydko:"💨",pve_desyat:"🎖",blyskavka:"⚡",nipdyp:"🐾",sukha:"🌵",pyatykut:"⬠",seriya:"🌊",maraton:"🕰",kolektsioner:"🃏",nyavmaster:"😼",feniks:"🔥",nyavkosmos:"🚀",movchvoda:"💧",zhabhor:"🐸",pyatipyat:"✋",glitchsurf:"🌀",zhetonoyid:"🪙",tyzhnevyk:"📅"};
+  const RAR_UA={common:"звичайне",uncommon:"незвичайне",rare:"рідкісне",epic:"епічне",legendary:"легендарне"};
+  const card=a=>{
     const got=mine.includes(a.id);
-    const hidden=a.secret&&!got;
     const rar=a.rarity||"common";
-    return `<div class="achRow r-${rar} ${got?"got":"locked"}">
-      <span class="achIcon">${hidden?"?":(ACH_ICONS[a.id]||"✦")}</span>
-      <span class="achInfo">
-        <span class="achTitle">${hidden?"таємне досягнення":esc(a.name)}</span>
-        <div class="achWhat">${hidden?"умову приховано — знайди сам":esc(a.desc)}</div>
-      </span>
-      <span class="achSide">
-        <span class="achVal">${a.points||5}</span>
-        <span class="achRank">${ACH_RANK_UA[rar]||rar}</span>
-        ${got?'<span class="achTick">✓ здобуто</span>':""}
+    const hidden=a.secret&&!got;
+    return `<div class="achCard r-${rar} ${got?"got":"locked"}">
+      ${got?'<span class="achStamp">здобуто</span>':""}
+      <span class="achMedal">${hidden?"?":(ICONS[a.id]||"✦")}</span>
+      <span style="min-width:0">
+        <span class="achName">${hidden?"таємне досягнення":esc(a.name)}</span>
+        <div class="achDesc">${hidden?"умову приховано. знайди сам.":esc(a.desc)}</div>
+        <div class="achMeta"><span class="achPts">${a.points||5}</span><span>${RAR_UA[rar]||rar}</span></div>
       </span>
     </div>`;
   };
-  const pick=list=>list.filter(a=>achTab==="all"||(achTab==="got")===mine.includes(a.id));
-  const sect=(title,list)=>{
-    const f=pick(list);
-    if(!f.length)return "";
-    const n=list.filter(a=>mine.includes(a.id)).length;
-    return `<div class="achSect">${title} · ${n}/${list.length}</div>`+f.map(row).join("");
+  const render=()=>{
+    const pvp=achDefs.filter(a=>!a.pve), pve=achDefs.filter(a=>a.pve);
+    const cnt=list=>list.filter(a=>mine.includes(a.id)).length;
+    const totalPts=achDefs.reduce((n,a)=>n+(a.points||5),0);
+    const myPts=achDefs.filter(a=>mine.includes(a.id)).reduce((n,a)=>n+(a.points||5),0);
+    const pct=totalPts?Math.round(myPts/totalPts*100):0;
+    $("achList").innerHTML=
+      `<div class="achScore"><span>очки досягнень</span><span><b>${myPts}</b> / ${totalPts}</span></div>
+       <div class="achBar"><div style="width:${pct}%"></div></div>`+
+      `<div class="achWrap">`+
+      `<div class="achSect">───── рейтингові · ${cnt(pvp)}/${pvp.length} ─────</div>`+
+      `<div class="achGrid">${pvp.map(card).join("")}</div>`+
+      `<div class="achSect">───── ПвЄ · проти амбасадорів · ${cnt(pve)}/${pve.length} ─────</div>`+
+      `<div class="achGrid">${pve.map(card).join("")}</div>`+`</div>`;
   };
-  const html=sect("рейтингові",achDefs.filter(a=>!a.pve&&!a.secret))
-    +sect("проти амбасадорів",achDefs.filter(a=>a.pve))
-    +sect("таємні",achDefs.filter(a=>a.secret&&!a.pve));
-  $("achList").innerHTML=html||`<div class="sub" style="padding:20px 0;text-align:center">тут поки порожньо.</div>`;
+  if(achDefs)render();
+  else socket.emit("achList",list=>{achDefs=list;render();});
 }
-document.querySelectorAll("#achTabs button").forEach(b=>b.onclick=()=>{
-  Audio5.sfx.click();achTab=b.dataset.tab;renderAch();
-});
 socket.emit("achList",list=>{achDefs=list;});
 
 /* ── профіль ── */
@@ -1612,17 +1539,6 @@ function openFaction(){
         анти-киці: <b>${(fs.wins&&fs.wins.anti)||0}</b> / ${p.frontierWins?.anti||0}<br>
         <span class="sub">перемог над амбасадорами: ${p.pveWins||0}</span>`;
     });
-    /* п.8: карти в розшуку — тут, з історією, за що саме шукають */
-    socket.emit("wantedToday",w=>{
-      const box=document.getElementById("facWanted");
-      if(!w||!w.kyts||!w.anti||!box)return;
-      const poster=(x,cls)=>`<div class="wantedCard ${cls}">
-        <img src="/cards/${x.id}.jpg" alt="">
-        <div class="sub" style="margin-top:6px">розшукується за те, що</div>
-        <div style="margin-top:3px">${esc(WANTED_STORIES[x.id]||WANTED_FALLBACK)}</div></div>`;
-      box.innerHTML=`<div class="sub">переможний хід цією картою — премія жетонів</div>
-        <div class="wantedGrid">${poster(w.kyts,"kyts")}${poster(w.anti,"anti")}</div>`;
-    });
   });
 }
 $("btnFaction").onclick=()=>{Audio5.sfx.click();ov("ovProfile",false);openFaction();};
@@ -1673,9 +1589,13 @@ $("profNickSave").onclick=()=>{
 /* ── налаштування ── */
 function openSettings(){
   ov("ovSettings",true);
+  $("volMusic").value=Audio5.vols.music;
+  $("volSfx").value=Audio5.vols.sfx;
   $("animToggle").textContent=document.body.classList.contains("no-anim")?"увімкнути анімації":"вимкнути анімації";
   $("langList").style.display="none";
 }
+$("volMusic").oninput=e=>Audio5.setVol("music",+e.target.value);
+$("volSfx").oninput=e=>{Audio5.setVol("sfx",+e.target.value);Audio5.sfx.click();};
 if(localStorage.getItem("dk_noanim")==="1")document.body.classList.add("no-anim");
 
 const CONFIRMS=[
@@ -1733,14 +1653,13 @@ function bindConfNo(){$("confNo").onclick=()=>{Audio5.sfx.click();ov("ovConfirm"
 
 /* мапа завойовувань: CSS-наближення стилів; заміни картинкою public/backgrounds/{style}.jpg */
 const STYLE_CSS={
-  /* фони столу — світлі й тихі, щоб карти читались */
-  geo:        "repeating-linear-gradient(45deg,rgba(196,57,43,.10) 0 14px,rgba(236,220,192,.5) 14px 28px)",
-  zine:       "radial-gradient(circle,rgba(39,32,25,.18) 1.2px,transparent 1.4px) 0 0/9px 9px",
-  vase:       "repeating-radial-gradient(circle at 50% 120%,rgba(181,101,29,.16) 0 4px,transparent 4px 9px)",
-  manuscript: "linear-gradient(135deg,rgba(122,31,31,.10),rgba(201,162,39,.14))",
-  popart:     "radial-gradient(circle,rgba(232,67,122,.16) 3px,transparent 3.4px) 0 0/14px 14px",
-  renaissance:"linear-gradient(160deg,rgba(122,74,36,.12),rgba(201,138,60,.16))",
-  neutral:    "none",
+  geo:        "repeating-linear-gradient(45deg,#c4392b 0 14px,#e8dcc0 14px 28px,#2b2b2b 28px 32px,#e8dcc0 32px 46px)",
+  zine:       "radial-gradient(circle,#111 1.4px,transparent 1.6px) 0 0/9px 9px, #cfc9bd",
+  vase:       "linear-gradient(#1c1712,#1c1712) , repeating-radial-gradient(circle at 50% 120%,#b5651d 0 3px,#1c1712 3px 6px)",
+  manuscript: "linear-gradient(135deg,#5a1f1f,#7a1010 40%,#c9a227 41%,#5a1f1f)",
+  popart:     "radial-gradient(circle,#e8437a 3px,transparent 3.2px) 0 0/14px 14px, #ffd23f",
+  renaissance:"linear-gradient(160deg,#7a4a24,#c98a3c 60%,#7a4a24)",
+  neutral:    "var(--paper)",
 };
 const bgImgOK={};
 function testBgImg(style){
@@ -1790,39 +1709,21 @@ function openMap(){
   ov("ovMap",true);
   socket.emit("profileInfo",p=>{
     if(!p)return;
-    const side=p.side==="anti"?"anti":"kyts";
     const fr=p.frontier||0, idx=Math.max(0,Math.min(FRONTIER.length-1,fr+4));
-    /* п.9: сторона обирається просто тут */
-    $("mapSideK").innerHTML=coinSvg("k")+" киці";
-    $("mapSideA").innerHTML=coinSvg("a")+" анти-киці";
-    $("mapSideK").classList.toggle("sel",side==="kyts");
-    $("mapSideA").classList.toggle("sel",side==="anti");
-    $("mapSideK").onclick=()=>{if(side!=="kyts")socket.emit("setProfile",{side:"kyts"},r=>{if(r?.profile){profile=r.profile;Audio5.sfx.coin();renderProfile();openMap();}});};
-    $("mapSideA").onclick=()=>{if(side!=="anti")socket.emit("setProfile",{side:"anti"},r=>{if(r?.profile){profile=r.profile;Audio5.sfx.coin();renderProfile();openMap();}});};
-
-    /* шлях: зверху володіння киць, знизу анти-киць; захоплені — у кольорі */
     $("mapTrack").innerHTML=FRONTIER.map((u,i)=>{
       const here=i===idx;
-      const ownKyts=i>4, ownAnti=i<4;
-      const taken=here||(side==="kyts"&&i<=idx)||(side==="anti"&&i>=idx);
       const bg=STYLE_CSS[u.style]||"var(--paper)";
-      const flag=ownKyts?coinSvg("k",13):ownAnti?coinSvg("a",13):"";
-      return `<div class="mapNode ${here?"here":""} ${taken?"taken":""}">
-        <span class="mapDot" style="background:${bg}">${flag?`<span class="mapFlag" style="background:var(--panel)">${flag}</span>`:""}</span>
-        <span class="mapInfo">
-          <span class="mapName">${esc(u.name)}</span>
-          <div class="mapFlavor">${esc(u.flavor)}</div>
-          ${here?'<span class="mapHere">ти тут</span>':""}
-        </span>
-      </div>`;
+      return `<div class="mapStep ${here?"here":""}"><span class="sw" style="background:${bg}"></span>
+        <span>${here?"▸ ":""}${esc(u.name)}${here?" (ти тут)":""}<br><span class="sub">${esc(u.flavor)}</span></span></div>`;
     }).join("");
-
-    const wins=p.frontierWins?.[side]||0, need=5;
+    const side=p.side||"kyts";
+    const wins=p.frontierWins?.[side]||0;
+    const need=5; // store.js FRONTIER_N — тримай синхронно, якщо зміниш там
     $("mapProgBar").style.width=Math.min(100,(wins/need)*100)+"%";
     const edge=(side==="kyts"&&fr>=4)||(side==="anti"&&fr<=-4);
-    $("mapProgText").textContent=edge
-      ?`далі йти нікуди — межа світу ${side==="kyts"?"киць":"анти-киць"}`
-      :`до наступного усесвіту: ${wins}/${need} перемог над протилежним амбасадором`;
+    $("mapProgText").innerHTML=coinify(edge
+      ?`крайня точка ${side==="kyts"?"киць":"анти-киць"}. далі нікуди. (сторона змінюється в профілі)`
+      :`твоя сторона: ${side==="kyts"?"ж.к киці":"ж.а анти-киці"} · до кроку: ${wins}/${need} перемог`);
   });
 }
 
@@ -1858,124 +1759,77 @@ function loadBanners(cb){
 function renderShopCards(){
   renderBannerGrid($("shopCards"),true);
 }
-/* сітка банерів для альбому в інвентарі */
 function renderBannerGrid(host,shop){
   if(!host)return;
-  host.innerHTML=Object.keys(BANNER_META).map(id=>{
+  const ids=Object.keys(BANNER_META);
+  host.innerHTML=ids.map(id=>{
     const m=BANNER_META[id];
     const have=bannerState.owned.includes(id);
     const dup=bannerState.dupes[id]||0;
+    const frame=m.side==="k"?"#e0a33a":"#5c9a4e";
     const act=bannerState.active===id;
-    return `<div class="good ${have?"owned":"locked"}" data-b="${id}">
-      ${dup?`<span class="goodDupe">×${dup+1}</span>`:""}
-      <span class="goodArt">${have?`<img src="/cards/${id}.jpg" alt="">`:`<span class="q">?</span>`}</span>
-      <div class="goodName">${have?esc(m.name):"порожній слот"}</div>
-      <span class="goodTag">${have?(act?"★ вдягнено":"вдягнути"):"не здобуто"}</span>
-    </div>`;
-  }).join("");
-  host.querySelectorAll(".good[data-b]").forEach(el=>el.onclick=()=>{
-    const id=el.dataset.b;
-    if(!bannerState.owned.includes(id))return;
-    socket.emit("bannerSet",{id:bannerState.active===id?"":id},r=>{
-      if(r?.error)return;
-      bannerState.active=r.active;Audio5.sfx.click();
-      renderBannerGrid(host,shop);renderProfile();
-    });
-  });
-}
-
-let shopBought=false;
-
-/* ══ КРАМНИЦЯ ══ */
-function openShop(){
-  shopBought=false;
-  ov("ovShop",true);
-  $("shopErr").textContent="";
-  $("shopBody").innerHTML=`<div class="sub" style="padding:20px 0;text-align:center">відчиняємо…</div>`;
-  loadBanners(()=>renderShop());
-}
-function renderShop(){
-  const tk=(profile&&profile.tk)||{k:0,a:0};
-  $("shopWallet").innerHTML=`${coinSvg("k",15)} ${tk.k} <span style="opacity:.4">·</span> ${coinSvg("a",15)} ${tk.a}`;
-
-  /* полиця 1 — банери-ніпи */
-  const banners=Object.keys(BANNER_META).map(id=>{
-    const m=BANNER_META[id];
-    const have=bannerState.owned.includes(id);
-    const dup=bannerState.dupes[id]||0;
-    const act=bannerState.active===id;
-    return `<div class="good ${have?"owned":"locked"}" data-b="${id}">
-      ${dup?`<span class="goodDupe">×${dup+1}</span>`:""}
-      <span class="goodArt">${have?`<img src="/cards/${id}.jpg" alt="">`:`<span class="q">?</span>`}</span>
-      <div class="goodName">${esc(m.name)}</div>
-      <span class="goodTag">${have?(act?"★ вдягнено":"вдягнути"):`${coinSvg(m.side)} ${bannerState.price}`}</span>
-    </div>`;
-  }).join("");
-
-  /* полиця 2 — дивні товари, усі розпродані */
-  const oddities=SHOP.map(t=>`<div class="good gone">
-    <span class="goodStamp">продано</span>
-    <span class="goodArt"><span class="q">·</span></span>
-    <div class="goodName">${esc(t)}</div>
-  </div>`).join("");
-
-  $("shopBody").innerHTML=`
-    <div class="shelf">
-      <div class="shelfTitle">пропозиція дня</div>
-      <div class="deal">
-        <span class="dealIcon">✦</span>
-        <span class="dealBody">
-          <div class="dealName">+0.1 до рейтингу</div>
-          <div class="dealDesc">маленький крок угору. єдине, що тут справді продається.</div>
-          <div class="dealBuy">
-            <button class="small" id="buyK">${coinSvg("k")} 1 жетон</button>
-            <button class="small" id="buyA">${coinSvg("a")} 1 жетон</button>
-          </div>
-        </span>
+    return `<div class="shopItem pcItem ${have?"have":"empty"} ${act?"activeBanner":""}" data-b="${id}" style="border-color:${have?frame:"rgba(39,32,25,.35)"}">
+      <div class="pcThumb" style="background:${have?frame:"rgba(39,32,25,.08)"}">
+        ${have?`<img src="/cards/${id}.jpg" alt="">`:`<span class="pcLock">?</span>`}
       </div>
-    </div>
-    <div class="shelf">
-      <div class="shelfTitle">банери · ${bannerState.owned.length}/6</div>
-      <div class="goods">${banners}</div>
-    </div>
-    <div class="shelf">
-      <div class="shelfTitle">дивні товари</div>
-      <div class="goods">${oddities}</div>
+      <b>${have?esc(m.name):"— порожній слот —"}</b><br>
+      <span class="sub">${have?esc(m.desc):"ще не здобуто"}</span><br>
+      ${have
+        ? `<span class="pcHave">${act?"★ активний":"вдягнути"}</span>${dup?`<span class="dupBadge">×${dup+1}</span>`:""}`
+        : (shop?`<span class="pcPrice">${coinSvg(m.side)} ${bannerState.price}</span>`:`<span class="sub">?</span>`)}
     </div>`;
-
-  $("buyK").onclick=()=>buyRating("k");
-  $("buyA").onclick=()=>buyRating("a");
-  $("shopBody").querySelectorAll(".good[data-b]").forEach(el=>el.onclick=()=>{
-    const id=el.dataset.b;
+  }).join("");
+  host.querySelectorAll(".pcItem").forEach(el=>el.onclick=()=>{
+    const id=el.dataset.b, m=BANNER_META[id];
     if(bannerState.owned.includes(id)){
       socket.emit("bannerSet",{id:bannerState.active===id?"":id},r=>{
-        if(r?.error){$("shopErr").textContent=r.error;return;}
-        bannerState.active=r.active;Audio5.sfx.click();renderShop();renderProfile();
+        if(r?.error){if($("shopErr"))$("shopErr").textContent=r.error;return;}
+        bannerState.active=r.active;Audio5.sfx.click();
+        renderBannerGrid(host,shop);renderProfile();
       });
       return;
     }
+    if(!shop)return;
     socket.emit("bannerBuy",{id},r=>{
-      if(r?.error){$("shopErr").textContent=r.error;return;}
+      if(r?.error){if($("shopErr"))$("shopErr").textContent=r.error;return;}
       bannerState.owned=r.owned;bannerState.dupes=r.dupes;
       profile={...profile,tk:r.tk};
-      shopBought=true;Audio5.sfx.coin();
-      $("shopErr").innerHTML=r.dup
-        ? `<span style="color:var(--kyts)">дублікат «${esc(BANNER_META[id].name)}» — обміняй його в інвентарі</span>`
-        : (r.newAch?.length?`<span style="color:var(--kyts)">нове звання: «${esc(r.newAch[0])}»</span>`:"");
-      renderShop();renderProfile();
+      shopBought=true;
+      Audio5.sfx.coin();
+      if($("shopErr"))$("shopErr").innerHTML=r.dup
+        ? `<span style="color:var(--kyts)">дублікат «${esc(m.name)}» — його можна обміняти в альбомі</span>`
+        : (r.newAch&&r.newAch.length?`<span style="color:var(--kyts)">нове звання: «${esc(r.newAch[0])}»!</span>`:"");
+      renderShopWallet();renderBannerGrid(host,shop);renderProfile();
     });
   });
 }
-function buyRating(side){
+let shopBought=false;
+function openShop(){
+  shopBought=false;
+  ov("ovShop",true);
+  renderShopWallet();
+  if($("shopErr"))$("shopErr").textContent="";
+  if($("shopItems"))$("shopItems").innerHTML=SHOP.map(t=>`<div class="shopItem"><span class="sold">продано</span><b>${esc(t)}</b></div>`).join("");
+  loadBanners(()=>renderShopCards());
+}
+function renderShopWallet(){
+  const tk=(profile&&profile.tk)||{k:0,a:0};
+  $("shopWallet").innerHTML=coinify(`гаманець: ${tk.k} ж.к · ${tk.a} ж.а`);
+}
+function buy(side){
   Audio5.sfx.click();
   socket.emit("shopBuy",{pay:side},r=>{
     if(r?.error){$("shopErr").textContent=r.error;return;}
     $("shopErr").textContent="";
     profile={...profile,sp:r.sp,rank:r.rank,tk:r.tk};
-    shopBought=true;Audio5.sfx.coin();
-    renderProfile();renderShop();
+    renderProfile();renderShopWallet();
+    Audio5.sfx.coin();
   });
 }
+$("buyK").innerHTML="купити за 1 "+coinSvg("k")+"ж.к";
+$("buyA").innerHTML="купити за 1 "+coinSvg("a")+"ж.а";
+$("buyK").onclick=()=>buy("k");
+$("buyA").onclick=()=>buy("a");
 
 function genreLabel(key){return (GENRE_NAMES&&GENRE_NAMES[key])||key;}
 function renderGenre(){$("genreName").textContent=genreLabel(Audio5.getGenre());}
@@ -1986,7 +1840,9 @@ function shiftGenre(dir){
   Audio5.sfx.click();
   renderGenre();
 }
-/* перемикання жанрів живе у плеєрі — тут лишилась лише функція shiftGenre */
+$("genrePrev").onclick=()=>shiftGenre(-1);
+$("genreNext").onclick=()=>shiftGenre(1);
+renderGenre();
 
 /* поради головного екрана: тап — наступна */
 let tipIdx=(Math.random()*TIPS.length)|0;
@@ -2049,10 +1905,10 @@ if($("mascotClock"))$("mascotClock").onclick=()=>{
     $("plVol").value=Audio5.vols.music;
   }
   $("plPlay").onclick=()=>{
-    if(Audio5.isPaused()){Audio5.play();Audio5.sfx.click();}
-    else Audio5.pause();
+    Audio5.unlock(true);
+    const nowPaused=Audio5.togglePause();
+    if(!nowPaused)Audio5.sfx.click();
     refresh();
-    setTimeout(refresh,300);   /* контекст може ожити з невеликою затримкою */
   };
   $("plMute").onclick=()=>{Audio5.unlock();const m=Audio5.toggleMute();if(!m)Audio5.sfx.coin();refresh();};
   $("plPrev").onclick=()=>{Audio5.unlock();shiftGenre(-1);refresh();};
@@ -2069,39 +1925,6 @@ if($("mascotClock"))$("mascotClock").onclick=()=>{
   refresh();
 })();
 
-/* ── esc: закриває верхнє вікно; те, що відкривали з менюв, туди й повертає ── */
-const ESC_ORDER=["ovConfirm","ovPostcard","ovBet","ovNyav","ovInv","ovFaction","ovWanted","ovShop",
-  "ovTop","ovAch","ovProfile","ovRules","ovLore","ovSettings","ovCred","ovDaily","ovMap","ovMenu"];
-const BACK_TO_MENU=["ovWanted","ovRules","ovLore","ovSettings","ovCred"];
-const BACK_TO_PROFILE=["ovInv","ovFaction"];
-document.addEventListener("keydown",e=>{
-  if(e.key!=="Escape")return;
-  const open=ESC_ORDER.find(id=>{const el=document.getElementById(id);return el&&el.classList.contains("on");});
-  if(open){
-    e.preventDefault();Audio5.sfx.click();
-    ov(open,false);
-    if(BACK_TO_PROFILE.includes(open))openProfile();
-    else if(BACK_TO_MENU.includes(open))ov("ovMenu",true);
-    return;
-  }
-  if($("gameChat")&&$("gameChat").classList.contains("on")){$("gameChat").classList.remove("on");return;}
-  if(view&&view.started&&!view.result){e.preventDefault();ov("ovMenu",true);}
-});
-
-/* ── п.3: щоденне доручення від амбасадора ── */
-function loadMission(){
-  socket.emit("missionToday",m=>{
-    const bar=$("missionBar");
-    if(!bar||!m||!m.text)return;
-    bar.style.display="";
-    bar.classList.toggle("done",!!m.done);
-    bar.innerHTML=`<span><b>доручення від ${esc(m.name)}</b></span>
-      <span>${esc(m.text)}</span>
-      ${m.done?`<span class="sub">виконано ✓</span>`:(m.goal>1?`<span class="sub">${m.prog}/${m.goal}</span>`:"")}`;
-  });
-}
-socket.on("connect",()=>setTimeout(loadMission,1100));
-
 /* ── лічильник онлайну ── */
 function pollOnline(){
   socket.emit("onlineInfo",r=>{
@@ -2112,6 +1935,36 @@ function pollOnline(){
 }
 setInterval(()=>{if(!document.hidden)pollOnline();},20000);
 socket.on("connect",()=>setTimeout(pollOnline,600));
+
+/* ── постійний музичний плеєр ── */
+function playerRender(){
+  const on=Audio5.isRunning()&&Audio5.vols.music>0&&!Audio5.isPaused();
+  $("player").classList.toggle("on",on);
+  $("pPlay").textContent=Audio5.isPaused()||!Audio5.isRunning()?"▶":"❚❚";
+  const g=Audio5.getGenre();
+  const scene=(view&&view.started&&!view.result)?"партія":(view&&view.result)?"підсумки":"меню";
+  $("pName").textContent=Audio5.isRunning()
+    ?`${genreLabel(g)} · ${scene}`
+    :"звук вимкнено — тапни ▶";
+}
+$("pPlay").onclick=()=>{
+  Audio5.unlock();
+  Audio5.togglePause();
+  Audio5.sfx.click();
+  playerRender();
+};
+$("pPrev").onclick=()=>{shiftGenre(-1);playerRender();};
+$("pNext").onclick=()=>{shiftGenre(1);playerRender();};
+$("pMore").onclick=()=>{
+  Audio5.sfx.click();
+  $("pMoreBox").classList.toggle("on");
+  $("pVol").value=Audio5.vols.music;$("pVolSfx").value=Audio5.vols.sfx;
+};
+$("pVol").oninput=e=>{Audio5.setVol("music",+e.target.value);playerRender();};
+$("pVolSfx").oninput=e=>{Audio5.setVol("sfx",+e.target.value);Audio5.sfx.click();};
+setInterval(playerRender,1500);
+
+function refreshProfile(){const n=localStorage.getItem("dk_nick");if(n)hello(n);}
 
 /* ── ставка няву: оверлей перед роздачею ── */
 function renderBet(v){
@@ -2218,20 +2071,20 @@ $("btnQuick").onclick=()=>{
   const glitch=$("pveGlitch").checked;
   if(gameMode==="daily"){
     socket.emit("playDaily",{glitch:false},r=>{
-      if(r?.error){lobbyError(r.error==="already"?DAILY.doneMsg:r.error);refreshDaily();return;}
+      if(r?.error){$("errLobby").textContent=r.error==="already"?DAILY.doneMsg:r.error;refreshDaily();return;}
       inRoom=true;dailyPlayed=true;renderMode();
     });
     return;
   }
   if(gameMode==="pve"){
     socket.emit("playAmbassadors",{glitch,both:false},r=>{
-      if(r?.error){lobbyError(r.error);return;}
+      if(r?.error){$("errLobby").textContent=r.error;return;}
       inRoom=true;
     });
     return;
   }
   socket.emit("quickMatch",{glitch},r=>{
-    if(r?.error){lobbyError(r.error);return;}
+    if(r?.error){$("errLobby").textContent=r.error;return;}
     inRoom=true;
     if(r?.queued){
       $("roomCode").textContent="· · · ·";$("waitList").textContent="";
@@ -2246,32 +2099,6 @@ $("btnQuick").onclick=()=>{
 
 /* якщо 5с шукаємо зі збоєм, а поруч чекає хтось без нього — пропонуємо перемкнутись */
 let queueWatch=null;
-/* показує помилку лобі; на «ти вже в кімнаті» одразу дає кнопку виходу */
-function lobbyError(msg){
-  const box=$("errLobby");
-  if(!box)return;
-  box.innerHTML=esc(msg||"");
-  if(/вже в кімнаті|вже за столом/i.test(msg||"")){
-    box.innerHTML+=` <button class="small danger" id="errPanic" style="margin-left:6px;padding:3px 9px">вийти з усіх столів</button>`;
-    const b=document.getElementById("errPanic");
-    if(b)b.onclick=()=>{Audio5.sfx.click();panicLeave();};
-  }
-}
-
-/* спільний вихід з усіх столів — з меню і з підказки в лобі */
-function panicLeave(){
-  socket.emit("panicLeave",()=>{
-    inRoom=false;view=null;
-    ["ovMenu","ovRes","ovBet","ovNyav","ovPostcard","ovWanted","ovConfirm"].forEach(id=>ov(id,false));
-    stopQueueWatch();
-    leaveUI();
-    show("scrLobby");
-    refreshProfile();refreshDaily();loadMission();
-    $("errLobby").textContent="ти вийшов з усіх столів.";
-    setTimeout(()=>{if($("errLobby").textContent==="ти вийшов з усіх столів.")$("errLobby").textContent="";},2500);
-  });
-}
-
 function stopQueueWatch(){clearInterval(queueWatch);queueWatch=null;$("queueHint").style.display="none";socket.emit("lobbyChatOff");}
 function startQueueWatch(glitch){
   stopQueueWatch();
@@ -2302,7 +2129,7 @@ function startQueueWatch(glitch){
 $("btnCoop").onclick=()=>{
   Audio5.sfx.click();
   socket.emit("coopQueue",r=>{
-    if(r?.error){lobbyError(r.error);return;}
+    if(r?.error){$("errLobby").textContent=r.error;return;}
     inRoom=true;
     if(r?.queued){
       $("roomCode").textContent="· · · ·";$("waitList").textContent="";
@@ -2315,16 +2142,16 @@ $("btnCoop").onclick=()=>{
 $("btnAmbBoth").onclick=()=>{
   Audio5.sfx.click();
   socket.emit("playAmbassadors",{glitch:$("pveGlitch").checked,both:true},r=>{
-    if(r?.error){lobbyError(r.error);return;}
+    if(r?.error){$("errLobby").textContent=r.error;return;}
     inRoom=true;
   });
 };
 $("btnCreate").onclick=()=>{Audio5.sfx.click();socket.emit("createRoom",r=>{
-  if(r?.error){lobbyError(r.error);return;}
+  if(r?.error){$("errLobby").textContent=r.error;return;}
   inRoom=true;chatReset();
 });};
 $("btnJoin").onclick=()=>{Audio5.sfx.click();socket.emit("joinRoom",{code:$("joinCode").value},r=>{
-  if(r?.error){lobbyError(r.error);return;}
+  if(r?.error){$("errLobby").textContent=r.error;return;}
   inRoom=true;chatReset();
 });};
 $("btnCancelWait").onclick=()=>{stopQueueWatch();socket.emit("leaveQueue");socket.emit("leaveRoom");inRoom=false;view=null;leaveUI();show("scrLobby");};
@@ -2598,8 +2425,8 @@ $("btnShare").onclick=()=>{
      • фінальна комбінація завжди показується, навіть якщо
        сервер прибрав стіл тим самим ходом (boutTable).
    ══════════════════════════════════════════════════ */
-const T_HOLD = 450;   /* скільки стіл лежить, щоб його прочитали */
-const T_SWEEP = 220;   /* політ карт у відбій / до гравця */
+const T_HOLD = 1250;   /* скільки стіл лежить, щоб його прочитали */
+const T_SWEEP = 700;   /* політ карт у відбій / до гравця */
 
 const AnimQueue=(()=>{
   let busy=false, pend=[], guard=null;
@@ -2631,6 +2458,28 @@ const AnimQueue=(()=>{
   return {apply,reset(){clearTimeout(guard);guard=null;busy=false;pend.length=0;}};
 })();
 
+/* коротке тремтіння столу — «вага» удару, як у hearthstone */
+function tableShake(power){
+  const tz=$("tbl");
+  if(!tz||document.body.classList.contains("no-anim"))return;
+  tz.classList.remove("shakeS","shakeM");
+  void tz.offsetWidth;
+  tz.classList.add(power>=2?"shakeM":"shakeS");
+  setTimeout(()=>tz.classList.remove("shakeS","shakeM"),420);
+}
+
+/* спалах-кільце в місці удару */
+function impactRing(el){
+  if(!el||document.body.classList.contains("no-anim"))return;
+  const r=el.getBoundingClientRect();
+  const ring=document.createElement("div");
+  ring.className="impactRing";
+  ring.style.left=(r.left+r.width/2)+"px";
+  ring.style.top=(r.top+r.height/2)+"px";
+  flyRoot().appendChild(ring);
+  setTimeout(()=>ring.remove(),620);
+}
+
 /* хто забрав карти цього бою */
 function boutTaker(v,prev){
   if(v.discard>prev.discard)return null;                 /* бито — у відбій */
@@ -2651,6 +2500,8 @@ function battleScene(v,prev,onDone){
   /* якщо останню карту сервер прибрав тим самим ходом — домальовуємо знімок */
   if(v.boutTable&&v.boutTable.length&&tz)renderBoutSnapshot(v.boutTable);
 
+  if(tz){tz.classList.add("tblFreeze");setTimeout(()=>tz.classList.remove("tblFreeze"),T_HOLD);}
+  tableShake(1);
 
   setTimeout(()=>{
     const cards=[...document.querySelectorAll("#tbl .card")];
@@ -2660,7 +2511,7 @@ function battleScene(v,prev,onDone){
       const delay=Math.min(i*45,260);
       if(dest)flyClone(el,dest,bito?"discard":(mine?"toHand":"toFoe"),delay);
       el.style.animationDelay=delay+"ms";
-      el.classList.add(bito?"anim-sweep":(mine?"anim-pull":"anim-fade"));
+      el.classList.add(bito?"anim-out-bito":(mine?"anim-out-take":"anim-dissolve"));
     });
     if(bito){Audio5.sfx.bito();tableShake(2);}
     else{
@@ -2691,12 +2542,12 @@ function renderBoutSnapshot(snap){
     a.style.transform="rotate(-2deg)";a.style.zIndex="1";
     pr.appendChild(a);
     if(p.d){
-      const d=cardEl(p.d,seenTable.has(p.d.uid)?"":"dkLay");
+      const d=cardEl(p.d,seenTable.has(p.d.uid)?"":"lay");
       seenTable.add(p.d.uid);
       d.style.position="absolute";d.style.zIndex="3";d.style.left="16px";d.style.top="14px";
       d.style.setProperty("--rest","7deg");
       pr.appendChild(d);
-      if(i===snap.length-1){Audio5.sfx.slap();}
+      if(i===snap.length-1){impactRing(d);Audio5.sfx.slap();}
     }
     tbl.appendChild(pr);
   });
@@ -2786,14 +2637,14 @@ function renderGame(){
   v.table.forEach((p,i)=>{
     const pr=document.createElement("div");pr.className="pair";
     const aNew=!seenTable.has(p.a.uid);seenTable.add(p.a.uid);
-    const a=cardEl(p.a,((i===ti&&v.phase==="defend"&&v.you.role==="defend")?"target ":"")+(aNew?"dkLay":""));
+    const a=cardEl(p.a,((i===ti&&v.phase==="defend"&&v.you.role==="defend")?"target ":"")+(aNew?"lay":""));
     a.style.setProperty("--rest","-2deg");
     if(!aNew)a.style.transform="rotate(-2deg)";
     pr.appendChild(a);
     if(p.d){
       const dNew=!seenTable.has(p.d.uid);seenTable.add(p.d.uid);
       if(dNew)Audio5.sfx.slap();
-      const d=cardEl(p.d,dNew?"dkLay":"");
+      const d=cardEl(p.d,dNew?"lay":"");
       /* карта-переможниця лягає ЗВЕРХУ на побиту — тією ж анімацією, що й решта */
       if(dNew)lastCardEl=d;
       a.style.zIndex="1";
