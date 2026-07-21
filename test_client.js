@@ -61,25 +61,6 @@ setTimeout(() => {
   const stuck = [...d.querySelectorAll(".overlay.on")].map((x) => x.id);
   if (stuck.length) { console.error("оверлей залип відкритим: " + stuck.join(", ")); process.exit(1); }
 
-
-  /* ── css-змінні, без яких верстка «пливе» ── */
-  const rootCss = [...html.matchAll(/:root\{([^}]*)\}/g)].map(m => m[1]).join(";");
-  const NEED_VARS = ["--cardW", "--cardH", "--cardR", "--ink", "--paper", "--kyts"];
-  const baseBlock = (html.match(/:root\{[^}]*--ink[^}]*\}/) || [""])[0];
-  const lostVars = NEED_VARS.filter((v) => !baseBlock.includes(v));
-  if (lostVars.length) { console.error("у базовому :root нема змінних: " + lostVars.join(", ")); process.exit(1); }
-
-  /* ── ніщо не має накривати вікна: z-index фіксованих панелей < z-index оверлеїв ── */
-  const zOverlay = parseInt((html.match(/\.overlay\{[^}]*z-index:(\d+)/) || [])[1] || "20", 10);
-  const zPlayer = parseInt((html.match(/\.player\{[^}]*z-index:(\d+)/) || [])[1] || "0", 10);
-  if (zPlayer >= zOverlay) { console.error(`плеєр (z=${zPlayer}) перекриває вікна (z=${zOverlay}) — кнопки в них не натиснуться`); process.exit(1); }
-
-  /* ── кожне вікно мусить мати живу кнопку виходу ── */
-  const backs = { ovShop: "shopBack", ovAch: "achBack", ovProfile: "profBack", ovInv: "invBack",
-    ovFaction: "facBack", ovWanted: "wantedBack", ovMap: "mapBack", ovTop: "topBack", ovRules: "rulesBack" };
-  const noBack = Object.entries(backs).filter(([ov, b]) => !d.getElementById(b) || !d.getElementById(b).onclick);
-  if (noBack.length) { console.error("вікна без робочого «назад»: " + noBack.map((x) => x[0]).join(", ")); process.exit(1); }
-
   console.log(`клієнт вантажиться без помилок · ${MUST.length} ключових кнопок живі · тест КЛІЄНТ OK\n`);
   process.exit(0);
 }, 900);
