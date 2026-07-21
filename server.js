@@ -18,9 +18,9 @@ const ambLine = (who, key) => {
   const arr = (AMB[who] && AMB[who][key]) || [];
   return arr.length ? arr[(Math.random() * arr.length) | 0] : null;
 };
-/* доручення виконано: текст нагороди + власна репліка амбасадора, що його видав */
+/* доручення виконано (готове до здачі — нагороду видасть missionClaim) + власна репліка амбасадора */
 function pushMissionNote(notes, mr) {
-  notes.push(`доручення виконано: ${mr.text} — ${mr.reward}`);
+  notes.push(`доручення виконано: ${mr.text} — забери нагороду на головному екрані`);
   const line = ambLine(mr.who, "missionDone");
   const name = (AMB[mr.who] && AMB[mr.who].name) || mr.who;
   if (line) notes.push(`«${line}» — ${name}`);
@@ -1644,6 +1644,17 @@ io.on("connection", (socket) => {
     const m = store.missionToday(token);
     if (!m) return cb?.(null);
     cb?.({ id: m.id, text: m.text, who: m.who, goal: m.goal, prog: m.prog || 0, done: !!m.done, name: AMB[m.who]?.name || m.who });
+  });
+
+  socket.on("missionClaim", (cb) => {
+    if (!token) return cb?.({ error: "спершу hello." });
+    const r = store.missionClaim(token);
+    if (r.error) return cb?.(r);
+    cb?.({
+      ok: true, tk: r.tk,
+      claimed: { ...r.claimed, name: AMB[r.claimed.who]?.name || r.claimed.who },
+      next: { id: r.next.id, text: r.next.text, who: r.next.who, goal: r.next.goal, prog: r.next.prog || 0, done: !!r.next.done, name: AMB[r.next.who]?.name || r.next.who },
+    });
   });
 
   socket.on("quirk", ({ key, by }) => {

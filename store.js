@@ -295,43 +295,34 @@ function factionMissionStats() {
 }
 
 /* цикл доручень: перемішаний порядок усього пулу на фракцію.
-   pos рухається на 1 щодня — повний цикл (=довжина пулу, ~30) проходить
-   без повторів, а по завершенні кола пул перемішується наново (інший порядок). */
+   немає прив'язки до календарного дня — гравець тримає ОДНЕ доручення,
+   доки сам не здасть його (missionClaim); тоді цикл рухається на 1 і
+   видає наступне. Повний цикл (=довжина пулу, ~30) проходить без
+   повторів, а по завершенні кола пул перемішується наново. */
 function ensureMissionCycle(p, side, pool) {
   if (!p.missionCyc || p.missionCyc.side !== side || !Array.isArray(p.missionCyc.order) || p.missionCyc.order.length !== pool.length) {
     const seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
-    p.missionCyc = { side, order: seededShuffle(pool.map((m) => m.id), seed), pos: 0, day: null };
+    p.missionCyc = { side, order: seededShuffle(pool.map((m) => m.id), seed), pos: 0 };
   }
   return p.missionCyc;
 }
 
+/* поточне доручення гравця: обирається один раз і тримається, доки не здане */
 function missionToday(token) {
   const p = players[token];
   if (!p) return null;
-  const day = todayKey();
   const side = p.side === "anti" ? "anti" : "kyts";
   const pool = missionPool(side);
   const cyc = ensureMissionCycle(p, side, pool);
-  /* нове доручення видається рівно раз на добу — один пункт циклу за день */
-  if (cyc.day !== day) {
-    if (cyc.day !== null) {
-      cyc.pos++;
-      if (cyc.pos >= cyc.order.length) {
-        /* повне коло пройдено — наступне починається в іншому порядку */
-        const seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
-        cyc.order = seededShuffle(pool.map((m) => m.id), seed);
-        cyc.pos = 0;
-      }
-    }
-    cyc.day = day;
-    p.mission = { day, side, id: cyc.order[cyc.pos], prog: 0, done: false };
+  if (!p.mission || p.mission.side !== side) {
+    p.mission = { side, id: cyc.order[cyc.pos], prog: 0, done: false };
     save();
   }
   const def = pool.find((m) => m.id === p.mission.id) || pool[0];
   return { ...p.mission, ...def };
 }
 
-/* повертає {justDone, reward} якщо доручення щойно виконано */
+/* лише позначає прогрес і готовність до здачі — нагороду видає missionClaim */
 function missionProgress(token, kind, value) {
   const p = players[token];
   if (!p) return null;
@@ -339,18 +330,39 @@ function missionProgress(token, kind, value) {
   if (!cur || cur.done || cur.kind !== kind) return null;
   p.mission.prog = Math.max(p.mission.prog || 0, value || 1);
   if (p.mission.prog >= cur.goal) {
-    p.mission.done = true;
-    /* внесок у спільну справу фракції */
-    factionMissionStats();
-    if ((p.side || "kyts") === "anti") { missionStats.anti++; missionStats.allAnti++; }
-    else { missionStats.kyts++; missionStats.allKyts++; }
-    if (!p.tk) p.tk = { k: 0, a: 0 };
-    p.tk.k += 8; p.tk.a += 8;
+    p.mission.done = true;   // готове до здачі, ще не здане
     save();
-    return { justDone: true, text: cur.text, who: cur.who, reward: "+8 ж.к і +8 ж.а" };
+    return { justDone: true, text: cur.text, who: cur.who };
   }
   save();
   return null;
+}
+
+/* здати виконане доручення: нагорода + перехід до наступного в циклі */
+function missionClaim(token) {
+  const p = players[token];
+  if (!p) return { error: "нема профілю." };
+  const side = p.side === "anti" ? "anti" : "kyts";
+  const pool = missionPool(side);
+  const cur = missionToday(token);
+  if (!cur || !cur.done) return { error: "доручення ще не виконано." };
+  factionMissionStats();
+  if (side === "anti") { missionStats.anti++; missionStats.allAnti++; }
+  else { missionStats.kyts++; missionStats.allKyts++; }
+  if (!p.tk) p.tk = { k: 0, a: 0 };
+  p.tk.k += 8; p.tk.a += 8;
+  const claimed = { text: cur.text, who: cur.who, reward: "+8 ж.к і +8 ж.а" };
+  const cyc = p.missionCyc;
+  cyc.pos++;
+  if (cyc.pos >= cyc.order.length) {
+    const seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
+    cyc.order = seededShuffle(pool.map((m) => m.id), seed);
+    cyc.pos = 0;
+  }
+  p.mission = { side, id: cyc.order[cyc.pos], prog: 0, done: false };
+  save();
+  const nextDef = pool.find((m) => m.id === p.mission.id) || pool[0];
+  return { ok: true, tk: p.tk, claimed, next: { ...p.mission, ...nextDef } };
 }
 
 function dailyBoard() {
@@ -539,6 +551,6 @@ module.exports = {
   getOrCreate, get, byNick, applyMatch, award, top, topPve, positionPve, setProfile, pushHist, position, dirty: save,
   wantedToday, tradeCreate, tradeAccept, bumpQuirk,
   todayKey, dailyPlayedToday, recordDaily, dailyBoard,
-  seasonKey, rolloverSeason, missionToday, missionProgress, factionMissionStats, factionWins,
+  seasonKey, rolloverSeason, missionToday, missionProgress, missionClaim, factionMissionStats, factionWins,
   bumpFrontier, FRONTIER_N, FRONTIER_MAX,
 };

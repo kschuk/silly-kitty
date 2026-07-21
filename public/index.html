@@ -36,10 +36,18 @@ body.haunted #mhH{transform:rotate(213deg)!important}
 body.haunted #mhM{transform:rotate(97deg)!important;transition:transform .4s}
 body.haunted #mhS{animation:spinS 2.4s linear infinite}
 @keyframes spinS{to{transform:rotate(360deg)}}
-.missionBar{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;text-align:center;
-  font-size:9.5px;line-height:1.5;border:2px solid var(--ink);
-  border-radius:10px;padding:4px 9px;margin:2px auto;background:#f3e2c4;max-width:330px;cursor:default}
-.missionBar.done{opacity:.65;text-decoration:line-through}
+.missionBar{display:flex;align-items:center;gap:9px;text-align:left;
+  font-size:10px;line-height:1.4;border:2px solid var(--ink);
+  border-radius:13px;padding:7px 10px;margin:2px auto;background:#f3e2c4;max-width:340px}
+.missionBar.ready{background:linear-gradient(100deg,#f3e2c4,#f8ecc9)}
+.missionAmb{flex-shrink:0;width:28px;height:28px;border-radius:50%;border:2px solid var(--ink);
+  display:flex;align-items:center;justify-content:center;background:var(--panel)}
+.missionAmb.anti{background:#e2e5f0}
+.missionBody{flex:1;min-width:0}
+.missionWho{font-weight:700;font-size:8.5px;opacity:.7;letter-spacing:.04em}
+.missionTxt{margin-top:1px}
+.missionProg{font-size:8.5px;opacity:.6;margin-top:2px}
+.missionClaimBtn{flex-shrink:0}
 .wantedBar{display:flex;align-items:center;justify-content:center;gap:8px;font-size:9.5px;border:2px dashed rgba(39,32,25,.5);
   border-radius:10px;padding:4px 8px;margin:2px auto;background:rgba(246,239,220,.55);max-width:330px}
 .wantedFace{width:26px;height:30px;border:1.5px solid var(--ink);border-radius:5px;overflow:hidden;flex-shrink:0}
@@ -109,11 +117,15 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .card img.art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--cardR) - 3px)}
 .iconBtn{background:var(--ink);color:var(--paper);border-color:var(--ink);padding:5px 9px;font-size:10px;display:inline-flex;align-items:center;gap:5px}
 .shopHead{height:14px;border-radius:6px 6px 0 0;margin:-18px -18px 10px;background:repeating-linear-gradient(90deg,var(--kyts) 0 16px,var(--panel) 16px 32px);border-bottom:2px solid var(--ink)}
-.shopWallet{margin-top:8px;font-size:12px;font-weight:600;text-align:center}
-.shopSection{margin-top:18px}
-.shopSectionTitle{font-family:'Unbounded',monospace;font-weight:800;font-size:10.5px;letter-spacing:.16em;text-transform:lowercase;opacity:.85;display:flex;align-items:center;gap:8px}
-.shopSectionTitle::after{content:"";flex:1;height:1.5px;background:rgba(39,32,25,.18)}
-.shopSectionSub{font-size:9.5px;opacity:.65;margin-top:3px;margin-bottom:2px;line-height:1.4}
+.shopTopBar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
+.shopTopBar button{padding:5px 11px;font-size:10px;box-shadow:none}
+.shopWallet{font-size:11px;font-weight:600;white-space:nowrap}
+.shopTabs{display:flex;margin-top:12px;border:2px solid var(--ink);border-radius:11px;overflow:hidden}
+.shopTabs button{flex:1;border:none;border-radius:0;background:var(--paper);box-shadow:none;padding:8px 4px;font-size:10px;border-right:2px solid var(--ink);color:var(--ink)}
+.shopTabs button:last-child{border-right:none}
+.shopTabs button.sel{background:var(--ink);color:var(--paper)}
+.shopPane{margin-top:11px}
+.shopSectionSub{font-size:9.5px;opacity:.65;margin-bottom:6px;line-height:1.4}
 .shopGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:9px}
 .pcItem{cursor:pointer;border:2px solid rgba(39,32,25,.25);border-radius:12px;padding:8px 6px;text-align:center;background:rgba(246,239,220,.5);transition:transform var(--tFast) var(--eOut)}
 .pcItem:active{transform:translateY(1px)}
@@ -757,37 +769,41 @@ body.no-anim .mascot{animation:none}
 </div></div>
 
 <div class="overlay" id="ovShop"><div class="panel" style="max-width:420px">
+  <div class="shopTopBar">
+    <button id="shopBack">← назад</button>
+    <div id="shopWallet" class="shopWallet"></div>
+  </div>
   <div class="shopHead"></div>
   <div class="big">МАГАЗИН</div>
   <div class="sub">крамничка на краю всесвітів</div>
-  <div id="shopWallet" class="shopWallet"></div>
 
-  <div class="shopSection">
-    <div class="shopSectionTitle">банери</div>
+  <div class="shopTabs" id="shopTabs">
+    <button class="sel" data-tab="banners">банери</button>
+    <button data-tab="nips">ніпи</button>
+    <button data-tab="soon">скоро</button>
+  </div>
+
+  <div class="shopPane" id="paneBanners">
     <div class="shopSectionSub">рамка кольору фракції для профілю. дублікат можна обміняти в альбомі.</div>
     <div class="shopGrid" id="shopCards"></div>
   </div>
 
-  <div class="shopSection">
-    <div class="shopSectionTitle">ніпи</div>
+  <div class="shopPane" id="paneNips" style="display:none">
     <div class="shopSectionSub">шестеро, що живуть під столом. торкнись картки — розкаже щось про себе.</div>
     <div class="nipStrip" id="shopNips"></div>
   </div>
 
-  <div class="shopSection">
-    <div class="shopSectionTitle">майбутні косметичні предмети</div>
+  <div class="shopPane" id="paneSoon" style="display:none">
     <div class="shopSectionSub">ще малюються. з'являться тут, коли будуть готові.</div>
     <div class="shopGrid" id="shopItems"></div>
   </div>
 
-  <div class="shopSection featured">
+  <div class="featured">
     <b>+0.1 до рейтингу</b> — 1 жетон.<br>
     <button class="small" id="buyK" style="margin-top:6px"></button>
     <button class="small" id="buyA"></button>
     <div class="err" id="shopErr"></div>
   </div>
-
-  <div class="row"><button id="shopBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovCollect" style="z-index:36"><div class="panel" style="max-width:340px">
@@ -1222,6 +1238,7 @@ function hello(nick,cb){
     if(Array.isArray(res.profile?.cards)&&res.profile.cards.length)cacheCards(res.profile.cards);
     if(res.profile?.seasonRoll)setTimeout(()=>showSeasonRoll(res.profile.seasonRoll),1200);
     if(!res.resumed && !inRoom){show("scrLobby");}
+    refreshMission();
     cb&&cb();
   });
 }
@@ -1245,6 +1262,50 @@ function tagText(p){
   if(p.title==="none")return "";
   if(p.title&&achDefs){const a=achDefs.find(x=>x.id===p.title);if(a&&p.achIds.includes(p.title))return ` [${esc(a.name)}]`;}
   return ` [${esc(p.rank)}]`;
+}
+/* легке оновлення профілю в фоні (жетони/рейтинг могли змінитись, поки був у матчі) —
+   раніше викликалась, але ніде не була оголошена: ReferenceError обривав обробник
+   на цьому місці, і все, що йшло ПІСЛЯ неї в тому ж обробнику (зокрема refreshDaily),
+   також не встигало виконатись */
+function refreshProfile(){
+  socket.emit("profileInfo",p=>{
+    if(!p)return;
+    profile={...profile,...p};
+    renderProfile();
+  });
+}
+
+/* ── доручення амбасадорів на головному екрані: отримати → здати → наступне ── */
+let missionState=null;
+function renderMissionBar(m){
+  const host=$("missionBar");
+  if(!host)return;
+  if(!m){host.style.display="none";host.innerHTML="";return;}
+  missionState=m;
+  const anti=m.who==="zhreg";
+  const icon=anti?frogSvg("#4a5680","#e2e5f0",16):catSvg("#b55a24","#f3e2c4",16);
+  host.className="missionBar"+(m.done?" ready":"");
+  host.style.display="flex";
+  host.innerHTML=`<span class="missionAmb ${anti?"anti":""}">${icon}</span>
+    <span class="missionBody">
+      <span class="missionWho">доручення · ${esc(m.name)}</span><br>
+      <span class="missionTxt">${esc(m.text)}</span>
+      ${m.goal>1&&!m.done?`<div class="missionProg">${Math.min(m.prog||0,m.goal)}/${m.goal}</div>`:""}
+    </span>
+    ${m.done?`<button class="small accent missionClaimBtn" id="missionClaimBtn">здати</button>`:""}`;
+  const btn=document.getElementById("missionClaimBtn");
+  if(btn)btn.onclick=()=>{
+    Audio5.sfx.coin();
+    btn.disabled=true;
+    socket.emit("missionClaim",r=>{
+      if(r?.error){btn.disabled=false;return;}
+      profile={...profile,tk:r.tk};renderProfile();
+      renderMissionBar(r.next);
+    });
+  };
+}
+function refreshMission(){
+  socket.emit("missionToday",m=>renderMissionBar(m));
 }
 
 /* ── менюв ── */
@@ -1323,7 +1384,7 @@ $("mSettings").onclick=()=>{ov("ovMenu",false);openSettings();};
 $("setBack").onclick=()=>backTo("ovSettings");
 $("mLeave").onclick=()=>{
   if(confirm("вийти з матчу? це останнє місце.")){
-    socket.emit("leaveRoom");inRoom=false;view=null;ov("ovMenu",false);leaveUI();show("scrLobby");refreshProfile();
+    socket.emit("leaveRoom");inRoom=false;view=null;ov("ovMenu",false);leaveUI();show("scrLobby");refreshProfile();refreshMission();
   }
 };
 
@@ -1946,6 +2007,12 @@ function renderBannerGrid(host,shop){
   });
 }
 let shopBought=false;
+const SHOP_PANES={banners:"paneBanners",nips:"paneNips",soon:"paneSoon"};
+function shopShowTab(tab){
+  document.querySelectorAll("#shopTabs button").forEach(b=>b.classList.toggle("sel",b.dataset.tab===tab));
+  Object.entries(SHOP_PANES).forEach(([k,id])=>{if($(id))$(id).style.display=k===tab?"":"none";});
+}
+document.querySelectorAll("#shopTabs button").forEach(b=>b.onclick=()=>{Audio5.sfx.click();shopShowTab(b.dataset.tab);});
 /* атмосферна галерея «хто такі ніпи» — не купівля, просто дух крамниці.
    тап по картці розкриває цитату замість опису, повторний тап ховає назад. */
 function renderShopNips(){
@@ -1970,6 +2037,7 @@ function renderShopNips(){
 function openShop(){
   shopBought=false;
   ov("ovShop",true);
+  shopShowTab("banners");
   renderShopWallet();
   if($("shopErr"))$("shopErr").textContent="";
   if($("shopItems"))$("shopItems").innerHTML=SHOP.map(t=>`<div class="shopItem"><span class="soon">скоро</span><b>${esc(t)}</b></div>`).join("");
@@ -2251,7 +2319,7 @@ function panicLeave(){
     stopQueueWatch();
     leaveUI();
     show("scrLobby");
-    refreshProfile();refreshDaily();
+    refreshProfile();refreshDaily();refreshMission();
     $("errLobby").textContent="ти вийшов з усіх столів.";
     setTimeout(()=>{if($("errLobby").textContent==="ти вийшов з усіх столів.")$("errLobby").textContent="";},2500);
   });
@@ -2317,7 +2385,7 @@ $("btnStart").onclick=()=>{
   Audio5.sfx.click();
   socket.emit("startGame",{glitch:$("roomGlitch").checked,bet:$("roomBet").checked});
 };
-$("btnToLobby").onclick=()=>{socket.emit("leaveRoom");inRoom=false;view=null;ov("ovRes",false);ov("ovPostcard",false);leaveUI();show("scrLobby");refreshProfile();refreshDaily();};
+$("btnToLobby").onclick=()=>{socket.emit("leaveRoom");inRoom=false;view=null;ov("ovRes",false);ov("ovPostcard",false);leaveUI();show("scrLobby");refreshProfile();refreshDaily();refreshMission();};
 $("btnRematch").onclick=()=>{socket.emit("rematch");$("btnRematch").textContent="чекаємо…";};
 
 /* ── чат (лобі + гра) ── */
