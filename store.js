@@ -45,6 +45,7 @@ function load() {
       if (typeof p.season !== "string") p.season = seasonKey();
       if (!Array.isArray(p.seasonBanners)) p.seasonBanners = [];
       if (!p.mission || typeof p.mission !== "object") p.mission = null;
+      if (!p.missionCyc || typeof p.missionCyc !== "object") p.missionCyc = null;
       if (!Array.isArray(p.cards)) p.cards = [];
       if (!p.dupes || typeof p.dupes !== "object") p.dupes = {};   // id → скільки зайвих
       if (typeof p.banner !== "string") p.banner = "";              // активний банер профілю
@@ -190,28 +191,89 @@ function recordDaily(token, nick, entry) {
   return streak;
 }
 
-/* ── п.40: щоденне доручення. ґреґ дає добрі, жреґ — знущальні ── */
+/* ── п.40+41: щоденні доручення амбасадорів. ── */
 /* ── доручення. киці отримують від ґреґа, анти-киці — від жреґа.
-   набори різні за характером: ґреґ просить майстерності, жреґ — жорстокості. ── */
+   набори різні за характером: ґреґ просить майстерності, жреґ — жорстокості.
+   ~30 доручень на фракцію: повний цикл триває приблизно місяць, доки
+   не повторюється жодне (дивись rotation нижче — missionCycle). ── */
 const MISSIONS_KYTS = [
-  { id: "k_nip3",   who: "greg", text: "зіграй ніпом тричі за одну партію",           goal: 3, kind: "nips" },
-  { id: "k_dry",    who: "greg", text: "виграй, не забравши зі столу жодної карти",   goal: 1, kind: "dryWin" },
-  { id: "k_fast",   who: "greg", text: "виграй швидше ніж за 4 хвилини",              goal: 1, kind: "fastWin" },
-  { id: "k_five",   who: "greg", text: "зіграй чотири пʼятірки за партію",            goal: 4, kind: "fives" },
-  { id: "k_amb",    who: "greg", text: "здолай амбасадора протилежної фракції",       goal: 1, kind: "ambWin" },
-  { id: "k_long",   who: "greg", text: "дограй партію, довшу за 8 хвилин",            goal: 1, kind: "longGame" },
-  { id: "k_wanted", who: "greg", text: "заверши перемогу карткою з розшуку",          goal: 1, kind: "wantedWin" },
+  { id: "k_nip2",   who: "greg", text: "зіграй ніпом двічі за одну партію",              goal: 2, kind: "nips" },
+  { id: "k_nip3",   who: "greg", text: "зіграй ніпом тричі за одну партію",              goal: 3, kind: "nips" },
+  { id: "k_nip4",   who: "greg", text: "зіграй ніпом чотири рази за партію",             goal: 4, kind: "nips" },
+  { id: "k_nip5",   who: "greg", text: "зіграй ніпом пʼять разів за одну партію",        goal: 5, kind: "nips" },
+  { id: "k_nip2b",  who: "greg", text: "викинь двох ніпів за одну партію, не поспішаючи", goal: 2, kind: "nips" },
+  { id: "k_nip3b",  who: "greg", text: "покажи трьох ніпів за партію — гарно й чесно",   goal: 3, kind: "nips" },
+  { id: "k_nip4b",  who: "greg", text: "зіграй чотирма ніпами. я порахую особисто",      goal: 4, kind: "nips" },
+  { id: "k_nip5b",  who: "greg", text: "пʼять ніпів за партію. амбітно, але я вірю",     goal: 5, kind: "nips" },
+  { id: "k_five3",  who: "greg", text: "зіграй три пʼятірки за партію",                  goal: 3, kind: "fives" },
+  { id: "k_five4",  who: "greg", text: "зіграй чотири пʼятірки за партію",               goal: 4, kind: "fives" },
+  { id: "k_five5",  who: "greg", text: "зіграй пʼять пʼятірок за одну партію",           goal: 5, kind: "fives" },
+  { id: "k_five6",  who: "greg", text: "зіграй шість пʼятірок за партію. руки вправні?", goal: 6, kind: "fives" },
+  { id: "k_five3b", who: "greg", text: "три пʼятірки — і партія твоя історія",           goal: 3, kind: "fives" },
+  { id: "k_five4b", who: "greg", text: "чотири пʼятірки, жодного зайвого слова",         goal: 4, kind: "fives" },
+  { id: "k_dry1",   who: "greg", text: "виграй, не забравши зі столу жодної карти",      goal: 1, kind: "dryWin" },
+  { id: "k_dry2",   who: "greg", text: "усуха перемога. навіть не торкнись відбою",      goal: 1, kind: "dryWin" },
+  { id: "k_dry3",   who: "greg", text: "виграй з порожніми руками від чужих карт",       goal: 1, kind: "dryWin" },
+  { id: "k_dry4",   who: "greg", text: "жодного забору, самі перемоги. спробуй",         goal: 1, kind: "dryWin" },
+  { id: "k_fast1",  who: "greg", text: "виграй швидше ніж за 4 хвилини",                 goal: 1, kind: "fastWin" },
+  { id: "k_fast2",  who: "greg", text: "спритна партія: менш ніж 4 хвилини на перемогу", goal: 1, kind: "fastWin" },
+  { id: "k_fast3",  who: "greg", text: "чотири хвилини — і партія вже виграна",          goal: 1, kind: "fastWin" },
+  { id: "k_fast4",  who: "greg", text: "не барись: перемога швидше за 4 хвилини",        goal: 1, kind: "fastWin" },
+  { id: "k_amb1",   who: "greg", text: "здолай амбасадора протилежної фракції",          goal: 1, kind: "ambWin" },
+  { id: "k_amb2",   who: "greg", text: "покажи жреґу, як грають киці",                   goal: 1, kind: "ambWin" },
+  { id: "k_amb3",   who: "greg", text: "перемога над амбасадором з того боку. будь ласка", goal: 1, kind: "ambWin" },
+  { id: "k_long1",  who: "greg", text: "дограй партію, довшу за 8 хвилин",               goal: 1, kind: "longGame" },
+  { id: "k_long2",  who: "greg", text: "витримай довгу партію — понад 8 хвилин",         goal: 1, kind: "longGame" },
+  { id: "k_long3",  who: "greg", text: "не поспішай: партія має тривати понад 8 хвилин", goal: 1, kind: "longGame" },
+  { id: "k_wanted1",who: "greg", text: "заверши перемогу карткою з розшуку",             goal: 1, kind: "wantedWin" },
+  { id: "k_wanted2",who: "greg", text: "спіймай розшукувану карту переможним ходом",     goal: 1, kind: "wantedWin" },
 ];
 const MISSIONS_ANTI = [
-  { id: "a_wanted", who: "zhreg", text: "впіймай розшукувану карту переможним ходом", goal: 1, kind: "wantedWin" },
-  { id: "a_amb",    who: "zhreg", text: "принизь амбасадора протилежної фракції",     goal: 1, kind: "ambWin" },
-  { id: "a_nip4",   who: "zhreg", text: "витрать чотири ніпи за одну партію",         goal: 4, kind: "nips" },
-  { id: "a_five",   who: "zhreg", text: "зіграй пʼять пʼятірок за партію",            goal: 5, kind: "fives" },
-  { id: "a_dry",    who: "zhreg", text: "виграй усухо — жодного забору зі столу",     goal: 1, kind: "dryWin" },
-  { id: "a_fast",   who: "zhreg", text: "закінчи все швидше ніж за 3 хвилини",        goal: 1, kind: "fastWin" },
-  { id: "a_long",   who: "zhreg", text: "промуч суперника довше ніж 8 хвилин",        goal: 1, kind: "longGame" },
+  { id: "a_nip3",   who: "zhreg", text: "витрать три ніпи за одну партію",               goal: 3, kind: "nips" },
+  { id: "a_nip4",   who: "zhreg", text: "витрать чотири ніпи за одну партію",            goal: 4, kind: "nips" },
+  { id: "a_nip5",   who: "zhreg", text: "пʼять ніпів за партію. чи вистачить нахабства?", goal: 5, kind: "nips" },
+  { id: "a_nip6",   who: "zhreg", text: "шість ніпів за партію. видовищно і жорстоко",   goal: 6, kind: "nips" },
+  { id: "a_nip3b",  who: "zhreg", text: "три ніпи, без пояснень",                        goal: 3, kind: "nips" },
+  { id: "a_nip4b",  who: "zhreg", text: "чотири ніпи. і жодного вибачення",              goal: 4, kind: "nips" },
+  { id: "a_nip5b",  who: "zhreg", text: "пʼять ніпів. я записую кожен",                  goal: 5, kind: "nips" },
+  { id: "a_five4",  who: "zhreg", text: "зіграй чотири пʼятірки за партію",              goal: 4, kind: "fives" },
+  { id: "a_five5",  who: "zhreg", text: "зіграй пʼять пʼятірок за партію",               goal: 5, kind: "fives" },
+  { id: "a_five6",  who: "zhreg", text: "шість пʼятірок за одну партію. без жалю",       goal: 6, kind: "fives" },
+  { id: "a_five7",  who: "zhreg", text: "сім пʼятірок. це вже мистецтво жорстокості",    goal: 7, kind: "fives" },
+  { id: "a_five4b", who: "zhreg", text: "чотири пʼятірки — і жодного вагання",           goal: 4, kind: "fives" },
+  { id: "a_five5b", who: "zhreg", text: "пʼять пʼятірок, поки суперник не отямився",     goal: 5, kind: "fives" },
+  { id: "a_dry1",   who: "zhreg", text: "виграй усухо — жодного забору зі столу",        goal: 1, kind: "dryWin" },
+  { id: "a_dry2",   who: "zhreg", text: "перемога без жодної забраної карти. чисто",     goal: 1, kind: "dryWin" },
+  { id: "a_dry3",   who: "zhreg", text: "не забери жодної карти й усе одно виграй",      goal: 1, kind: "dryWin" },
+  { id: "a_dry4",   who: "zhreg", text: "усуха перемога. слабких це лякає",              goal: 1, kind: "dryWin" },
+  { id: "a_fast1",  who: "zhreg", text: "закінчи все швидше ніж за 4 хвилини",           goal: 1, kind: "fastWin" },
+  { id: "a_fast2",  who: "zhreg", text: "чотири хвилини на знищення суперника",          goal: 1, kind: "fastWin" },
+  { id: "a_fast3",  who: "zhreg", text: "не дай супернику часу подумати: перемога <4хв", goal: 1, kind: "fastWin" },
+  { id: "a_fast4",  who: "zhreg", text: "швидка розправа: менше 4 хвилин",               goal: 1, kind: "fastWin" },
+  { id: "a_amb1",   who: "zhreg", text: "принизь амбасадора протилежної фракції",        goal: 1, kind: "ambWin" },
+  { id: "a_amb2",   who: "zhreg", text: "покажи ґреґу, чого варта його доброта",         goal: 1, kind: "ambWin" },
+  { id: "a_amb3",   who: "zhreg", text: "перемога над амбасадором киць. дрібниця",       goal: 1, kind: "ambWin" },
+  { id: "a_long1",  who: "zhreg", text: "промуч суперника довше ніж 8 хвилин",           goal: 1, kind: "longGame" },
+  { id: "a_long2",  who: "zhreg", text: "розтягни партію за 8 хвилин. насолодись",       goal: 1, kind: "longGame" },
+  { id: "a_long3",  who: "zhreg", text: "довга партія, понад 8 хвилин страждань",        goal: 1, kind: "longGame" },
+  { id: "a_wanted1",who: "zhreg", text: "впіймай розшукувану карту переможним ходом",    goal: 1, kind: "wantedWin" },
+  { id: "a_wanted2",who: "zhreg", text: "заверши партію карткою з розшуку. трофей",      goal: 1, kind: "wantedWin" },
+  { id: "a_wanted3",who: "zhreg", text: "розшукувана карта — і переможний хід нею",      goal: 1, kind: "wantedWin" },
 ];
 const missionPool = (side) => (side === "anti" ? MISSIONS_ANTI : MISSIONS_KYTS);
+
+/* детерміноване перемішування (Fisher–Yates із простим лінійним генератором,
+   без залежності від Math.random — щоб порядок був відтворюваний за seed) */
+function seededShuffle(arr, seed) {
+  let s = seed >>> 0 || 1;
+  const rnd = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  const out = arr.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 
 /* спільний лічильник виконаних доручень по фракціях (за добу і за весь час) */
@@ -232,22 +294,37 @@ function factionMissionStats() {
   return { ...missionStats };
 }
 
+/* цикл доручень: перемішаний порядок усього пулу на фракцію.
+   pos рухається на 1 щодня — повний цикл (=довжина пулу, ~30) проходить
+   без повторів, а по завершенні кола пул перемішується наново (інший порядок). */
+function ensureMissionCycle(p, side, pool) {
+  if (!p.missionCyc || p.missionCyc.side !== side || !Array.isArray(p.missionCyc.order) || p.missionCyc.order.length !== pool.length) {
+    const seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
+    p.missionCyc = { side, order: seededShuffle(pool.map((m) => m.id), seed), pos: 0, day: null };
+  }
+  return p.missionCyc;
+}
+
 function missionToday(token) {
   const p = players[token];
   if (!p) return null;
   const day = todayKey();
-  const pool = missionPool(p.side);
-  const sameSide = p.mission && p.mission.side === (p.side === "anti" ? "anti" : "kyts");
-  /* нове доручення: новий день, зміна фракції або попереднє вже виконано */
-  if (!p.mission || p.mission.day !== day || !sameSide || p.mission.done) {
-    const done = (p.mission && p.mission.day === day && sameSide) ? (p.mission.doneIds || []) : [];
-    const left = pool.filter((m) => !done.includes(m.id));
-    const bag = left.length ? left : pool;
-    /* поки не всі виконані — беремо детермінований за днем, далі просто наступне */
-    let h = 0; const key = day + (p.side || "kyts") + done.length;
-    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-    const m = bag[h % bag.length];
-    p.mission = { day, side: p.side === "anti" ? "anti" : "kyts", id: m.id, prog: 0, done: false, doneIds: done };
+  const side = p.side === "anti" ? "anti" : "kyts";
+  const pool = missionPool(side);
+  const cyc = ensureMissionCycle(p, side, pool);
+  /* нове доручення видається рівно раз на добу — один пункт циклу за день */
+  if (cyc.day !== day) {
+    if (cyc.day !== null) {
+      cyc.pos++;
+      if (cyc.pos >= cyc.order.length) {
+        /* повне коло пройдено — наступне починається в іншому порядку */
+        const seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
+        cyc.order = seededShuffle(pool.map((m) => m.id), seed);
+        cyc.pos = 0;
+      }
+    }
+    cyc.day = day;
+    p.mission = { day, side, id: cyc.order[cyc.pos], prog: 0, done: false };
     save();
   }
   const def = pool.find((m) => m.id === p.mission.id) || pool[0];
@@ -263,7 +340,6 @@ function missionProgress(token, kind, value) {
   p.mission.prog = Math.max(p.mission.prog || 0, value || 1);
   if (p.mission.prog >= cur.goal) {
     p.mission.done = true;
-    p.mission.doneIds = [...(p.mission.doneIds || []), p.mission.id];
     /* внесок у спільну справу фракції */
     factionMissionStats();
     if ((p.side || "kyts") === "anti") { missionStats.anti++; missionStats.allAnti++; }

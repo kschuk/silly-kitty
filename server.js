@@ -18,6 +18,13 @@ const ambLine = (who, key) => {
   const arr = (AMB[who] && AMB[who][key]) || [];
   return arr.length ? arr[(Math.random() * arr.length) | 0] : null;
 };
+/* доручення виконано: текст нагороди + власна репліка амбасадора, що його видав */
+function pushMissionNote(notes, mr) {
+  notes.push(`доручення виконано: ${mr.text} — ${mr.reward}`);
+  const line = ambLine(mr.who, "missionDone");
+  const name = (AMB[mr.who] && AMB[mr.who].name) || mr.who;
+  if (line) notes.push(`«${line}» — ${name}`);
+}
 
 const PORT = process.env.PORT || 3000;
 const RECONNECT_MS = 10 * 60_000;
@@ -251,7 +258,7 @@ function settle(game) {
         tryA("pve_shvydko", dur < 120_000);
         tryA("pve_desyat", p.pveWins >= 10);
         const mr = store.missionProgress(hTok, "ambWin", 1);
-        if (mr) notes.push(`доручення виконано: ${mr.text} — ${mr.reward}`);
+        if (mr) pushMissionNote(notes, mr);
       tryA("amb_obydva", !!game.ambBoth);
       tryA("amb_ostanni", !!game.ambBoth && st.places[hSeat] === 1);
         /* амбасадорство: перемога над ПРОТИЛЕЖНИМ амбасадором рухає мапу */
@@ -433,7 +440,7 @@ function settle(game) {
     if (dur >= 480_000) mp("longGame", 1);
     if (missionHits.length) {
       const h = missionHits[0];
-      notes.push(`доручення виконано: ${h.text} — ${h.reward}`);
+      pushMissionNote(notes, h);
       (game.missionDone = game.missionDone || {})[seat] = h;
     }
 
