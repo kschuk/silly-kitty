@@ -193,31 +193,56 @@ function recordDaily(token, nick, entry) {
 /* ── п.40: щоденне доручення. ґреґ дає добрі, жреґ — знущальні ── */
 /* ── доручення. киці отримують від ґреґа, анти-киці — від жреґа.
    набори різні за характером: ґреґ просить майстерності, жреґ — жорстокості. ── */
+/* ── доручення амбасадорів: по 15 на фракцію, щоб місяць не повторювались ── */
 const MISSIONS_KYTS = [
-  { id: "k_nip3",   who: "greg", text: "зіграй ніпом тричі за одну партію",           goal: 3, kind: "nips" },
-  { id: "k_dry",    who: "greg", text: "виграй, не забравши зі столу жодної карти",   goal: 1, kind: "dryWin" },
-  { id: "k_fast",   who: "greg", text: "виграй швидше ніж за 4 хвилини",              goal: 1, kind: "fastWin" },
-  { id: "k_five",   who: "greg", text: "зіграй чотири пʼятірки за партію",            goal: 4, kind: "fives" },
-  { id: "k_amb",    who: "greg", text: "здолай амбасадора протилежної фракції",       goal: 1, kind: "ambWin" },
-  { id: "k_long",   who: "greg", text: "дограй партію, довшу за 8 хвилин",            goal: 1, kind: "longGame" },
-  { id: "k_wanted", who: "greg", text: "заверши перемогу карткою з розшуку",          goal: 1, kind: "wantedWin" },
+  { id: "k_nip3",    who: "greg", text: "зіграй ніпом тричі за одну партію",              goal: 3, kind: "nips" },
+  { id: "k_dry",     who: "greg", text: "виграй, не забравши зі столу жодної карти",      goal: 1, kind: "dryWin" },
+  { id: "k_fast",    who: "greg", text: "виграй швидше ніж за 4 хвилини",                 goal: 1, kind: "fastWin" },
+  { id: "k_five",    who: "greg", text: "зіграй чотири пʼятірки за партію",               goal: 4, kind: "fives" },
+  { id: "k_amb",     who: "greg", text: "здолай амбасадора протилежної фракції",          goal: 1, kind: "ambWin" },
+  { id: "k_long",    who: "greg", text: "дограй партію, довшу за 8 хвилин",               goal: 1, kind: "longGame" },
+  { id: "k_wanted",  who: "greg", text: "переможи картою «у розшуку»",                    goal: 1, kind: "wantedWin" },
+  { id: "k_nip5",    who: "greg", text: "зіграй пʼять ніпів за партію",                   goal: 5, kind: "nips" },
+  { id: "k_dry2",    who: "greg", text: "виграй двічі поспіль, не забираючи карт",        goal: 2, kind: "dryWin" },
+  { id: "k_fast2",   who: "greg", text: "виграй швидше ніж за 3 хвилини",                 goal: 1, kind: "fastWin" },
+  { id: "k_six",     who: "greg", text: "зіграй шість пʼятірок за партію",                goal: 6, kind: "fives" },
+  { id: "k_amb2",    who: "greg", text: "здолай протилежного амбасадора двічі",           goal: 2, kind: "ambWin" },
+  { id: "k_marathon",who: "greg", text: "дограй партію, довшу за 12 хвилин",              goal: 1, kind: "longGame" },
+  { id: "k_wanted2", who: "greg", text: "двічі перемож картою «у розшуку»",               goal: 2, kind: "wantedWin" },
+  { id: "k_nip1",    who: "greg", text: "зіграй хоча б одного ніпа за партію",            goal: 1, kind: "nips" },
 ];
+
 const MISSIONS_ANTI = [
-  { id: "a_wanted", who: "zhreg", text: "впіймай розшукувану карту переможним ходом", goal: 1, kind: "wantedWin" },
-  { id: "a_amb",    who: "zhreg", text: "принизь амбасадора протилежної фракції",     goal: 1, kind: "ambWin" },
-  { id: "a_nip4",   who: "zhreg", text: "витрать чотири ніпи за одну партію",         goal: 4, kind: "nips" },
-  { id: "a_five",   who: "zhreg", text: "зіграй пʼять пʼятірок за партію",            goal: 5, kind: "fives" },
-  { id: "a_dry",    who: "zhreg", text: "виграй усухо — жодного забору зі столу",     goal: 1, kind: "dryWin" },
-  { id: "a_fast",   who: "zhreg", text: "закінчи все швидше ніж за 3 хвилини",        goal: 1, kind: "fastWin" },
-  { id: "a_long",   who: "zhreg", text: "промуч суперника довше ніж 8 хвилин",        goal: 1, kind: "longGame" },
+  { id: "a_wanted",  who: "zhreg", text: "злови карту «у розшуку» переможним ходом",       goal: 1, kind: "wantedWin" },
+  { id: "a_amb",     who: "zhreg", text: "принизь амбасадора протилежної фракції",         goal: 1, kind: "ambWin" },
+  { id: "a_five",    who: "zhreg", text: "витрать пʼять пʼятірок за партію. просто так",   goal: 5, kind: "fives" },
+  { id: "a_nip4",    who: "zhreg", text: "спали чотири ніпи за партію",                    goal: 4, kind: "nips" },
+  { id: "a_dry",     who: "zhreg", text: "виграй, не торкнувшись чужих карт",              goal: 1, kind: "dryWin" },
+  { id: "a_long",    who: "zhreg", text: "затягни партію довше ніж на 10 хвилин",          goal: 1, kind: "longGame" },
+  { id: "a_fast",    who: "zhreg", text: "закінчи все швидше ніж за 3 хвилини",            goal: 1, kind: "fastWin" },
+  { id: "a_amb2",    who: "zhreg", text: "здолай протилежного амбасадора двічі за день",   goal: 2, kind: "ambWin" },
+  { id: "a_nip6",    who: "zhreg", text: "спали шість ніпів за партію. не питай навіщо",   goal: 6, kind: "nips" },
+  { id: "a_wanted2", who: "zhreg", text: "двічі впіймай розшукувану карту",                goal: 2, kind: "wantedWin" },
+  { id: "a_dry2",    who: "zhreg", text: "двічі виграй, не забравши нічого",               goal: 2, kind: "dryWin" },
+  { id: "a_five7",   who: "zhreg", text: "витрать сім пʼятірок за партію",                 goal: 7, kind: "fives" },
+  { id: "a_long2",   who: "zhreg", text: "затягни партію довше ніж на 14 хвилин",          goal: 1, kind: "longGame" },
+  { id: "a_fast2",   who: "zhreg", text: "закінчи швидше ніж за 2 хвилини. я чекаю",       goal: 1, kind: "fastWin" },
+  { id: "a_nip2",    who: "zhreg", text: "спали два ніпи за одну партію",                  goal: 2, kind: "nips" },
 ];
-const missionPool = (side) => (side === "anti" ? MISSIONS_ANTI : MISSIONS_KYTS);
 
+/* пул доручень за фракцією гравця */
+function missionPool(side) {
+  return (side === "anti") ? MISSIONS_ANTI : MISSIONS_KYTS;
+}
 
-/* спільний лічильник виконаних доручень по фракціях (за добу і за весь час) */
+/* спільний лічильник виконаних доручень по фракціях */
 let missionStats = { day: null, kyts: 0, anti: 0, allKyts: 0, allAnti: 0 };
+function factionMissionStats() {
+  if (missionStats.day !== todayKey())
+    missionStats = { day: todayKey(), kyts: 0, anti: 0, allKyts: missionStats.allKyts || 0, allAnti: missionStats.allAnti || 0 };
+  return { ...missionStats };
+}
 
-/* сумарні перемоги фракцій по всіх гравцях */
 function factionWins() {
   let kyts = 0, anti = 0;
   for (const p of Object.values(players)) {
@@ -225,11 +250,6 @@ function factionWins() {
     anti += (p.frontierWins && p.frontierWins.anti) || 0;
   }
   return { kyts, anti };
-}
-
-function factionMissionStats() {
-  if (missionStats.day !== todayKey()) missionStats = { day: todayKey(), kyts: 0, anti: 0, allKyts: missionStats.allKyts || 0, allAnti: missionStats.allAnti || 0 };
-  return { ...missionStats };
 }
 
 function missionToday(token) {

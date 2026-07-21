@@ -27,28 +27,7 @@
   .panel{max-width:520px}
   .achGrid{grid-template-columns:1fr 1fr 1fr}
   /* мініатюра банера в магазині й альбомі */
-.pcThumb{width:100%;aspect-ratio:6/7;max-height:80px;border-radius:10px;border:2px solid var(--ink);overflow:hidden;display:flex;align-items:center;justify-content:center;margin-bottom:5px}
-.pcThumb img{width:100%;height:100%;object-fit:cover;display:block}
-.pcLock{font-family:'Unbounded',monospace;font-weight:800;font-size:22px;opacity:.35}
-.pcItem{cursor:pointer;transition:transform var(--tFast) var(--eOut)}
-.pcItem:active{transform:translateY(1px)}
-.pcItem.empty{opacity:.65;border-style:dashed}
-.pcItem.activeBanner{box-shadow:0 0 0 3px var(--kyts) inset}
-.pcHave{font-weight:600;color:var(--kyts);font-size:9.5px}
-.pcPrice{font-weight:600;font-size:10px}
 .selBox{font-family:inherit;font-size:10px;border:2px solid var(--ink);border-radius:6px;background:var(--paper);padding:4px 6px}
-.dupBadge{display:inline-block;margin-left:5px;border:1.5px solid var(--ink);border-radius:10px;padding:0 5px;font-size:8.5px;background:var(--panel)}
-@keyframes dissolve{0%{opacity:1;transform:scale(1)}55%{opacity:.35;transform:scale(.97)}to{opacity:0;transform:scale(.9)}}
-.anim-dissolve{animation:dissolve var(--tSlow) var(--eOut) both;will-change:opacity,transform}
-@keyframes takerIn{0%{opacity:0;transform:translateY(8px) scale(.9)}22%{opacity:1;transform:translateY(0) scale(1)}
-  72%{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-10px) scale(.96)}}
-@keyframes tblHold{0%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}35%{box-shadow:inset 0 0 0 3px rgba(181,90,36,.45)}
-  100%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}}
-.tableZone.tblFreeze{animation:tblHold 1.45s ease-in-out}
-.takerLabel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:none;
-  font-family:'Unbounded',monospace;font-weight:800;font-size:13px;letter-spacing:.03em;
-  background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:5px 14px;
-  box-shadow:2px 3px 0 rgba(39,32,25,.4);animation:takerIn 1.5s var(--eOut) both;white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis}
 body.haunted #mhH{transform:rotate(213deg)!important}
 body.haunted #mhM{transform:rotate(97deg)!important;transition:transform .4s}
 body.haunted #mhS{animation:spinS 2.4s linear infinite}
@@ -64,7 +43,6 @@ body.haunted #mhS{animation:spinS 2.4s linear infinite}
 .profBanner{width:100%;height:74px;border-radius:10px;border:2px solid var(--ink);overflow:hidden;margin-bottom:8px;position:relative;background:var(--paper)}
 .profBanner img{width:100%;height:100%;object-fit:cover;filter:saturate(1.05)}
 .profBanner .pbName{position:absolute;left:8px;bottom:5px;font-size:10px;font-weight:600;background:rgba(246,239,220,.85);border:1.5px solid var(--ink);border-radius:8px;padding:1px 7px}
-.shopGrid{grid-template-columns:repeat(4,1fr)}
   .gameChat{width:340px}
 }
 @media(hover:hover){
@@ -113,25 +91,8 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .card.dim{opacity:.4}
 .card.target{outline:3px solid var(--kyts)}
 @keyframes bob{0%,100%{transform:translateY(-6px)}50%{transform:translateY(-10px)}}
-@keyframes cardIn{from{transform:translate3d(0,22px,0) scale(.62) rotate(-7deg);opacity:0}to{transform:translate3d(0,0,0) scale(1) rotate(0);opacity:1}}
 /* п.4: і атака, і биття лягають однаково — різниться лише кінцевий нахил (--rest) */
-.card.lay{transform:rotate(var(--rest,0deg));animation:layIn var(--tMed) var(--eIn) both;will-change:transform,opacity}
-@keyframes layIn{
-  from{transform:translate3d(0,24px,0) scale(.84) rotate(calc(var(--rest,0deg) - 15deg));opacity:.25}
-  to{transform:translate3d(0,0,0) scale(1) rotate(var(--rest,0deg));opacity:1}
-}
-.anim-in{animation:cardIn var(--tMed) var(--eIn);will-change:transform,opacity}
-@keyframes outBito{0%{opacity:1;transform:translate3d(0,0,0)}22%{opacity:.95;transform:translate3d(0,-5px,0) rotate(3deg)}to{transform:translate3d(110px,-46px,0) rotate(18deg) scale(.5);opacity:0}}
-.anim-out-bito{animation:outBito .7s cubic-bezier(.4,0,.5,1) forwards}
-@keyframes lastGlow{0%,72%{box-shadow:0 0 0 3px var(--kyts),1.5px 2px 0 rgba(39,32,25,.35)}to{box-shadow:1.5px 2px 0 rgba(39,32,25,.35)}}
-.anim-last{animation:lastGlow 1.7s ease-out forwards}
 /* забір: напрямок залежить від того, ХТО забирає — вниз до мене, вгору до суперника */
-@keyframes outTakeDown{0%{opacity:1;transform:translate3d(0,0,0)}to{transform:translate3d(0,90px,0) rotate(-8deg) scale(.62);opacity:0}}
-@keyframes outTakeUp{0%{opacity:1;transform:translate3d(0,0,0)}to{transform:translate3d(0,-96px,0) rotate(8deg) scale(.62);opacity:0}}
-.anim-out-take{animation:outTakeDown var(--tSlow) var(--eOut) forwards}
-@keyframes drawIn{from{transform:translate3d(46px,-10px,0) rotate(9deg) scale(.92);opacity:0}to{transform:translate3d(0,0,0) rotate(0) scale(1);opacity:1}}
-.anim-draw{animation:drawIn .45s ease-out}
-@keyframes slap{from{transform:rotate(19deg) scale(1.22);opacity:.35}to{transform:rotate(7deg) scale(1);opacity:1}}
 @keyframes msgIn{from{opacity:0;transform:translateY(4px)}}
 .msg{min-height:16px;margin-top:8px;text-transform:lowercase;animation:msgIn .25s ease-out}
 @keyframes pulse{0%,100%{box-shadow:2px 2px 0 rgba(39,32,25,.35)}50%{box-shadow:2px 2px 0 rgba(181,90,36,.7)}}
@@ -139,17 +100,8 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .hand{margin-top:8px;padding-top:12px}
 .hand .fanIn{position:relative;margin:0 auto}
 .hand .slot{position:absolute;top:0}
-.slot.anim-draw{animation:drawIn var(--tMed) var(--eSoft) both;will-change:transform,opacity}
-.card img.art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--cardR) - 3px)}
+.slot.card img.art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--cardR) - 3px)}
 .iconBtn{background:var(--ink);color:var(--paper);border-color:var(--ink);padding:5px 9px;font-size:10px;display:inline-flex;align-items:center;gap:5px}
-.shopHead{height:14px;border-radius:6px 6px 0 0;margin:-18px -18px 10px;background:repeating-linear-gradient(90deg,var(--kyts) 0 16px,var(--panel) 16px 32px);border-bottom:2px solid var(--ink)}
-.shopGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
-.pcItem{cursor:pointer}
-.pcItem.have{background:#f3e2c4}
-.pcThumb{border-radius:8px;padding:4px;margin-bottom:5px;display:flex;justify-content:center}
-.pcThumb img{width:100%;max-width:76px;border-radius:6px;border:2px solid var(--ink);display:block}
-.pcPrice{display:inline-block;margin-top:4px;font-weight:600}
-.pcHave{display:inline-block;margin-top:4px;font-size:9px;color:var(--kyts);font-weight:600}
 .pcBig{border:6px solid var(--frame);border-radius:14px;background:var(--paper);padding:10px;text-align:center;box-shadow:3px 4px 0 rgba(39,32,25,.4)}
 .pcBigInner{border:2px solid var(--ink);border-radius:10px;overflow:hidden;background:var(--frame);padding:6px}
 .pcBigInner img{width:100%;display:block;border-radius:8px;border:2px solid var(--ink)}
@@ -157,9 +109,6 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .pcSub{font-size:10px;opacity:.8;margin-top:2px}
 .pcQuote{font-size:10.5px;font-style:italic;margin-top:8px;color:var(--kyts)}
 .pcBrand{font-size:8px;letter-spacing:.2em;opacity:.6;margin-top:8px}
-.shopItem{border:2px solid var(--ink);border-radius:8px;padding:6px;font-size:9px;position:relative;background:var(--paper);font-size:10px;line-height:1.4;text-align:left}
-.sold{position:absolute;right:5px;top:5px;transform:rotate(10deg);border:2px solid #8c2f1b;color:#8c2f1b;font-size:7px;padding:1px 4px;border-radius:4px;letter-spacing:.06em}
-.featured{border:3px solid var(--kyts);border-radius:10px;background:#f3e2c4;padding:10px;margin-top:8px}
 .invTabs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px}
 .invTabs button{font-size:10px;padding:5px 10px;box-shadow:none}
 .invTabs button.sel{background:var(--kyts);color:var(--panel);border-color:var(--kyts)}
@@ -174,60 +123,18 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .achWrap{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-right:4px}
 /* ══ БОЙОВІ АНІМАЦІЇ v3 ══ */
 /* приземлення карти: замах згори, перельот, пружна посадка */
-@keyframes layIn{
-  0%{transform:translate3d(0,-30px,0) scale(1.16) rotate(calc(var(--rest,0deg) - 16deg));opacity:0}
-  45%{opacity:1}
-  62%{transform:translate3d(0,4px,0) scale(.965) rotate(calc(var(--rest,0deg) + 2deg))}
-  82%{transform:translate3d(0,-2px,0) scale(1.012) rotate(var(--rest,0deg))}
-  100%{transform:translate3d(0,0,0) scale(1) rotate(var(--rest,0deg));opacity:1}
-}
-.card.lay{transform:rotate(var(--rest,0deg));animation:layIn 440ms cubic-bezier(.2,.9,.25,1.05) both;will-change:transform,opacity}
 
 /* кільце-удар у місці биття */
-@keyframes ringOut{
-  0%{transform:translate(-50%,-50%) scale(.25);opacity:.8;border-width:6px}
-  100%{transform:translate(-50%,-50%) scale(2.1);opacity:0;border-width:1px}
-}
-.impactRing{position:fixed;width:74px;height:74px;border-radius:50%;border:5px solid var(--kyts);
-  pointer-events:none;animation:ringOut 600ms cubic-bezier(.2,.7,.3,1) forwards;mix-blend-mode:multiply}
 
 /* тремтіння столу під удар */
-@keyframes shakeS{0%,100%{transform:translate3d(0,0,0)}25%{transform:translate3d(-2px,1px,0)}60%{transform:translate3d(2px,-1px,0)}}
-@keyframes shakeM{0%,100%{transform:translate3d(0,0,0)}20%{transform:translate3d(-4px,2px,0)}45%{transform:translate3d(4px,-2px,0)}70%{transform:translate3d(-2px,1px,0)}}
-.tableZone.shakeS{animation:shakeS 260ms ease-out}
-.tableZone.shakeM{animation:shakeM 420ms ease-out}
 
 /* поки стіл лежить — тепле світло по рамці */
-@keyframes tblHold{
-  0%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}
-  30%{box-shadow:inset 0 0 0 3px rgba(181,90,36,.5)}
-  100%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}
-}
-.tableZone.tblFreeze{animation:tblHold 1.05s ease-in-out}
 
 /* відліт у відбій */
-@keyframes outBito{
-  0%{transform:translate3d(0,0,0) rotate(var(--rest,0deg));opacity:1}
-  18%{transform:translate3d(0,6px,0) scale(.96) rotate(var(--rest,0deg))}
-  100%{transform:translate3d(120px,-58px,0) rotate(26deg) scale(.45);opacity:0}
-}
-.anim-out-bito{animation:outBito 660ms cubic-bezier(.45,0,.55,1) both;will-change:transform,opacity}
 
 /* політ до себе */
-@keyframes outTakeDown{
-  0%{transform:translate3d(0,0,0) rotate(var(--rest,0deg));opacity:1}
-  20%{transform:translate3d(0,-7px,0) scale(1.03)}
-  100%{transform:translate3d(0,110px,0) rotate(-10deg) scale(.5);opacity:0}
-}
-.anim-out-take{animation:outTakeDown 660ms cubic-bezier(.45,0,.55,1) both;will-change:transform,opacity}
 
 /* до суперника: розчинення з підйомом */
-@keyframes dissolve{
-  0%{opacity:1;transform:translate3d(0,0,0) scale(1)}
-  40%{opacity:.6;transform:translate3d(0,-10px,0) scale(.98)}
-  100%{opacity:0;transform:translate3d(0,-42px,0) scale(.86)}
-}
-.anim-dissolve{animation:dissolve 660ms cubic-bezier(.4,0,.5,1) both;will-change:opacity,transform}
 
 /* тривожний вихід — маленька іконка внизу менюв */
 .menuFoot{display:flex;justify-content:center;margin-top:14px;padding-top:11px;border-top:1.5px dashed rgba(39,32,25,.25)}
@@ -237,6 +144,143 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .dangerDot:active{transform:translateY(1px)}
 @keyframes dotPulse{0%,100%{box-shadow:2px 2px 0 rgba(94,31,18,.45)}50%{box-shadow:2px 2px 0 rgba(94,31,18,.45),0 0 0 4px rgba(140,47,27,.18)}}
 .dangerDot{animation:dotPulse 2.6s ease-in-out infinite}
+
+/* ══ КРАМНИЦЯ · інді-вітрина ══ */
+.shopPanel{max-width:540px;display:flex;flex-direction:column;max-height:88vh;padding:0;overflow:hidden;
+  background:linear-gradient(180deg,#f7f0dd,#efe4c8)}
+.shopAwning{height:16px;flex:0 0 auto;
+  background:repeating-linear-gradient(90deg,var(--kyts) 0 18px,#f6efdc 18px 36px);
+  border-bottom:2px solid var(--ink)}
+.shopHead{flex:0 0 auto;padding:12px 16px 10px;text-align:center;border-bottom:2px dashed rgba(39,32,25,.25)}
+.shopSign{font-family:'Unbounded',monospace;font-weight:800;font-size:20px;letter-spacing:.06em}
+.shopMotto{font-size:9px;letter-spacing:.14em;opacity:.6;margin-top:2px}
+.shopPurse{display:inline-flex;gap:10px;align-items:center;margin-top:8px;font-size:11px;font-weight:600;
+  border:2px solid var(--ink);border-radius:20px;padding:4px 12px;background:var(--paper)}
+.shopScroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;padding:12px 14px}
+.shopFoot{flex:0 0 auto;padding:10px 14px 12px;border-top:2px solid var(--ink);background:var(--panel)}
+.shopErr{min-height:14px;margin-bottom:6px}
+.shelf{margin-bottom:16px}
+.shelfTitle{display:flex;align-items:center;gap:8px;font-size:9px;letter-spacing:.18em;opacity:.7;margin-bottom:8px}
+.shelfTitle::after{content:"";flex:1;height:2px;background:repeating-linear-gradient(90deg,rgba(39,32,25,.35) 0 5px,transparent 5px 9px)}
+.goods{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px}
+.good{position:relative;border:2px solid var(--ink);border-radius:12px;background:var(--paper);
+  padding:8px 8px 9px;text-align:center;cursor:pointer;
+  box-shadow:1.5px 2px 0 rgba(39,32,25,.28);transition:transform var(--tQuick) var(--easeSnap)}
+.good:active{transform:translateY(2px);box-shadow:1px 1px 0 rgba(39,32,25,.28)}
+.good.owned{border-color:var(--kyts);background:linear-gradient(180deg,#f8f1dd,#f2e3bf)}
+.good.locked{opacity:.9}
+.good.gone{opacity:.5;cursor:default;border-style:dashed;box-shadow:none}
+.goodArt{width:100%;aspect-ratio:6/7;border-radius:9px;border:2px solid var(--ink);overflow:hidden;
+  background:rgba(39,32,25,.06);display:flex;align-items:center;justify-content:center;margin-bottom:6px}
+.goodArt img{width:100%;height:100%;object-fit:cover;display:block}
+.goodArt .q{font-family:'Unbounded',monospace;font-weight:800;font-size:22px;opacity:.3}
+.goodName{font-size:9.5px;font-weight:700;line-height:1.25;min-height:24px}
+.goodTag{display:inline-flex;align-items:center;gap:3px;margin-top:5px;font-size:9px;font-weight:700;
+  border:1.5px solid var(--ink);border-radius:10px;padding:1px 7px;background:var(--panel)}
+.good.owned .goodTag{border-color:var(--kyts);color:var(--kyts)}
+.goodDupe{position:absolute;top:5px;right:5px;font-size:8px;font-weight:700;
+  border:1.5px solid var(--ink);border-radius:9px;padding:0 5px;background:var(--panel)}
+.goodStamp{position:absolute;top:8px;left:50%;transform:translateX(-50%) rotate(-7deg);
+  font-size:8px;letter-spacing:.1em;color:#8c2f1b;border:2px solid #8c2f1b;border-radius:5px;
+  padding:1px 6px;background:rgba(246,239,220,.9)}
+.deal{border:2.5px solid var(--kyts);border-radius:12px;padding:11px;background:#f3e2c4;
+  display:flex;gap:10px;align-items:center;text-align:left}
+.dealIcon{width:42px;height:42px;flex:0 0 auto;border-radius:10px;border:2px solid var(--ink);
+  background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:18px}
+.dealBody{flex:1 1 auto;min-width:0}
+.dealName{font-weight:700;font-size:11px}
+.dealDesc{font-size:9.5px;opacity:.8;margin-top:2px}
+.dealBuy{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.dealBuy button{font-size:9.5px;padding:3px 9px;box-shadow:none}
+
+/* ══════════════════════════════════════════════════
+   АНІМАЦІЇ v4 · єдина мова руху
+   ─────────────────────────────────────────────────
+   три криві на всю гру:
+     --easeDrop  падіння з вагою      (hearthstone)
+     --easeGlide спокійний перехід    (gwent)
+     --easeSnap  пружне приземлення   (balatro)
+   три темпи: 220 / 420 / 640 мс.
+   ══════════════════════════════════════════════════ */
+:root{
+  --easeDrop:cubic-bezier(.34,.02,.28,1);
+  --easeGlide:cubic-bezier(.4,0,.2,1);
+  --easeSnap:cubic-bezier(.18,.89,.32,1.12);
+  --tQuick:220ms; --tBase:420ms; --tLong:640ms;
+}
+
+/* 1 · КАРТА ЛЯГАЄ НА СТІЛ — замах згори, вага, коротке осідання */
+@keyframes dkLay{
+  0%{opacity:0;transform:translate3d(0,-34px,0) scale(1.18) rotate(calc(var(--rest,0deg) - 14deg))}
+  40%{opacity:1}
+  66%{transform:translate3d(0,5px,0) scale(.96) rotate(calc(var(--rest,0deg) + 3deg))}
+  86%{transform:translate3d(0,-2px,0) scale(1.015) rotate(var(--rest,0deg))}
+  100%{opacity:1;transform:translate3d(0,0,0) scale(1) rotate(var(--rest,0deg))}
+}
+.card.dkLay{transform:rotate(var(--rest,0deg));animation:dkLay var(--tBase) var(--easeSnap) both}
+
+/* 2 · УДАР — кільце розходиться від місця биття */
+@keyframes dkRing{
+  from{opacity:.8;transform:translate(-50%,-50%) scale(.3);border-width:5px}
+  to{opacity:0;transform:translate(-50%,-50%) scale(2);border-width:1px}
+}
+.dkRing{position:fixed;width:70px;height:70px;border-radius:50%;border:5px solid var(--kyts);
+  pointer-events:none;animation:dkRing var(--tLong) var(--easeGlide) forwards;mix-blend-mode:multiply}
+
+/* 3 · ВІДДАЧА СТОЛУ — коротке зміщення під удар */
+@keyframes dkHit{0%,100%{transform:translate3d(0,0,0)}30%{transform:translate3d(-3px,2px,0)}65%{transform:translate3d(3px,-1px,0)}}
+.tableZone.dkHit{animation:dkHit var(--tQuick) var(--easeDrop)}
+
+/* 4 · ПАУЗА НА ЧИТАННЯ — стіл підсвічується перед прибиранням */
+@keyframes dkHold{
+  0%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}
+  35%{box-shadow:inset 0 0 0 3px rgba(181,90,36,.45)}
+  100%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}
+}
+.tableZone.dkHold{animation:dkHold 1s var(--easeGlide)}
+
+/* 5 · У ВІДБІЙ — усі разом, одним змахом угору-праворуч */
+@keyframes dkSweep{
+  0%{opacity:1;transform:translate3d(0,0,0) rotate(var(--rest,0deg))}
+  15%{transform:translate3d(0,7px,0) scale(.97) rotate(var(--rest,0deg))}
+  100%{opacity:0;transform:translate3d(130px,-64px,0) rotate(24deg) scale(.42)}
+}
+.anim-sweep{animation:dkSweep var(--tLong) var(--easeDrop) both}
+
+/* 6 · ДО СЕБЕ — карти всмоктуються вниз, у руку */
+@keyframes dkPull{
+  0%{opacity:1;transform:translate3d(0,0,0) rotate(var(--rest,0deg))}
+  18%{transform:translate3d(0,-8px,0) scale(1.04)}
+  100%{opacity:0;transform:translate3d(0,120px,0) rotate(-9deg) scale(.46)}
+}
+.anim-pull{animation:dkPull var(--tLong) var(--easeDrop) both}
+
+/* 7 · ДО СУПЕРНИКА — тануть, ідучи вгору */
+@keyframes dkFade{
+  0%{opacity:1;transform:translate3d(0,0,0) scale(1)}
+  100%{opacity:0;transform:translate3d(0,-46px,0) scale(.84)}
+}
+.anim-fade{animation:dkFade var(--tLong) var(--easeGlide) both}
+
+/* 8 · ДОБІР — карта вʼїжджає з боку колоди */
+@keyframes dkDraw{
+  from{opacity:0;transform:translate3d(38px,-14px,0) scale(.9) rotate(8deg)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1) rotate(0)}
+}
+.slot.anim-draw{animation:dkDraw var(--tBase) var(--easeGlide) both}
+
+/* 9 · ХТО ЗАБРАВ — табличка проступає й тане */
+@keyframes dkLabel{
+  0%{opacity:0;transform:translate(-50%,-50%) translateY(10px) scale(.92)}
+  20%,72%{opacity:1;transform:translate(-50%,-50%) translateY(0) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) translateY(-12px) scale(.96)}
+}
+.takerLabel{position:absolute;left:50%;top:50%;z-index:6;pointer-events:none;
+  font-family:'Unbounded',monospace;font-weight:800;font-size:13px;
+  background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:5px 14px;
+  box-shadow:2px 3px 0 rgba(39,32,25,.4);white-space:nowrap;max-width:90%;
+  overflow:hidden;text-overflow:ellipsis;animation:dkLabel 1.4s var(--easeGlide) both}
 
 /* ══ ДОСЯГНЕННЯ · трофейна вітрина ══ */
 .achPanel{max-width:520px;display:flex;flex-direction:column;max-height:86vh;padding:14px 14px 12px;overflow:hidden}
@@ -688,7 +732,7 @@ body.no-anim .mascot{animation:none}
   <div class="avGrid" id="avGrid"></div>
   <div class="divider">───── сторона мапи ─────</div>
   <div class="row"><button class="small" id="sideK"></button><button class="small" id="sideA"></button></div>
-  <div class="row" style="margin-top:6px"><button class="small" id="btnFaction">відкрити розділ фракції</button></div>
+  <div class="row" style="margin-top:6px"><button class="small" id="btnFaction">фракції</button></div>
   <div class="divider">───── ім'я ─────</div>
   <div style="display:flex;gap:6px"><input id="profNick" maxlength="12"><button class="small" id="profNickSave" style="box-shadow:2px 2px 0 rgba(39,32,25,.35)">зберегти</button></div>
   <div class="divider">───── звання (приміряй) ─────</div>
@@ -758,22 +802,18 @@ body.no-anim .mascot{animation:none}
   <div class="row"><button class="accent" id="confYes">так</button><button id="confNo">ні</button></div>
 </div></div>
 
-<div class="overlay" id="ovShop"><div class="panel" style="max-width:420px">
-  <div class="shopHead"></div>
-  <div class="big">МАГАЗИН</div>
-  <div class="sub">крамничка на краю всесвітів</div>
-  <div id="shopWallet" style="margin-top:8px;font-size:12px;font-weight:600"></div>
-  <div class="featured"><b>+0.1 до рейтингу</b> — 1 жетон. єдине, що є в наявності.<br>
-    <button class="small" id="buyK" style="margin-top:6px"></button>
-    <button class="small" id="buyA"></button>
-    <div class="err" id="shopErr"></div>
+<div class="overlay" id="ovShop"><div class="panel shopPanel">
+  <div class="shopAwning"></div>
+  <div class="shopHead">
+    <div class="shopSign">КРАМНИЦЯ</div>
+    <div class="shopMotto">на краю всесвітів · відчинено завжди</div>
+    <div class="shopPurse" id="shopWallet"></div>
   </div>
-  <div class="divider">───── листівки · колекція ─────</div>
-  <div class="sub">велика карта в рамці фракції, назва, опис і фірмова цитата.</div>
-  <div class="shopGrid" id="shopCards"></div>
-  <div class="divider">───── дивні товари ─────</div>
-  <div class="shopGrid" id="shopItems"></div>
-  <div class="row"><button id="shopBack">назад</button></div>
+  <div class="shopScroll" id="shopBody"></div>
+  <div class="shopFoot">
+    <div class="shopErr err" id="shopErr"></div>
+    <button id="shopBack">вийти з крамниці</button>
+  </div>
 </div></div>
 
 <div class="overlay" id="ovCollect" style="z-index:36"><div class="panel" style="max-width:340px">
@@ -1887,77 +1927,124 @@ function loadBanners(cb){
 function renderShopCards(){
   renderBannerGrid($("shopCards"),true);
 }
+/* сітка банерів для альбому в інвентарі */
 function renderBannerGrid(host,shop){
   if(!host)return;
-  const ids=Object.keys(BANNER_META);
-  host.innerHTML=ids.map(id=>{
+  host.innerHTML=Object.keys(BANNER_META).map(id=>{
     const m=BANNER_META[id];
     const have=bannerState.owned.includes(id);
     const dup=bannerState.dupes[id]||0;
-    const frame=m.side==="k"?"#e0a33a":"#5c9a4e";
     const act=bannerState.active===id;
-    return `<div class="shopItem pcItem ${have?"have":"empty"} ${act?"activeBanner":""}" data-b="${id}" style="border-color:${have?frame:"rgba(39,32,25,.35)"}">
-      <div class="pcThumb" style="background:${have?frame:"rgba(39,32,25,.08)"}">
-        ${have?`<img src="/cards/${id}.jpg" alt="">`:`<span class="pcLock">?</span>`}
-      </div>
-      <b>${have?esc(m.name):"— порожній слот —"}</b><br>
-      <span class="sub">${have?esc(m.desc):"ще не здобуто"}</span><br>
-      ${have
-        ? `<span class="pcHave">${act?"★ активний":"вдягнути"}</span>${dup?`<span class="dupBadge">×${dup+1}</span>`:""}`
-        : (shop?`<span class="pcPrice">${coinSvg(m.side)} ${bannerState.price}</span>`:`<span class="sub">?</span>`)}
+    return `<div class="good ${have?"owned":"locked"}" data-b="${id}">
+      ${dup?`<span class="goodDupe">×${dup+1}</span>`:""}
+      <span class="goodArt">${have?`<img src="/cards/${id}.jpg" alt="">`:`<span class="q">?</span>`}</span>
+      <div class="goodName">${have?esc(m.name):"порожній слот"}</div>
+      <span class="goodTag">${have?(act?"★ вдягнено":"вдягнути"):"не здобуто"}</span>
     </div>`;
   }).join("");
-  host.querySelectorAll(".pcItem").forEach(el=>el.onclick=()=>{
-    const id=el.dataset.b, m=BANNER_META[id];
-    if(bannerState.owned.includes(id)){
-      socket.emit("bannerSet",{id:bannerState.active===id?"":id},r=>{
-        if(r?.error){if($("shopErr"))$("shopErr").textContent=r.error;return;}
-        bannerState.active=r.active;Audio5.sfx.click();
-        renderBannerGrid(host,shop);renderProfile();
-      });
-      return;
-    }
-    if(!shop)return;
-    socket.emit("bannerBuy",{id},r=>{
-      if(r?.error){if($("shopErr"))$("shopErr").textContent=r.error;return;}
-      bannerState.owned=r.owned;bannerState.dupes=r.dupes;
-      profile={...profile,tk:r.tk};
-      shopBought=true;
-      Audio5.sfx.coin();
-      if($("shopErr"))$("shopErr").innerHTML=r.dup
-        ? `<span style="color:var(--kyts)">дублікат «${esc(m.name)}» — його можна обміняти в альбомі</span>`
-        : (r.newAch&&r.newAch.length?`<span style="color:var(--kyts)">нове звання: «${esc(r.newAch[0])}»!</span>`:"");
-      renderShopWallet();renderBannerGrid(host,shop);renderProfile();
+  host.querySelectorAll(".good[data-b]").forEach(el=>el.onclick=()=>{
+    const id=el.dataset.b;
+    if(!bannerState.owned.includes(id))return;
+    socket.emit("bannerSet",{id:bannerState.active===id?"":id},r=>{
+      if(r?.error)return;
+      bannerState.active=r.active;Audio5.sfx.click();
+      renderBannerGrid(host,shop);renderProfile();
     });
   });
 }
+
 let shopBought=false;
+
+/* ══ КРАМНИЦЯ ══ */
 function openShop(){
   shopBought=false;
   ov("ovShop",true);
-  renderShopWallet();
-  if($("shopErr"))$("shopErr").textContent="";
-  if($("shopItems"))$("shopItems").innerHTML=SHOP.map(t=>`<div class="shopItem"><span class="sold">продано</span><b>${esc(t)}</b></div>`).join("");
-  loadBanners(()=>renderShopCards());
+  $("shopErr").textContent="";
+  $("shopBody").innerHTML=`<div class="sub" style="padding:20px 0;text-align:center">відчиняємо…</div>`;
+  loadBanners(()=>renderShop());
 }
-function renderShopWallet(){
+function renderShop(){
   const tk=(profile&&profile.tk)||{k:0,a:0};
-  $("shopWallet").innerHTML=coinify(`гаманець: ${tk.k} ж.к · ${tk.a} ж.а`);
+  $("shopWallet").innerHTML=`${coinSvg("k",15)} ${tk.k} <span style="opacity:.4">·</span> ${coinSvg("a",15)} ${tk.a}`;
+
+  /* полиця 1 — банери-ніпи */
+  const banners=Object.keys(BANNER_META).map(id=>{
+    const m=BANNER_META[id];
+    const have=bannerState.owned.includes(id);
+    const dup=bannerState.dupes[id]||0;
+    const act=bannerState.active===id;
+    return `<div class="good ${have?"owned":"locked"}" data-b="${id}">
+      ${dup?`<span class="goodDupe">×${dup+1}</span>`:""}
+      <span class="goodArt">${have?`<img src="/cards/${id}.jpg" alt="">`:`<span class="q">?</span>`}</span>
+      <div class="goodName">${esc(m.name)}</div>
+      <span class="goodTag">${have?(act?"★ вдягнено":"вдягнути"):`${coinSvg(m.side)} ${bannerState.price}`}</span>
+    </div>`;
+  }).join("");
+
+  /* полиця 2 — дивні товари, усі розпродані */
+  const oddities=SHOP.map(t=>`<div class="good gone">
+    <span class="goodStamp">продано</span>
+    <span class="goodArt"><span class="q">·</span></span>
+    <div class="goodName">${esc(t)}</div>
+  </div>`).join("");
+
+  $("shopBody").innerHTML=`
+    <div class="shelf">
+      <div class="shelfTitle">пропозиція дня</div>
+      <div class="deal">
+        <span class="dealIcon">✦</span>
+        <span class="dealBody">
+          <div class="dealName">+0.1 до рейтингу</div>
+          <div class="dealDesc">маленький крок угору. єдине, що тут справді продається.</div>
+          <div class="dealBuy">
+            <button class="small" id="buyK">${coinSvg("k")} 1 жетон</button>
+            <button class="small" id="buyA">${coinSvg("a")} 1 жетон</button>
+          </div>
+        </span>
+      </div>
+    </div>
+    <div class="shelf">
+      <div class="shelfTitle">банери · ${bannerState.owned.length}/6</div>
+      <div class="goods">${banners}</div>
+    </div>
+    <div class="shelf">
+      <div class="shelfTitle">дивні товари</div>
+      <div class="goods">${oddities}</div>
+    </div>`;
+
+  $("buyK").onclick=()=>buyRating("k");
+  $("buyA").onclick=()=>buyRating("a");
+  $("shopBody").querySelectorAll(".good[data-b]").forEach(el=>el.onclick=()=>{
+    const id=el.dataset.b;
+    if(bannerState.owned.includes(id)){
+      socket.emit("bannerSet",{id:bannerState.active===id?"":id},r=>{
+        if(r?.error){$("shopErr").textContent=r.error;return;}
+        bannerState.active=r.active;Audio5.sfx.click();renderShop();renderProfile();
+      });
+      return;
+    }
+    socket.emit("bannerBuy",{id},r=>{
+      if(r?.error){$("shopErr").textContent=r.error;return;}
+      bannerState.owned=r.owned;bannerState.dupes=r.dupes;
+      profile={...profile,tk:r.tk};
+      shopBought=true;Audio5.sfx.coin();
+      $("shopErr").innerHTML=r.dup
+        ? `<span style="color:var(--kyts)">дублікат «${esc(BANNER_META[id].name)}» — обміняй його в інвентарі</span>`
+        : (r.newAch?.length?`<span style="color:var(--kyts)">нове звання: «${esc(r.newAch[0])}»</span>`:"");
+      renderShop();renderProfile();
+    });
+  });
 }
-function buy(side){
+function buyRating(side){
   Audio5.sfx.click();
   socket.emit("shopBuy",{pay:side},r=>{
     if(r?.error){$("shopErr").textContent=r.error;return;}
     $("shopErr").textContent="";
     profile={...profile,sp:r.sp,rank:r.rank,tk:r.tk};
-    renderProfile();renderShopWallet();
-    Audio5.sfx.coin();
+    shopBought=true;Audio5.sfx.coin();
+    renderProfile();renderShop();
   });
 }
-$("buyK").innerHTML="купити за 1 "+coinSvg("k")+"ж.к";
-$("buyA").innerHTML="купити за 1 "+coinSvg("a")+"ж.а";
-$("buyK").onclick=()=>buy("k");
-$("buyA").onclick=()=>buy("a");
 
 function genreLabel(key){return (GENRE_NAMES&&GENRE_NAMES[key])||key;}
 function renderGenre(){$("genreName").textContent=genreLabel(Audio5.getGenre());}
@@ -2050,6 +2137,20 @@ if($("mascotClock"))$("mascotClock").onclick=()=>{
   setInterval(refresh,1000);
   refresh();
 })();
+
+/* ── п.3: щоденне доручення від амбасадора ── */
+function loadMission(){
+  socket.emit("missionToday",m=>{
+    const bar=$("missionBar");
+    if(!bar||!m||!m.text)return;
+    bar.style.display="";
+    bar.classList.toggle("done",!!m.done);
+    bar.innerHTML=`<span><b>доручення від ${esc(m.name)}</b></span>
+      <span>${esc(m.text)}</span>
+      ${m.done?`<span class="sub">виконано ✓</span>`:(m.goal>1?`<span class="sub">${m.prog}/${m.goal}</span>`:"")}`;
+  });
+}
+socket.on("connect",()=>setTimeout(loadMission,1100));
 
 /* ── лічильник онлайну ── */
 function pollOnline(){
@@ -2215,7 +2316,7 @@ function panicLeave(){
     stopQueueWatch();
     leaveUI();
     show("scrLobby");
-    refreshProfile();refreshDaily();
+    refreshProfile();refreshDaily();loadMission();
     $("errLobby").textContent="ти вийшов з усіх столів.";
     setTimeout(()=>{if($("errLobby").textContent==="ти вийшов з усіх столів.")$("errLobby").textContent="";},2500);
   });
@@ -2584,10 +2685,10 @@ const AnimQueue=(()=>{
 function tableShake(power){
   const tz=$("tbl");
   if(!tz||document.body.classList.contains("no-anim"))return;
-  tz.classList.remove("shakeS","shakeM");
+  tz.classList.remove("dkHit");
   void tz.offsetWidth;
-  tz.classList.add(power>=2?"shakeM":"shakeS");
-  setTimeout(()=>tz.classList.remove("shakeS","shakeM"),420);
+  tz.classList.add("dkHit");
+  setTimeout(()=>tz.classList.remove("dkHit"),240);
 }
 
 /* спалах-кільце в місці удару */
@@ -2595,7 +2696,7 @@ function impactRing(el){
   if(!el||document.body.classList.contains("no-anim"))return;
   const r=el.getBoundingClientRect();
   const ring=document.createElement("div");
-  ring.className="impactRing";
+  ring.className="dkRing";
   ring.style.left=(r.left+r.width/2)+"px";
   ring.style.top=(r.top+r.height/2)+"px";
   flyRoot().appendChild(ring);
@@ -2622,7 +2723,7 @@ function battleScene(v,prev,onDone){
   /* якщо останню карту сервер прибрав тим самим ходом — домальовуємо знімок */
   if(v.boutTable&&v.boutTable.length&&tz)renderBoutSnapshot(v.boutTable);
 
-  if(tz){tz.classList.add("tblFreeze");setTimeout(()=>tz.classList.remove("tblFreeze"),T_HOLD);}
+  if(tz){tz.classList.add("dkHold");setTimeout(()=>tz.classList.remove("dkHold"),T_HOLD);}
   tableShake(1);
 
   setTimeout(()=>{
@@ -2633,7 +2734,7 @@ function battleScene(v,prev,onDone){
       const delay=Math.min(i*45,260);
       if(dest)flyClone(el,dest,bito?"discard":(mine?"toHand":"toFoe"),delay);
       el.style.animationDelay=delay+"ms";
-      el.classList.add(bito?"anim-out-bito":(mine?"anim-out-take":"anim-dissolve"));
+      el.classList.add(bito?"anim-sweep":(mine?"anim-pull":"anim-fade"));
     });
     if(bito){Audio5.sfx.bito();tableShake(2);}
     else{
@@ -2664,7 +2765,7 @@ function renderBoutSnapshot(snap){
     a.style.transform="rotate(-2deg)";a.style.zIndex="1";
     pr.appendChild(a);
     if(p.d){
-      const d=cardEl(p.d,seenTable.has(p.d.uid)?"":"lay");
+      const d=cardEl(p.d,seenTable.has(p.d.uid)?"":"dkLay");
       seenTable.add(p.d.uid);
       d.style.position="absolute";d.style.zIndex="3";d.style.left="16px";d.style.top="14px";
       d.style.setProperty("--rest","7deg");
@@ -2759,14 +2860,14 @@ function renderGame(){
   v.table.forEach((p,i)=>{
     const pr=document.createElement("div");pr.className="pair";
     const aNew=!seenTable.has(p.a.uid);seenTable.add(p.a.uid);
-    const a=cardEl(p.a,((i===ti&&v.phase==="defend"&&v.you.role==="defend")?"target ":"")+(aNew?"lay":""));
+    const a=cardEl(p.a,((i===ti&&v.phase==="defend"&&v.you.role==="defend")?"target ":"")+(aNew?"dkLay":""));
     a.style.setProperty("--rest","-2deg");
     if(!aNew)a.style.transform="rotate(-2deg)";
     pr.appendChild(a);
     if(p.d){
       const dNew=!seenTable.has(p.d.uid);seenTable.add(p.d.uid);
       if(dNew)Audio5.sfx.slap();
-      const d=cardEl(p.d,dNew?"lay":"");
+      const d=cardEl(p.d,dNew?"dkLay":"");
       /* карта-переможниця лягає ЗВЕРХУ на побиту — тією ж анімацією, що й решта */
       if(dNew)lastCardEl=d;
       a.style.zIndex="1";
