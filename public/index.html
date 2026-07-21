@@ -6,7 +6,7 @@
 <title>дур-киць · онлайн</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Unbounded:wght@500;800&display=swap');
-:root{--ink:#272019;--paper:#ece3cc;--panel:#f6efdc;--kyts:#b55a24;--anti:#4a5680;--tFast:170ms;--tMed:320ms;--tSlow:560ms;--eOut:cubic-bezier(.4,0,.5,1);--eIn:cubic-bezier(.2,.85,.3,1.02);--eSoft:cubic-bezier(.35,0,.25,1);--cardR:17px;--cardW:64px;--cardH:75px}
+:root{--cardW:64px;--cardH:75px;--cardR:14px;--ink:#272019;--paper:#ece3cc;--panel:#f6efdc;--kyts:#b55a24;--anti:#4a5680;--tFast:170ms;--tMed:320ms;--tSlow:560ms;--eOut:cubic-bezier(.4,0,.5,1);--eIn:cubic-bezier(.2,.85,.3,1.02);--eSoft:cubic-bezier(.35,0,.25,1);--cardR:17px;--cardW:64px;--cardH:75px}
 @media(min-width:700px){
   :root{--cardW:84px;--cardH:98px;--cardR:20px}
   body{font-size:13px}
@@ -194,93 +194,18 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .dealBuy{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
 .dealBuy button{font-size:9.5px;padding:3px 9px;box-shadow:none}
 
-/* ══════════════════════════════════════════════════
-   АНІМАЦІЇ v4 · єдина мова руху
-   ─────────────────────────────────────────────────
-   три криві на всю гру:
-     --easeDrop  падіння з вагою      (hearthstone)
-     --easeGlide спокійний перехід    (gwent)
-     --easeSnap  пружне приземлення   (balatro)
-   три темпи: 220 / 420 / 640 мс.
-   ══════════════════════════════════════════════════ */
-:root{
-  --easeDrop:cubic-bezier(.34,.02,.28,1);
-  --easeGlide:cubic-bezier(.4,0,.2,1);
-  --easeSnap:cubic-bezier(.18,.89,.32,1.12);
-  --tQuick:220ms; --tBase:420ms; --tLong:640ms;
-}
-
-/* 1 · КАРТА ЛЯГАЄ НА СТІЛ — замах згори, вага, коротке осідання */
-@keyframes dkLay{
-  0%{opacity:0;transform:translate3d(0,-34px,0) scale(1.18) rotate(calc(var(--rest,0deg) - 14deg))}
-  40%{opacity:1}
-  66%{transform:translate3d(0,5px,0) scale(.96) rotate(calc(var(--rest,0deg) + 3deg))}
-  86%{transform:translate3d(0,-2px,0) scale(1.015) rotate(var(--rest,0deg))}
-  100%{opacity:1;transform:translate3d(0,0,0) scale(1) rotate(var(--rest,0deg))}
-}
-.card.dkLay{transform:rotate(var(--rest,0deg));animation:dkLay var(--tBase) var(--easeSnap) both}
-
-/* 2 · УДАР — кільце розходиться від місця биття */
-@keyframes dkRing{
-  from{opacity:.8;transform:translate(-50%,-50%) scale(.3);border-width:5px}
-  to{opacity:0;transform:translate(-50%,-50%) scale(2);border-width:1px}
-}
-.dkRing{position:fixed;width:70px;height:70px;border-radius:50%;border:5px solid var(--kyts);
-  pointer-events:none;animation:dkRing var(--tLong) var(--easeGlide) forwards;mix-blend-mode:multiply}
-
-/* 3 · ВІДДАЧА СТОЛУ — коротке зміщення під удар */
-@keyframes dkHit{0%,100%{transform:translate3d(0,0,0)}30%{transform:translate3d(-3px,2px,0)}65%{transform:translate3d(3px,-1px,0)}}
-.tableZone.dkHit{animation:dkHit var(--tQuick) var(--easeDrop)}
-
-/* 4 · ПАУЗА НА ЧИТАННЯ — стіл підсвічується перед прибиранням */
-@keyframes dkHold{
-  0%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}
-  35%{box-shadow:inset 0 0 0 3px rgba(181,90,36,.45)}
-  100%{box-shadow:inset 0 0 0 0 rgba(181,90,36,0)}
-}
-.tableZone.dkHold{animation:dkHold 1s var(--easeGlide)}
-
-/* 5 · У ВІДБІЙ — усі разом, одним змахом угору-праворуч */
-@keyframes dkSweep{
-  0%{opacity:1;transform:translate3d(0,0,0) rotate(var(--rest,0deg))}
-  15%{transform:translate3d(0,7px,0) scale(.97) rotate(var(--rest,0deg))}
-  100%{opacity:0;transform:translate3d(130px,-64px,0) rotate(24deg) scale(.42)}
-}
-.anim-sweep{animation:dkSweep var(--tLong) var(--easeDrop) both}
-
-/* 6 · ДО СЕБЕ — карти всмоктуються вниз, у руку */
-@keyframes dkPull{
-  0%{opacity:1;transform:translate3d(0,0,0) rotate(var(--rest,0deg))}
-  18%{transform:translate3d(0,-8px,0) scale(1.04)}
-  100%{opacity:0;transform:translate3d(0,120px,0) rotate(-9deg) scale(.46)}
-}
-.anim-pull{animation:dkPull var(--tLong) var(--easeDrop) both}
-
-/* 7 · ДО СУПЕРНИКА — тануть, ідучи вгору */
-@keyframes dkFade{
-  0%{opacity:1;transform:translate3d(0,0,0) scale(1)}
-  100%{opacity:0;transform:translate3d(0,-46px,0) scale(.84)}
-}
-.anim-fade{animation:dkFade var(--tLong) var(--easeGlide) both}
-
-/* 8 · ДОБІР — карта вʼїжджає з боку колоди */
-@keyframes dkDraw{
-  from{opacity:0;transform:translate3d(38px,-14px,0) scale(.9) rotate(8deg)}
-  to{opacity:1;transform:translate3d(0,0,0) scale(1) rotate(0)}
-}
-.slot.anim-draw{animation:dkDraw var(--tBase) var(--easeGlide) both}
-
-/* 9 · ХТО ЗАБРАВ — табличка проступає й тане */
-@keyframes dkLabel{
-  0%{opacity:0;transform:translate(-50%,-50%) translateY(10px) scale(.92)}
-  20%,72%{opacity:1;transform:translate(-50%,-50%) translateY(0) scale(1)}
-  100%{opacity:0;transform:translate(-50%,-50%) translateY(-12px) scale(.96)}
-}
-.takerLabel{position:absolute;left:50%;top:50%;z-index:6;pointer-events:none;
+/* ══ АНІМАЦІЇ · мінімум ══
+   лише два делікатні ефекти, жодних довгих сцен:
+   поява карти й тихе зникання столу. решта — миттєво. */
+@keyframes dkIn{from{opacity:0;transform:translate3d(0,-8px,0)}to{opacity:1;transform:none}}
+.card.dkLay{animation:dkIn 160ms ease-out both}
+.slot.anim-draw{animation:dkIn 160ms ease-out both}
+@keyframes dkOut{to{opacity:0}}
+.anim-sweep,.anim-pull,.anim-fade{animation:dkOut 200ms ease-in both}
+.takerLabel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:none;
   font-family:'Unbounded',monospace;font-weight:800;font-size:13px;
   background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:5px 14px;
-  box-shadow:2px 3px 0 rgba(39,32,25,.4);white-space:nowrap;max-width:90%;
-  overflow:hidden;text-overflow:ellipsis;animation:dkLabel 1.4s var(--easeGlide) both}
+  box-shadow:2px 3px 0 rgba(39,32,25,.4);white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis}
 
 /* ══ ДОСЯГНЕННЯ · трофейна вітрина ══ */
 .achPanel{max-width:520px;display:flex;flex-direction:column;max-height:86vh;padding:14px 14px 12px;overflow:hidden}
@@ -323,7 +248,7 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .achTick{font-size:11px;color:var(--kyts)}
 
 /* ══ єдиний музичний плеєр ══ */
-.player{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:46;
+.player{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:12;
   display:flex;align-items:center;gap:7px;max-width:min(440px,94vw);
   background:linear-gradient(180deg,var(--panel),#efe6cf);
   border:2px solid var(--ink);border-radius:24px;padding:6px 9px;
@@ -379,6 +304,7 @@ body{padding-bottom:54px}
 .clock .t{font-size:10px;font-weight:600;letter-spacing:.06em}
 .overlay{position:fixed;inset:0;background:rgba(39,32,25,.72);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
 .overlay.on{display:flex}
+body.modal .player{display:none}
 .panel{background:var(--panel);border:2px solid var(--ink);border-radius:10px;padding:18px;max-width:360px;width:100%;text-align:center;max-height:88vh;overflow-y:auto}
 .big{font-family:'Unbounded',monospace;font-weight:800;font-size:17px}
 .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
@@ -1213,7 +1139,11 @@ const NOOP_EL=(()=>{
 const $=id=>document.getElementById(id)||NOOP_EL;
 const screens=["scrNick","scrLobby","scrWait","scrGame"];
 function show(id){screens.forEach(s=>$(s).classList.toggle("on",s===id));if(id!=="scrGame"&&document.getElementById("gameChat")){$("gameChat").classList.remove("on");}syncScene();}
-function ov(id,on){$(id).classList.toggle("on",on);}
+function ov(id,on){
+  $(id).classList.toggle("on",on);
+  /* поки відкрите будь-яке вікно — плеєр ховається, щоб не ловити кліки */
+  document.body.classList.toggle("modal",!!document.querySelector(".overlay.on"));
+}
 function esc(s){return String(s??"").replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]));}
 function linkify(raw){
   return String(raw??"").split(/(\[\[LINK:[^|]+\|[^\]]+\]\])/g).map(part=>{
@@ -1328,7 +1258,7 @@ $("miniShop").onclick=()=>{Audio5.sfx.click();openShop();};
 $("collectBack").onclick=()=>{Audio5.sfx.click();ov("ovCollect",false);};
 $("shopBack").onclick=()=>{Audio5.sfx.click();if(!shopBought)Quirk.bump("shopNoBuy");ov("ovShop",false);};
 $("mWanted").onclick=()=>{Audio5.sfx.click();ov("ovMenu",false);openWanted();};
-$("wantedBack").onclick=()=>{Audio5.sfx.click();ov("ovWanted",false);};
+$("wantedBack").onclick=()=>{Audio5.sfx.click();ov("ovWanted",false);ov("ovMenu",true);};
 function openWanted(){
   ov("ovWanted",true);
   $("wantedBody").innerHTML="<div class='sub'>піднімаємо справи…</div>";
@@ -1803,13 +1733,14 @@ function bindConfNo(){$("confNo").onclick=()=>{Audio5.sfx.click();ov("ovConfirm"
 
 /* мапа завойовувань: CSS-наближення стилів; заміни картинкою public/backgrounds/{style}.jpg */
 const STYLE_CSS={
-  geo:        "repeating-linear-gradient(45deg,#c4392b 0 14px,#e8dcc0 14px 28px,#2b2b2b 28px 32px,#e8dcc0 32px 46px)",
-  zine:       "radial-gradient(circle,#111 1.4px,transparent 1.6px) 0 0/9px 9px, #cfc9bd",
-  vase:       "linear-gradient(#1c1712,#1c1712) , repeating-radial-gradient(circle at 50% 120%,#b5651d 0 3px,#1c1712 3px 6px)",
-  manuscript: "linear-gradient(135deg,#5a1f1f,#7a1010 40%,#c9a227 41%,#5a1f1f)",
-  popart:     "radial-gradient(circle,#e8437a 3px,transparent 3.2px) 0 0/14px 14px, #ffd23f",
-  renaissance:"linear-gradient(160deg,#7a4a24,#c98a3c 60%,#7a4a24)",
-  neutral:    "var(--paper)",
+  /* фони столу — світлі й тихі, щоб карти читались */
+  geo:        "repeating-linear-gradient(45deg,rgba(196,57,43,.10) 0 14px,rgba(236,220,192,.5) 14px 28px)",
+  zine:       "radial-gradient(circle,rgba(39,32,25,.18) 1.2px,transparent 1.4px) 0 0/9px 9px",
+  vase:       "repeating-radial-gradient(circle at 50% 120%,rgba(181,101,29,.16) 0 4px,transparent 4px 9px)",
+  manuscript: "linear-gradient(135deg,rgba(122,31,31,.10),rgba(201,162,39,.14))",
+  popart:     "radial-gradient(circle,rgba(232,67,122,.16) 3px,transparent 3.4px) 0 0/14px 14px",
+  renaissance:"linear-gradient(160deg,rgba(122,74,36,.12),rgba(201,138,60,.16))",
+  neutral:    "none",
 };
 const bgImgOK={};
 function testBgImg(style){
@@ -2137,6 +2068,25 @@ if($("mascotClock"))$("mascotClock").onclick=()=>{
   setInterval(refresh,1000);
   refresh();
 })();
+
+/* ── esc: закриває верхнє вікно; те, що відкривали з менюв, туди й повертає ── */
+const ESC_ORDER=["ovConfirm","ovPostcard","ovBet","ovNyav","ovInv","ovFaction","ovWanted","ovShop",
+  "ovTop","ovAch","ovProfile","ovRules","ovLore","ovSettings","ovCred","ovDaily","ovMap","ovMenu"];
+const BACK_TO_MENU=["ovWanted","ovRules","ovLore","ovSettings","ovCred"];
+const BACK_TO_PROFILE=["ovInv","ovFaction"];
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Escape")return;
+  const open=ESC_ORDER.find(id=>{const el=document.getElementById(id);return el&&el.classList.contains("on");});
+  if(open){
+    e.preventDefault();Audio5.sfx.click();
+    ov(open,false);
+    if(BACK_TO_PROFILE.includes(open))openProfile();
+    else if(BACK_TO_MENU.includes(open))ov("ovMenu",true);
+    return;
+  }
+  if($("gameChat")&&$("gameChat").classList.contains("on")){$("gameChat").classList.remove("on");return;}
+  if(view&&view.started&&!view.result){e.preventDefault();ov("ovMenu",true);}
+});
 
 /* ── п.3: щоденне доручення від амбасадора ── */
 function loadMission(){
@@ -2648,8 +2598,8 @@ $("btnShare").onclick=()=>{
      • фінальна комбінація завжди показується, навіть якщо
        сервер прибрав стіл тим самим ходом (boutTable).
    ══════════════════════════════════════════════════ */
-const T_HOLD = 1250;   /* скільки стіл лежить, щоб його прочитали */
-const T_SWEEP = 700;   /* політ карт у відбій / до гравця */
+const T_HOLD = 450;   /* скільки стіл лежить, щоб його прочитали */
+const T_SWEEP = 220;   /* політ карт у відбій / до гравця */
 
 const AnimQueue=(()=>{
   let busy=false, pend=[], guard=null;
@@ -2681,28 +2631,6 @@ const AnimQueue=(()=>{
   return {apply,reset(){clearTimeout(guard);guard=null;busy=false;pend.length=0;}};
 })();
 
-/* коротке тремтіння столу — «вага» удару, як у hearthstone */
-function tableShake(power){
-  const tz=$("tbl");
-  if(!tz||document.body.classList.contains("no-anim"))return;
-  tz.classList.remove("dkHit");
-  void tz.offsetWidth;
-  tz.classList.add("dkHit");
-  setTimeout(()=>tz.classList.remove("dkHit"),240);
-}
-
-/* спалах-кільце в місці удару */
-function impactRing(el){
-  if(!el||document.body.classList.contains("no-anim"))return;
-  const r=el.getBoundingClientRect();
-  const ring=document.createElement("div");
-  ring.className="dkRing";
-  ring.style.left=(r.left+r.width/2)+"px";
-  ring.style.top=(r.top+r.height/2)+"px";
-  flyRoot().appendChild(ring);
-  setTimeout(()=>ring.remove(),620);
-}
-
 /* хто забрав карти цього бою */
 function boutTaker(v,prev){
   if(v.discard>prev.discard)return null;                 /* бито — у відбій */
@@ -2723,8 +2651,6 @@ function battleScene(v,prev,onDone){
   /* якщо останню карту сервер прибрав тим самим ходом — домальовуємо знімок */
   if(v.boutTable&&v.boutTable.length&&tz)renderBoutSnapshot(v.boutTable);
 
-  if(tz){tz.classList.add("dkHold");setTimeout(()=>tz.classList.remove("dkHold"),T_HOLD);}
-  tableShake(1);
 
   setTimeout(()=>{
     const cards=[...document.querySelectorAll("#tbl .card")];
@@ -2770,7 +2696,7 @@ function renderBoutSnapshot(snap){
       d.style.position="absolute";d.style.zIndex="3";d.style.left="16px";d.style.top="14px";
       d.style.setProperty("--rest","7deg");
       pr.appendChild(d);
-      if(i===snap.length-1){impactRing(d);Audio5.sfx.slap();}
+      if(i===snap.length-1){Audio5.sfx.slap();}
     }
     tbl.appendChild(pr);
   });
