@@ -117,9 +117,7 @@ input[type=range]{padding:0;border:none;background:transparent;box-shadow:none;a
 .card img.art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--cardR) - 3px)}
 .iconBtn{background:var(--ink);color:var(--paper);border-color:var(--ink);padding:5px 9px;font-size:10px;display:inline-flex;align-items:center;gap:5px}
 .shopHead{height:14px;border-radius:6px 6px 0 0;margin:-18px -18px 10px;background:repeating-linear-gradient(90deg,var(--kyts) 0 16px,var(--panel) 16px 32px);border-bottom:2px solid var(--ink)}
-.shopTopBar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
-.shopTopBar button{padding:5px 11px;font-size:10px;box-shadow:none}
-.shopWallet{font-size:11px;font-weight:600;white-space:nowrap}
+.shopWallet{font-size:11px;font-weight:600;margin-top:6px}
 .shopSectionSub{font-size:9.5px;opacity:.65;margin-top:10px;margin-bottom:6px;line-height:1.4}
 .shopGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:9px}
 .pcItem{cursor:pointer;border:2px solid rgba(39,32,25,.25);border-radius:12px;padding:8px 6px;text-align:center;background:rgba(246,239,220,.5);transition:transform var(--tFast) var(--eOut)}
@@ -327,7 +325,14 @@ body{padding-bottom:54px}
 .clock .t{font-size:10px;font-weight:600;letter-spacing:.06em}
 .overlay{position:fixed;inset:0;background:rgba(39,32,25,.72);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
 .overlay.on{display:flex}
-.panel{background:var(--panel);border:2px solid var(--ink);border-radius:10px;padding:18px;max-width:360px;width:100%;text-align:center;max-height:88vh;overflow-y:auto}
+.panel{position:relative;background:var(--panel);border:2px solid var(--ink);border-radius:10px;padding:18px;max-width:360px;width:100%;text-align:center;max-height:88vh;overflow-y:auto}
+/* кнопка закриття вікна: завжди в тому самому куті самого вікна, поза
+   прокруткою вмісту — тому її не може затулити чи «з'їсти» прокрутка
+   або нашарування іншого екрана. однакова для всіх меню. */
+.panelClose{position:absolute;top:9px;right:9px;z-index:6;width:28px;height:28px;padding:0;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:15px;line-height:1;box-shadow:2px 2px 0 rgba(39,32,25,.35)}
+.arcade .panelClose{background:transparent;color:var(--paper);border-color:var(--paper);box-shadow:none}
 .big{font-family:'Unbounded',monospace;font-weight:800;font-size:17px}
 .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
 .lb{font-size:11px;line-height:1.8;text-align:left}
@@ -621,6 +626,7 @@ body.no-anim .mascot{animation:none}
 </div>
 
 <div class="overlay" id="ovMenu"><div class="panel">
+  <button class="panelClose" id="mClose">×</button>
   <div class="big">МЕНЮВ</div>
   <div class="menuList">
     <button id="mRules">посібник з правил</button>
@@ -629,19 +635,19 @@ body.no-anim .mascot{animation:none}
     <button id="mSettings">налаштування</button>
     <button id="mCredits">тітри</button>
     <button id="mLeave" style="display:none">вийти з матчу</button>
-    <button id="mClose">закрити</button>
   </div>
   <div class="menuFoot"><button id="mPanic" class="dangerDot" title="вийти з усіх столів">⏻</button></div>
 </div></div>
 
 <div class="overlay" id="ovRules"><div class="panel">
+  <button class="panelClose" id="rulesBack">×</button>
   <div class="big">ПРАВИЛА?</div>
   <div class="sub">змагальницька карткова не настільна гра</div>
   <div id="rulesAcc" style="margin-top:10px"></div>
-  <div class="row"><button id="rulesBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovTop"><div class="panel arcade">
+  <button class="panelClose" id="topBack">×</button>
   <div class="arcTitle">☆ TOP-НЯВ ☆</div>
   <div class="sub" style="color:var(--paper);opacity:.7">всесвітні рекорди</div>
   <div class="arcTools" style="margin-bottom:2px">
@@ -655,10 +661,10 @@ body.no-anim .mascot{animation:none}
   <div id="topList"></div>
   <div class="arcCoin" id="topMe"></div>
   <div class="arcCoin">КИНЬ ЖЕТОН · ГРАЙ · НЯВ</div>
-  <div class="row"><button id="topBack" style="background:transparent;color:var(--paper);border-color:var(--paper);box-shadow:none">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovAch"><div class="panel achPanel">
+  <button class="panelClose" id="achBack">×</button>
   <div class="achHead">
     <div class="big">ДОСЯГНЕННЯ</div>
     <div class="achScoreLine"><span id="achPts">0</span> <span class="sub">очок з</span> <span id="achMax">0</span></div>
@@ -670,10 +676,10 @@ body.no-anim .mascot{animation:none}
     </div>
   </div>
   <div class="achScroll" id="achList"></div>
-  <div class="achFoot"><button id="achBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovProfile"><div class="panel">
+  <button class="panelClose" id="profBack">×</button>
   <div class="big">ПРОФІЛЬ</div>
   <div id="profTop" style="margin-top:8px"></div>
   <div class="divider">───── аватарка ─────</div>
@@ -691,10 +697,10 @@ body.no-anim .mascot{animation:none}
   </div>
   <div class="divider">───── історія матчів ─────</div>
   <div id="histList" style="max-height:180px;overflow-y:auto"></div>
-  <div class="row"><button id="profBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovInv"><div class="panel" style="max-width:460px">
+  <button class="panelClose" id="invBack">×</button>
   <div class="big">ІНВЕНТАР</div>
   <div class="sub">усі косметичні предмети в одному місці</div>
   <div class="invTabs" id="invTabs">
@@ -704,17 +710,17 @@ body.no-anim .mascot{animation:none}
     <button class="small" data-inv="other">інше</button>
   </div>
   <div id="invBody" style="margin-top:8px"></div>
-  <div class="row"><button id="invBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovWanted"><div class="panel panelScroll" style="max-width:440px">
+  <button class="panelClose" id="wantedBack">×</button>
   <div class="big">У РОЗШУКУ</div>
   <div class="sub">двоє щодня. хто зробить ними переможний хід — отримає премію.</div>
   <div id="wantedBody" style="flex:1 1 auto;min-height:0;overflow-y:auto;margin-top:8px"></div>
-  <div class="row"><button id="wantedBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovFaction"><div class="panel" style="max-width:460px">
+  <button class="panelClose" id="facBack">×</button>
   <div class="big">ФРАКЦІЇ</div>
   <div id="facTop" style="margin-top:8px"></div>
   <div class="divider">───── карти в розшуку ─────</div>
@@ -725,39 +731,37 @@ body.no-anim .mascot{animation:none}
   <div class="sub" id="facProgText" style="margin-top:4px"></div>
   <div class="divider">───── статистика ─────</div>
   <div class="lb" id="facStats"></div>
-  <div class="row"><button id="facBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovLore"><div class="panel">
+  <button class="panelClose" id="loreBack">×</button>
   <div class="big">КАЗКА</div>
   <div class="sub">лор дур-киць · початок — у «казці-есеї: переважно червоний»</div>
   <div class="loreP" id="loreText"></div>
-  <div class="row"><button id="loreBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovSettings"><div class="panel">
+  <button class="panelClose" id="setBack">×</button>
   <div class="big">НАЛАШТУВАННЯ</div>
   <div class="sub" style="margin-top:10px">музика, гучність і жанри — у плеєрі внизу екрана</div>
   <span id="genreName" style="display:none"></span>
   <div class="row"><button id="animToggle"></button></div>
   <div class="row"><button class="small" id="langBtn">мова</button></div>
   <div id="langList" style="display:none;margin-top:8px"></div>
-  <div class="row"><button id="setBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovConfirm" style="z-index:30"><div class="panel" id="confirmPanel" style="max-width:280px">
+  <button class="panelClose" id="confClose">×</button>
   <div id="confirmText" style="font-size:12px;line-height:1.7"></div>
   <div class="row"><button class="accent" id="confYes">так</button><button id="confNo">ні</button></div>
 </div></div>
 
 <div class="overlay" id="ovShop"><div class="panel" style="max-width:420px">
+  <button class="panelClose" id="shopBack">×</button>
   <div class="shopHead"></div>
-  <div class="shopTopBar">
-    <button id="shopBack">← назад</button>
-    <div id="shopWallet" class="shopWallet"></div>
-  </div>
   <div class="big">МАГАЗИН</div>
   <div class="sub">крамничка на краю всесвітів</div>
+  <div id="shopWallet" class="shopWallet"></div>
 
   <div class="shopSectionSub">рамка кольору фракції для профілю. дублікат можна обміняти в альбомі.</div>
   <div class="shopGrid" id="shopCards"></div>
@@ -771,29 +775,30 @@ body.no-anim .mascot{animation:none}
 </div></div>
 
 <div class="overlay" id="ovCollect" style="z-index:36"><div class="panel" style="max-width:340px">
+  <button class="panelClose" id="collectBack">×</button>
   <div id="collectBox"></div>
-  <div class="row"><button id="collectBack">закрити</button></div>
 </div></div>
 
 <div class="overlay" id="ovCred"><div class="panel">
+  <button class="panelClose" id="credBack">×</button>
   <div class="big">ТІТРИ</div>
   <div style="margin-top:12px;line-height:2" id="titryAuthors"></div>
   <div class="sub" style="margin-top:10px" id="titryFooter"></div>
   <div class="titryBonus" id="titryBonusMsg"></div>
-  <div class="row"><button id="credBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovDaily"><div class="panel">
+  <button class="panelClose" id="dailyBack">×</button>
   <div class="big" id="dailyTitle"></div>
   <div class="sub" id="dailyDesc"></div>
   <div class="row"><button class="accent" id="btnPlayDaily"></button></div>
   <div class="err" id="dailyErr"></div>
   <div class="divider" id="dailyBoardTitle"></div>
   <div class="lb" id="dailyBoard"></div>
-  <div class="row"><button id="dailyBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovMap"><div class="panel achPanel">
+  <button class="panelClose" id="mapBack">×</button>
   <div class="achHead">
     <div class="big">МАПА ЗАВОЙОВУВАНЬ</div>
     <div class="sub">дев'ять усесвітів між киць і анти-киць. перемоги над протилежним амбасадором рухають межу.</div>
@@ -808,7 +813,6 @@ body.no-anim .mascot{animation:none}
       <div class="mapPath" id="mapTrack"></div>
     </div>
   </div>
-  <div class="achFoot"><button id="mapBack">назад</button></div>
 </div></div>
 
 <div class="overlay" id="ovBet"><div class="panel">
@@ -823,12 +827,12 @@ body.no-anim .mascot{animation:none}
   <div id="nyavBody"></div>
 </div></div>
 
-<div class="overlay" id="ovPostcard" style="z-index:35;background:rgba(39,32,25,.92)"><div style="width:100%;max-width:460px;text-align:center">
+<div class="overlay" id="ovPostcard" style="z-index:35;background:rgba(39,32,25,.92)"><div style="width:100%;max-width:460px;text-align:center;position:relative">
+  <button class="panelClose" id="postcardBack" style="background:transparent;color:var(--paper);border-color:var(--paper);box-shadow:none">×</button>
   <canvas id="postcardBig" width="600" height="800" style="width:100%;max-height:74vh;object-fit:contain;border:3px solid var(--paper);border-radius:12px"></canvas>
   <div class="row" style="margin-top:12px">
     <button class="accent" id="btnShare">поділитися</button>
     <button id="btnNextQuote">інша цитата</button>
-    <button id="postcardBack" style="background:transparent;color:var(--paper);border-color:var(--paper);box-shadow:none">закрити</button>
   </div>
 </div></div>
 
@@ -966,7 +970,7 @@ const Audio5=(()=>{
     };
     start(want);
   }
-  /* п.33: користувач сам вирішує, коли грати. жест лише готує контекст,
+  /* користувач сам вирішує, коли грати. жест лише готує контекст,
      музика стартує тільки з кнопки ▶ у плеєрі. */
   function unlock(startMusic){
     if(startMusic===true&&paused){paused=false;localStorage.setItem("dk_mpause","0");}
@@ -1007,7 +1011,7 @@ const Audio5=(()=>{
       if(s%32===16)F[(s>>5)%2].slice().reverse().forEach((f,i)=>tone(f,t+i*0.12,0.5,"triangle",mg,0.03));
     }},
   };
-  /* ── п.7: жанрові варіанти для головного екрана. цикл — віджет у лобі ── */
+  /* ── жанрові варіанти для головного екрана. цикл — віджет у лобі ── */
   const MENU_GENRES={
     tunic:{bpm:56,run(t,s){
       const PADS=[[220,277.18,329.63],[174.61,220,261.63],[196,246.94,293.66],[164.81,207.65,246.94]];
@@ -1104,7 +1108,7 @@ const Audio5=(()=>{
     }
     return paused;
   }
-  /* ── п.15: єдиний вимикач звуку прямо в плеєрі ── */
+  /* ── єдиний вимикач звуку прямо в плеєрі ── */
   function toggleMute(){
     muted=!muted;
     localStorage.setItem("dk_mute",muted?"1":"0");
@@ -1123,7 +1127,7 @@ const Audio5=(()=>{
   document.addEventListener(ev,()=>Audio5.unlock(),{passive:true}));
 /* повернення з фону / зміна орієнтації теж будять звук */
 document.addEventListener("visibilitychange",()=>{
-  /* п.36: у фоні глушимо планувальник — інакше він даремно їсть батарею */
+  /* у фоні глушимо планувальник — інакше він даремно їсть батарею */
   if(document.hidden)Audio5.sleep();
   else Audio5.wake();
 });
@@ -1583,7 +1587,7 @@ function openProfile(){
     renderHist(false);
   });
 }
-/* ── п.23: інвентар — єдине місце для всієї косметики ── */
+/* ── інвентар — єдине місце для всієї косметики ── */
 let invTab="banners";
 function openInventory(){
   ov("ovInv",true);
@@ -1646,7 +1650,7 @@ $("btnCardShare").onclick=()=>{
 $("btnInventory").onclick=()=>{Audio5.sfx.click();ov("ovProfile",false);openInventory();};
 $("invBack").onclick=()=>{Audio5.sfx.click();ov("ovInv",false);openProfile();};
 
-/* ── п.27+31: розділ фракцій — стан, розшук, територія, статистика ── */
+/* ── розділ фракцій — стан, розшук, територія, статистика ── */
 function openFaction(){
   ov("ovFaction",true);
   socket.emit("profileInfo",p=>{
@@ -1673,7 +1677,7 @@ function openFaction(){
     const wins=fr>=0?(p.frontierWins?.kyts||0):(p.frontierWins?.anti||0);
     $("facProgBar").style.width=Math.min(100,(wins/5)*100)+"%";
     $("facProgText").textContent=`до наступного кроку: ${wins}/5 перемог над протилежним амбасадором`;
-    /* п.11: спільне / особисте через слеш; гаманця тут більше нема */
+    /* спільне / особисте через слеш; гаманця тут більше нема */
     $("facStats").innerHTML=`<div id="facMissions" style="margin-bottom:8px"></div><div id="facWins"></div>`;
     socket.emit("factionStats",fs=>{
       if(!fs)return;
@@ -1689,7 +1693,7 @@ function openFaction(){
         анти-киці: <b>${(fs.wins&&fs.wins.anti)||0}</b> / ${p.frontierWins?.anti||0}<br>
         <span class="sub">перемог над амбасадорами: ${p.pveWins||0}</span>`;
     });
-    /* п.8: карти в розшуку — тут, з історією, за що саме шукають */
+    /* карти в розшуку — тут, з історією, за що саме шукають */
     socket.emit("wantedToday",w=>{
       const box=document.getElementById("facWanted");
       if(!w||!w.kyts||!w.anti||!box)return;
@@ -1789,6 +1793,10 @@ $("confYes").onclick=()=>{
   $("animToggle").textContent="увімкнути анімації";
 };
 $("confNo").onclick=()=>{Audio5.sfx.click();ov("ovConfirm",false);};
+/* × у кутку завжди робить те саме, що й поточне «ні» — воно перепризначається
+   динамічно (вихід з матчу, згода з мовою тощо), тож просто клікаємо по ньому,
+   а не дублюємо логіку. */
+$("confClose").onclick=()=>$("confNo").click();
 
 /* мова: неперекладна */
 const LANGS=["english","polski","deutsch","français","日本語","esperanto"];
@@ -1868,7 +1876,7 @@ function openMap(){
     if(!p)return;
     const side=p.side==="anti"?"anti":"kyts";
     const fr=p.frontier||0, idx=Math.max(0,Math.min(FRONTIER.length-1,fr+4));
-    /* п.9: сторона обирається просто тут */
+    /* сторона обирається просто тут */
     $("mapSideK").innerHTML=coinSvg("k")+" киці";
     $("mapSideA").innerHTML=coinSvg("a")+" анти-киці";
     $("mapSideK").classList.toggle("sel",side==="kyts");
@@ -1906,12 +1914,10 @@ function openMap(){
 $("dailyBack").onclick=()=>{Audio5.sfx.click();ov("ovDaily",false);};
 $("mapBack").onclick=()=>{Audio5.sfx.click();ov("ovMap",false);};
 
-const POSTCARD_PRICE=8;
-function ownedCards(){try{return JSON.parse(localStorage.getItem("dk_cards")||"[]");}catch(e){return [];}}
-/* п.37: сервер — єдине джерело істини; локально тримаємо лише кеш,
+/* сервер — єдине джерело істини; локально тримаємо лише кеш,
    щоб намалювати альбом до відповіді сервера */
 function cacheCards(a){try{localStorage.setItem("dk_cards",JSON.stringify(a||[]));}catch(e){}}
-const BANNER_META={
+const BANNER_META=(window.DK_TEXTS&&DK_TEXTS.BANNERS)||{
   nip_rudy:{name:"рудик",side:"k",desc:"ніп, що приходить не вчасно."},
   nip_white:{name:"біляш",side:"k",desc:"ніп, який усе бачив."},
   nip_black:{name:"вуглик",side:"k",desc:"ніп, темніший за ніч."},
@@ -2775,7 +2781,7 @@ function renderGame(){
     gb.textContent=`збій артефакта: ${gtxt} · один хід кожного`;
   } else gb.classList.remove("on");
   applyTableBg(v.you.frontier||0);
-  /* п.41: артефакт втручається — стрілки годинника брешуть */
+  /* артефакт втручається — стрілки годинника брешуть */
   document.body.classList.toggle("haunted",v.haunt==="clockLie");
   $("deckCnt").textContent=v.deckCount;
   $("deckMini").className="mini"+(v.deckCount?"":" empty");

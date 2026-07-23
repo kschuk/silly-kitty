@@ -46,47 +46,8 @@ const RANK_SHOW_GAMES = 10;
 const AVATARS = ["cat_black", "cat_white", "cat_rudy", "frog_green", "frog_violet", "frog_blue"];
 
 /* досягнення: челенж → унікальне звання ✎ */
-const ACH = {
-  blyskavka:   { name: "блискавка",     desc: "перемога швидше 3 хвилин" },
-  nipdyp:      { name: "ніп-дипломат",  desc: "вийти з партії ніп-виходом" },
-  sukha:       { name: "суха лапка",    desc: "перемога, не взявши зі столу жодного разу" },
-  pyatykut:    { name: "п'ятикутник",   desc: "перемога за столом на п'ятьох" },
-  seriya:      { name: "хвиля няву",    desc: "три перемоги поспіль" },
-  maraton:     { name: "марафонець",    desc: "дожити до кінця партії, довшої за 15 хвилин" },
-  kolektsioner:{ name: "колекціонер",   desc: "забрати 20+ карт за партію і не стати дур-кицем" },
-  nyavmaster:  { name: "нявмайстер",    desc: "виграти няв-няв-няв двічі за одну партію" },
-  feniks:      { name: "фенікс",        desc: "перемога після трьох і більше заборів" },
-  nyavkosmos:  { name: "нявкосмос",     desc: "виграти няв-няв-няв тричі за одну партію" },
-  movchvoda:   { name: "мовчазна вода", desc: "перемога, не підкинувши жодної карти" },
-  zhabhor:     { name: "хор анти-киць",  desc: "зіграти три ніпи за одну партію" },
-  pyatipyat:   { name: "п'ять п'ятірок",desc: "зіграти п'ять п'ятірок за одну партію" },
-  glitchsurf:  { name: "глітч-серфер",  desc: "перемога в партії, де ти ходив під збоєм артефакта" },
-  zhetonoyid:  { name: "жетоноїд",      desc: "назбирати 150+ жетонів однієї валюти" },
-  tyzhnevyk:   { name: "тижневик",      desc: "грати стіл дня сім днів поспіль" },
-  /* ── ПвЄ-набір: здобувається лише проти амбасадорів ── */
-  pve_znaiomstvo:{ name: "знайомство",   desc: "ПвЄ: зіграти партію проти амбасадора", pve: true },
-  pve_greg:    { name: "друг ґрега",     desc: "ПвЄ: перемогти ґрега", pve: true },
-  pve_zhreg:   { name: "гроза жрега",    desc: "ПвЄ: перемогти ґабку жрега", pve: true },
-  pve_obydva:  { name: "дипломат",       desc: "ПвЄ: перемогти обох амбасадорів", pve: true },
-  pve_sukho:   { name: "суха дипломатія",desc: "ПвЄ: перемога над амбасадором без жодного забору", pve: true },
-  pve_shvydko: { name: "бліц-візит",     desc: "ПвЄ: перемога над амбасадором швидше 2 хвилин", pve: true },
-  pve_desyat:  { name: "постійний гість",desc: "ПвЄ: десять перемог над амбасадорами", pve: true },
-  amb_stil:    { name: "між двох вогнів", desc: "ПвЄ: зіграти за столом з обома амбасадорами", pve: true },
-  amb_obydva:  { name: "розборка амбасадорів", desc: "ПвЄ: виграти стіл, де були обидва амбасадори", pve: true },
-  amb_ostanni: { name: "миротворець",    desc: "ПвЄ: за столом на трьох вийти першим, лишивши амбасадорів самих", pve: true },
-  /* ── секретні: опис зʼявляється лише після здобуття ── */
-  sec_poklykach:{ name: "покликач",       desc: "покликати амбасадора на імʼя в чаті", secret: true },
-  sec_balakun: { name: "балакун у пустці",desc: "написати п'ять повідомлень, чекаючи суперника", secret: true },
-  sec_nichnyi: { name: "нічний киць",    desc: "зіграти партію між 3 і 5 ранку", secret: true },
-  sec_hodynnyk:{ name: "не чіпай стрілки",desc: "клікнути по артефакту 15 разів за партію", secret: true },
-  sec_lovets: { name: "ловець", desc: "секрет: завершити партію карткою, що була в розшуку", secret: true },
-  sec_obminyaka: { name: "обміняка", desc: "секрет: обмінятись дублікатом з іншим гравцем", secret: true },
-  sec_povna_kolekciya: { name: "повний набір", desc: "секрет: зібрати всі шість банерів-ніпів", secret: true },
-  amb_albom:   { name: "повний альбом", desc: "зібрати всі шість банерів-ніпів" },
-  sec_kupets:  { name: "купець",        desc: "секрет: обмінятися дублікатом з іншим гравцем", secret: true },
-  sec_kolekcioner_pc: { name: "філателіст", desc: "секрет: зібрати три листівки в колекцію", secret: true },
-  sec_odna:    { name: "одна-єдина",     desc: "перемогти, маючи в руці лише одну карту весь останній бій", secret: true },
-};
+/* назви/описи досягнень редагуються в texts_ua.js → ACHIEVEMENTS */
+const ACH = TXT.ACHIEVEMENTS;
 const TITLE_IDS = Object.keys(ACH);
 
 const app = express();
@@ -96,7 +57,7 @@ app.get("/top", (_q, r) =>
   r.json(store.top(50).map((p) => ({ ...p, rank: core.rankOf(p.sp) })))
 );
 
-/* ── п.42: публічна візитівка гравця ── */
+/* ── публічна візитівка гравця ── */
 const escHtml = (x) => String(x ?? "").replace(/[<>&"]/g, (m) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[m]));
 
 app.get("/api/p/:nick", (req, res) => {
@@ -282,7 +243,7 @@ function settle(game) {
       store.dirty();
       ambSay(game, won ? "playerWon" : "botWon", true);
     }
-    /* п.26: ніпи — окрема нагорода. у ПвЄ вдвічі менша, щоб не обганяти рейтингову гру */
+    /* ніпи — окрема нагорода. у ПвЄ вдвічі менша, щоб не обганяти рейтингову гру */
     for (const seat of seats) {
       const tok2 = game.players[seat].token;
       if (!tok2) continue;
@@ -427,7 +388,7 @@ function settle(game) {
       p.tk[serve] += 2;
       notes.push(`+2 ${sideUa(serve)} — ніп-вихід`);
     }
-    /* п.40: рух за щоденним дорученням */
+    /* рух за щоденним дорученням */
     const missionHits = [];
     const mp = (kind, val) => { const r = store.missionProgress(tok, kind, val); if (r) missionHits.push(r); };
     mp("nips", game.nipsPlayed[seat] || 0);
@@ -444,7 +405,7 @@ function settle(game) {
       (game.missionDone = game.missionDone || {})[seat] = h;
     }
 
-    /* п.26: битви з ніпами — у рейтинговій грі ставка вдвічі більша, ніж у ПвЄ */
+    /* битви з ніпами — у рейтинговій грі ставка вдвічі більша, ніж у ПвЄ */
     const nipsHere = game.nipsPlayed[seat] || 0;
     if (nipsHere) {
       const gain = nipsHere * 2;
@@ -670,7 +631,7 @@ function performMove(game, seat, type, uid) {
   game.players[seat].lastAct = Date.now();
   const me = nickOf(game, seat);
   const ev = r.ev;
-  /* п.1: коли бій завершується тим самим ходом, ядро вже очистило стіл —
+  /* коли бій завершується тим самим ходом, ядро вже очистило стіл —
      тож клієнт ніколи не побачив би останню карту. надсилаємо знімок. */
   if (ev && ev.type === "bout" && ev.table) game.boutTable = ev.table;
   else game.boutTable = null;
@@ -743,7 +704,14 @@ function performMove(game, seat, type, uid) {
     if (s.result) { settle(game); pushState(game, msgFn); scheduleCleanup(game); return true; }
   }
   pushState(game, msgFn);
-  maybeGlitchRoll(game);
+  /* збій артефакта НЕ котиться одразу після бою (ev.type==="bout"): саме тоді стіл
+     щойно спорожнів і клієнт розпочинає анімацію заміту карт. Другий pushState
+     упритул до першого — з тим самим порожнім столом — клієнт розпізнає як ЩЕ
+     один кінець бою (та сама евристика: попередній стіл був непорожній, новий —
+     порожній) і програє зайву, візуально «зламану» другу сцену на порожньому
+     столі. Тому котимо збій на будь-якому ІНШОМУ ході — жоден з них стіл не
+     спорожнює, тож колізії з бойовою сценою просто не буде. */
+  if (ev.type !== "bout") maybeGlitchRoll(game);
   maybeBotMove(game);
   return true;
 }
@@ -807,7 +775,7 @@ function applyNyavPick(game, seat, sign) {
   maybeBotMove(game);
 }
 
-/* ── п.41: артефакт пам'ятає — рівень II.
+/* ── артефакт пам'ятає — рівень II.
    дуже рідко (5% на партію) він не просто згадує статистику, а втручається:
    збиває стрілки, кепкує з магазину, вгадує кількість повідомлень у порожній чат. */
 function artifactHaunt(game, seat) {
@@ -850,7 +818,7 @@ function ambSay(game, key, force, who) {
   const speaker = who || game.amb;
   if (!speaker || !AMB[speaker]) return;
   const now = Date.now();
-  /* п.32: кожна репліка — маленька подія, тож рідко й ніколи двічі поспіль.
+  /* кожна репліка — маленька подія, тож рідко й ніколи двічі поспіль.
      кулдаун 40с (у режимі на двох амбасадорів 22с), максимум 4 репліки за партію,
      і одна тема не повторюється, доки не мине окремий кулдаун теми. */
   if (!game.ambSaid) game.ambSaid = {};
@@ -963,12 +931,12 @@ function maybeBotMove(game) {
 }
 /* людський темп у проді; прискорено лише для автотестів (BOT_FAST=1) */
 function botDelay() {
-  /* п.4: пауза на обдумування — бот не сипле ходами швидше, ніж людина встигає
+  /* пауза на обдумування — бот не сипле ходами швидше, ніж людина встигає
      їх прочитати. у тестах прискорено через BOT_FAST. */
   return process.env.BOT_FAST ? 60 + Math.random() * 90 : 1900 + Math.random() * 700;
 }
 
-/* ── п.35: обмеження частоти подій на сокет ──
+/* ── обмеження частоти подій на сокет ──
    загальний ліміт ~20 подій/с; для «дорогих» подій, що пишуть на диск, — суворіший */
 const RL_WINDOW = 1000, RL_MAX = 60;
 /* ходи навмисно щедрі: вони й так перевіряються ядром і нічого не пишуть на диск.
@@ -1014,7 +982,7 @@ io.on("connection", (socket) => {
     if (nick.length < 2) return cb?.({ error: "нік закороткий." });
     token = t;
     const p = store.getOrCreate(token, nick);
-    const roll = store.rolloverSeason(token);   /* п.38: новий місяць — новий сезон */
+    const roll = store.rolloverSeason(token);   /* новий місяць — новий сезон */
     socket.data.token = token;
     const code = byToken.get(token);
     const game = code ? rooms.get(code) : null;
@@ -1290,7 +1258,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  /* ── п.39: кооператив. черга на двох, потім стіл на чотирьох:
+  /* ── кооператив. черга на двох, потім стіл на чотирьох:
      двоє людей + обидва амбасадори (боти сидять через одного, щоб не ходити поспіль) ── */
   socket.on("coopQueue", (cb) => {
     if (!token) return cb?.({ error: "спершу hello." });
@@ -1326,7 +1294,7 @@ io.on("connection", (socket) => {
 
   socket.on("coopLeave", () => { coopQueue = coopQueue.filter((q) => q.token !== token); });
 
-  /* ── п.6: аварійний вихід — прибирає гравця з усіх столів і черг ── */
+  /* ── аварійний вихід — прибирає гравця з усіх столів і черг ── */
   socket.on("panicLeave", (cb) => {
     if (!token) return cb?.({ ok: true });
     queue = queue.filter((q) => q.token !== token);
@@ -1367,7 +1335,7 @@ io.on("connection", (socket) => {
     const game = newGame(code);
     game.isPve = true;
     game.glitchWanted = !!glitch;
-    /* п.11: амбасадор ніколи не своєї фракції — і тут теж, не лише в «столі з амбасадорами» */
+    /* амбасадор ніколи не своєї фракції — і тут теж, не лише в «столі з амбасадорами» */
     game.amb = (store.get(token)?.side === "anti") ? "greg" : "zhreg";
     game.players.A = { token, nick: store.get(token).nick, socketId: socket.id, connected: true, lastAct: Date.now() };
     game.players.B = { bot: true, nick: AMB[game.amb].name, connected: true, lastAct: Date.now() };
@@ -1520,7 +1488,7 @@ io.on("connection", (socket) => {
     }
     game.rematch[seat] = true;
     for (const x of game.order) if (game.players[x]?.bot) game.rematch[x] = true; // амбасадор завжди готовий
-    /* п.15: реванш більше не перекидає монетку й не перейменовує обох ботів в одне імʼя.
+    /* реванш більше не перекидає монетку й не перейменовує обох ботів в одне імʼя.
        за столом з обома амбасадорами склад лишається; у дуелі суперник — за фракційним правилом. */
     if (game.isPve && !game.isDaily) {
       game.ambSaid = {};
@@ -1552,7 +1520,7 @@ io.on("connection", (socket) => {
     const c = ctx();
     if (!c) return;
     const { game, seat } = c;
-    /* п.3: за столом з амбасадорами людина одна проти ботів —
+    /* за столом з амбасадорами людина одна проти ботів —
        її вихід не має лишати кімнату «догравати» саму із собою */
     if (game.isPve && game.state && !game.finished) {
       const humans = game.order.filter((x) => !game.players[x]?.bot && x !== seat && game.players[x]?.connected);
@@ -1827,7 +1795,7 @@ setInterval(() => {
   for (const game of rooms.values()) {
     if (game.finished || !game.state) continue;
     const st = game.state;
-    /* п.5: сторож проти «нявкають ґреґ і жреґ… і нічого не відбувається».
+    /* сторож проти «нявкають ґреґ і жреґ… і нічого не відбувається».
        якщо ботам є чий хід, а таймер загубився — штовхаємо партію далі. */
     if (!game.botTimer && !st.result) maybeBotMove(game);
     /* сторож: черга бота могла загубитись (гонка станів) — штовхаємо його ще раз */
